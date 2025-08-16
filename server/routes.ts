@@ -4,6 +4,7 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import jsPDF from 'jspdf';
+import "./types";
 
 // Validation schemas
 const sendOtpSchema = z.object({
@@ -113,13 +114,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // User profile routes
   app.get("/api/user/profile", requireAuth, async (req, res) => {
-    res.json({ user: req.user });
+    res.json({ user: req.user! });
   });
 
   app.put("/api/user/profile", requireAuth, async (req, res) => {
     try {
       const updates = req.body;
-      const user = await storage.updateUser(req.user.id, updates);
+      const user = await storage.updateUser(req.user!.id, updates);
       res.json({ user });
     } catch (error) {
       console.error("Update profile error:", error);
@@ -142,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/kyc/documents", requireAuth, async (req, res) => {
     try {
       const { documents } = req.body;
-      const user = await storage.updateUser(req.user.id, {
+      const user = await storage.updateUser(req.user!.id, {
         kycDocuments: documents,
         kycStatus: "submitted"
       });
@@ -175,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalAmount = subtotal + deliveryCharges + gst;
       
       const order = await storage.createOrder({
-        customerId: req.user.id,
+        customerId: req.user!.id,
         quantity: orderData.quantity,
         ratePerLiter: ratePerLiter.toString(),
         subtotal: subtotal.toString(),
@@ -192,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create notification
       await storage.createNotification({
-        userId: req.user.id,
+        userId: req.user!.id,
         title: "Order Created",
         message: `Your order #${order.orderNumber} has been created successfully.`,
         type: "order_update",
@@ -209,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders", requireAuth, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const orders = await storage.getUserOrders(req.user.id, limit);
+      const orders = await storage.getUserOrders(req.user!.id, limit);
       res.json({ orders });
     } catch (error) {
       console.error("Get orders error:", error);
@@ -220,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:id", requireAuth, async (req, res) => {
     try {
       const order = await storage.getOrder(req.params.id);
-      if (!order || order.customerId !== req.user.id) {
+      if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
       
@@ -238,13 +239,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { orderId, method } = processPaymentSchema.parse(req.body);
       
       const order = await storage.getOrder(orderId);
-      if (!order || order.customerId !== req.user.id) {
+      if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
       
       const payment = await storage.createPayment({
         orderId,
-        customerId: req.user.id,
+        customerId: req.user!.id,
         amount: order.totalAmount,
         method,
         status: "processing"
@@ -269,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Create notifications
           await storage.createNotification({
-            userId: req.user.id,
+            userId: req.user!.id,
             title: "Payment Successful",
             message: `Payment of ₹${order.totalAmount} completed successfully.`,
             type: "payment",
@@ -277,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           await storage.createNotification({
-            userId: req.user.id,
+            userId: req.user!.id,
             title: "Order Confirmed",
             message: `Your order #${order.orderNumber} has been confirmed and assigned to a driver.`,
             type: "order_update",
@@ -298,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payments/order/:orderId", requireAuth, async (req, res) => {
     try {
       const payment = await storage.getPaymentByOrder(req.params.orderId);
-      if (!payment || payment.customerId !== req.user.id) {
+      if (!payment || payment.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Payment not found" });
       }
       res.json({ payment });
@@ -312,7 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:id/invoice", requireAuth, async (req, res) => {
     try {
       const order = await storage.getOrder(req.params.id);
-      if (!order || order.customerId !== req.user.id) {
+      if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
       
@@ -341,9 +342,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.setFontSize(12);
       doc.text('Bill To:', 20, 60);
       doc.setFontSize(10);
-      doc.text(req.user.businessName || req.user.name, 20, 70);
-      doc.text(req.user.phone || '', 20, 78);
-      doc.text(req.user.email || '', 20, 86);
+      doc.text(req.user!.businessName || req.user!.name, 20, 70);
+      doc.text(req.user!.phone || '', 20, 78);
+      doc.text(req.user!.email || '', 20, 86);
       
       // Order details
       doc.text('Delivery Address:', 20, 100);
@@ -397,8 +398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notification routes
   app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
-      const notifications = await storage.getUserNotifications(req.user.id);
-      const unreadCount = await storage.getUnreadCount(req.user.id);
+      const notifications = await storage.getUserNotifications(req.user!.id);
+      const unreadCount = await storage.getUnreadCount(req.user!.id);
       res.json({ notifications, unreadCount });
     } catch (error) {
       console.error("Get notifications error:", error);
