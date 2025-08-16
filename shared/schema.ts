@@ -1,0 +1,160 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, integer, decimal, jsonb, pgEnum, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Enums
+export const userRoleEnum = pgEnum("user_role", ["customer", "driver", "admin"]);
+export const kycStatusEnum = pgEnum("kyc_status", ["pending", "submitted", "verified", "rejected"]);
+export const orderStatusEnum = pgEnum("order_status", ["pending", "confirmed", "fuel_loaded", "in_transit", "delivered", "cancelled"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "processing", "completed", "failed", "refunded"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["upi", "cards", "netbanking", "wallet"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["order_update", "payment", "kyc", "delivery", "general"]);
+
+// Users table
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: varchar("phone", { length: 15 }),
+  email: varchar("email", { length: 255 }),
+  businessName: text("business_name"),
+  businessAddress: text("business_address"),
+  role: userRoleEnum("role").default("customer").notNull(),
+  kycStatus: kycStatusEnum("kyc_status").default("pending").notNull(),
+  kycDocuments: jsonb("kyc_documents"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// OTP verification table
+export const otpVerifications = pgTable("otp_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  identifier: varchar("identifier", { length: 255 }).notNull(), // phone or email
+  otp: varchar("otp", { length: 6 }).notNull(),
+  type: varchar("type", { length: 10 }).notNull(), // "phone" or "email"
+  isVerified: boolean("is_verified").default(false).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+// Orders table
+export const orders = pgTable("orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderNumber: varchar("order_number", { length: 20 }).unique().notNull(),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  quantity: integer("quantity").notNull(),
+  ratePerLiter: decimal("rate_per_liter", { precision: 10, scale: 2 }).notNull(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  deliveryCharges: decimal("delivery_charges", { precision: 10, scale: 2 }).notNull(),
+  gst: decimal("gst", { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  deliveryAddress: text("delivery_address").notNull(),
+  deliveryLatitude: decimal("delivery_latitude", { precision: 10, scale: 7 }),
+  deliveryLongitude: decimal("delivery_longitude", { precision: 10, scale: 7 }),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  scheduledTime: varchar("scheduled_time", { length: 5 }).notNull(),
+  status: orderStatusEnum("status").default("pending").notNull(),
+  driverId: varchar("driver_id").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Payments table
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  method: paymentMethodEnum("method").notNull(),
+  status: paymentStatusEnum("status").default("pending").notNull(),
+  transactionId: varchar("transaction_id", { length: 100 }),
+  gatewayResponse: jsonb("gateway_response"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Deliveries table
+export const deliveries = pgTable("deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  driverId: varchar("driver_id").notNull().references(() => users.id),
+  driverName: varchar("driver_name", { length: 100 }).notNull(),
+  vehicleNumber: varchar("vehicle_number", { length: 20 }).notNull(),
+  driverPhone: varchar("driver_phone", { length: 15 }).notNull(),
+  driverRating: decimal("driver_rating", { precision: 2, scale: 1 }),
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  proofOfDelivery: text("proof_of_delivery"), // image URL or OTP
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: notificationTypeEnum("type").notNull(),
+  orderId: varchar("order_id").references(() => orders.id),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+// Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOtpSchema = createInsertSchema(otpVerifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  orderNumber: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDeliverySchema = createInsertSchema(deliveries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
+export type InsertOtp = z.infer<typeof insertOtpSchema>;
+export type OtpVerification = typeof otpVerifications.$inferSelect;
+
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof orders.$inferSelect;
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+
+export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
+export type Delivery = typeof deliveries.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
