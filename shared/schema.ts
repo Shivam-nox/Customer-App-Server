@@ -8,7 +8,7 @@ export const userRoleEnum = pgEnum("user_role", ["customer", "driver", "admin"])
 export const kycStatusEnum = pgEnum("kyc_status", ["pending", "submitted", "verified", "rejected"]);
 export const orderStatusEnum = pgEnum("order_status", ["pending", "confirmed", "fuel_loaded", "in_transit", "delivered", "cancelled"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "processing", "completed", "failed", "refunded"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["upi", "cards", "netbanking", "wallet"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["upi", "cards", "netbanking", "wallet", "cod"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["order_update", "payment", "kyc", "delivery", "general"]);
 
 // Users table

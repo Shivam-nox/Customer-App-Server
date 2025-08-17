@@ -39,7 +39,7 @@ const createOrderSchema = z.object({
 
 const processPaymentSchema = z.object({
   orderId: z.string(),
-  method: z.enum(["upi", "cards", "netbanking", "wallet"]),
+  method: z.enum(["upi", "cards", "netbanking", "wallet", "cod"]),
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -262,53 +262,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Order not found" });
       }
       
-      const payment = await storage.createPayment({
-        orderId,
-        customerId: req.user!.id,
-        amount: order.totalAmount,
-        method,
-        status: "processing"
-      });
-      
-      // Simulate payment processing
-      setTimeout(async () => {
-        try {
-          const transactionId = `TXN${Date.now()}`;
-          await storage.updatePaymentStatus(payment.id, "completed", transactionId);
-          await storage.updateOrderStatus(orderId, "confirmed");
-          
-          // Create delivery record with mock driver
-          await storage.createDelivery({
-            orderId,
-            driverId: "driver-1", // Mock driver ID
-            driverName: "Rajesh Kumar",
-            vehicleNumber: "MH 01 AB 1234",
-            driverPhone: "+91 98765 43210",
-            driverRating: "4.8"
-          });
-          
-          // Create notifications
-          await storage.createNotification({
-            userId: req.user!.id,
-            title: "Payment Successful",
-            message: `Payment of ₹${order.totalAmount} completed successfully.`,
-            type: "payment",
-            orderId
-          });
-          
-          await storage.createNotification({
-            userId: req.user!.id,
-            title: "Order Confirmed",
-            message: `Your order #${order.orderNumber} has been confirmed and assigned to a driver.`,
-            type: "order_update",
-            orderId
-          });
-        } catch (error) {
-          console.error("Payment processing error:", error);
-        }
-      }, 2000);
-      
-      res.json({ payment, message: "Payment processing initiated" });
+      // Handle COD differently from other payment methods
+      if (method === "cod") {
+        const payment = await storage.createPayment({
+          orderId,
+          customerId: req.user!.id,
+          amount: order.totalAmount,
+          method,
+          status: "pending" // COD payments remain pending until delivery
+        });
+        
+        // Immediately confirm the order for COD
+        await storage.updateOrderStatus(orderId, "confirmed");
+        
+        // Create notifications for COD
+        await storage.createNotification({
+          userId: req.user!.id,
+          title: "Order Confirmed (COD)",
+          message: `Your order #${order.orderNumber} has been confirmed. Pay ₹${order.totalAmount} when delivered.`,
+          type: "order_update",
+          orderId
+        });
+        
+        res.json({ 
+          payment, 
+          message: "Order confirmed with Cash on Delivery",
+          orderStatus: "confirmed"
+        });
+      } else {
+        const payment = await storage.createPayment({
+          orderId,
+          customerId: req.user!.id,
+          amount: order.totalAmount,
+          method,
+          status: "processing"
+        });
+        
+        // Simulate payment processing for other methods
+        setTimeout(async () => {
+          try {
+            const transactionId = `TXN${Date.now()}`;
+            await storage.updatePaymentStatus(payment.id, "completed", transactionId);
+            await storage.updateOrderStatus(orderId, "confirmed");
+            
+            // Create notifications
+            await storage.createNotification({
+              userId: req.user!.id,
+              title: "Payment Successful",
+              message: `Payment of ₹${order.totalAmount} completed successfully.`,
+              type: "payment",
+              orderId
+            });
+            
+            await storage.createNotification({
+              userId: req.user!.id,
+              title: "Order Confirmed",
+              message: `Your order #${order.orderNumber} has been confirmed and assigned to a driver.`,
+              type: "order_update",
+              orderId
+            });
+          } catch (error) {
+            console.error("Payment processing error:", error);
+          }
+        }, 2000);
+        
+        res.json({ payment, message: "Payment processing initiated" });
+      }
     } catch (error) {
       console.error("Process payment error:", error);
       res.status(400).json({ error: "Failed to process payment" });

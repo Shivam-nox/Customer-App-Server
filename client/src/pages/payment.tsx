@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
-import { ArrowLeft, CreditCard, Smartphone, Building2, Wallet, Shield, CheckCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, Smartphone, Building2, Wallet, Shield, CheckCircle, HandCoins } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function PaymentScreen() {
@@ -32,16 +32,24 @@ export default function PaymentScreen() {
       const response = await apiRequest("POST", "/api/payments", data);
       return response.json();
     },
-    onSuccess: () => {
-      setPaymentProcessing(true);
-      // Simulate payment processing
-      setTimeout(() => {
+    onSuccess: (data) => {
+      if (selectedMethod === "cod") {
         toast({
-          title: "Payment Successful",
-          description: "Your order has been confirmed and will be processed shortly",
+          title: "Order Confirmed",
+          description: "Your order has been confirmed! Pay when your order is delivered.",
         });
         setLocation(`/track-order/${orderId}`);
-      }, 3000);
+      } else {
+        setPaymentProcessing(true);
+        // Simulate payment processing
+        setTimeout(() => {
+          toast({
+            title: "Payment Successful",
+            description: "Your order has been confirmed and will be processed shortly",
+          });
+          setLocation(`/track-order/${orderId}`);
+        }, 3000);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -62,10 +70,20 @@ export default function PaymentScreen() {
       return;
     }
 
-    processPaymentMutation.mutate({
-      orderId: orderId!,
-      method: selectedMethod,
-    });
+    // Check if Cash on Delivery is selected
+    if (selectedMethod === "cod") {
+      processPaymentMutation.mutate({
+        orderId: orderId!,
+        method: selectedMethod,
+      });
+    } else {
+      // Show popup for other payment methods
+      toast({
+        title: "Payment Method Not Available",
+        description: "This payment method is not supported yet. Please select Cash on Delivery.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!user || isLoading) {
@@ -127,32 +145,44 @@ export default function PaymentScreen() {
 
   const paymentMethods = [
     {
+      id: "cod",
+      name: "Cash on Delivery",
+      description: "Pay when your order is delivered",
+      icon: HandCoins,
+      color: "text-green-600",
+      preferred: true,
+    },
+    {
       id: "upi",
       name: "UPI Payment",
-      description: "Pay using any UPI app",
+      description: "Pay using any UPI app (Coming Soon)",
       icon: Smartphone,
-      color: "text-purple-600",
+      color: "text-purple-400",
+      disabled: true,
     },
     {
       id: "cards",
       name: "Credit/Debit Cards",
-      description: "Visa, MasterCard, RuPay",
+      description: "Visa, MasterCard, RuPay (Coming Soon)",
       icon: CreditCard,
-      color: "text-blue-600",
+      color: "text-blue-400",
+      disabled: true,
     },
     {
       id: "netbanking",
       name: "Net Banking",
-      description: "All major banks supported",
+      description: "All major banks supported (Coming Soon)",
       icon: Building2,
-      color: "text-green-600",
+      color: "text-gray-400",
+      disabled: true,
     },
     {
       id: "wallet",
       name: "Mobile Wallets",
-      description: "Paytm, PhonePe, Mobikwik",
+      description: "Paytm, PhonePe, Mobikwik (Coming Soon)",
       icon: Wallet,
-      color: "text-orange-600",
+      color: "text-orange-400",
+      disabled: true,
     },
   ];
 
@@ -214,15 +244,43 @@ export default function PaymentScreen() {
             <RadioGroup value={selectedMethod} onValueChange={setSelectedMethod} className="space-y-3">
               {paymentMethods.map((method) => {
                 const Icon = method.icon;
+                const isDisabled = method.disabled;
+                const isPreferred = method.preferred;
+                
                 return (
-                  <div key={method.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <RadioGroupItem value={method.id} id={method.id} data-testid={`payment-${method.id}`} />
+                  <div 
+                    key={method.id} 
+                    className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
+                      isPreferred 
+                        ? "border-green-300 bg-green-50" 
+                        : isDisabled 
+                        ? "border-gray-100 bg-gray-50 opacity-60" 
+                        : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <RadioGroupItem 
+                      value={method.id} 
+                      id={method.id} 
+                      disabled={isDisabled}
+                      data-testid={`payment-${method.id}`} 
+                    />
                     <Icon className={`${method.color}`} size={24} />
                     <div className="flex-1">
-                      <Label htmlFor={method.id} className="font-medium cursor-pointer" data-testid={`${method.id}-label`}>
-                        {method.name}
-                      </Label>
-                      <p className="text-sm text-gray-600" data-testid={`${method.id}-description`}>
+                      <div className="flex items-center gap-2">
+                        <Label 
+                          htmlFor={method.id} 
+                          className={`font-medium cursor-pointer ${isDisabled ? 'text-gray-400' : ''}`}
+                          data-testid={`${method.id}-label`}
+                        >
+                          {method.name}
+                        </Label>
+                        {isPreferred && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`} data-testid={`${method.id}-description`}>
                         {method.description}
                       </p>
                     </div>
@@ -256,6 +314,8 @@ export default function PaymentScreen() {
         >
           {processPaymentMutation.isPending ? (
             <LoadingSpinner />
+          ) : selectedMethod === "cod" ? (
+            "Confirm Order (COD)"
           ) : (
             `Pay ₹${parseFloat(order.totalAmount).toLocaleString()}`
           )}
