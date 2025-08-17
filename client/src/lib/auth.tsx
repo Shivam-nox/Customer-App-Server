@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 

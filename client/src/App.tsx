@@ -1,4 +1,4 @@
-import React from "react";
+import { FC } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
