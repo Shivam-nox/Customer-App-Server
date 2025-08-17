@@ -14,10 +14,13 @@ const signupSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(3).max(50),
   email: z.string().email(),
+  phone: z.string().min(10),
   password: z.string().min(6),
-  businessName: z.string().optional(),
-  businessAddress: z.string().optional(),
-  phone: z.string().optional(),
+  businessName: z.string().min(1),
+  businessAddress: z.string().min(1),
+  industryType: z.string().min(1),
+  gstNumber: z.string().min(15).max(15),
+  panNumber: z.string().min(10).max(10),
 });
 
 const loginSchema = z.object({
@@ -72,8 +75,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create user
       const newUser = await storage.createUser({
-        ...userData,
+        name: userData.name,
+        username: userData.username,
+        email: userData.email,
+        phone: userData.phone,
         passwordHash,
+        businessName: userData.businessName,
+        businessAddress: userData.businessAddress,
+        industryType: userData.industryType,
+        gstNumber: userData.gstNumber,
+        panNumber: userData.panNumber,
         role: "customer",
       });
       

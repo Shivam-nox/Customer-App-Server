@@ -8,22 +8,44 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Controller } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Eye, EyeOff, User, Mail, Phone, Building } from "lucide-react";
+import { Eye, EyeOff, User, Mail, Phone, Building, MapPin, CreditCard, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   username: z.string().min(3, "Username must be at least 3 characters").max(50),
   email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number is required").regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  businessName: z.string().optional(),
-  businessAddress: z.string().optional(),
-  phone: z.string().optional(),
+  businessName: z.string().min(1, "Business name is required"),
+  businessAddress: z.string().min(1, "Business address is required"),
+  industryType: z.string().min(1, "Industry type is required"),
+  gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST number format"),
+  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format"),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
+
+const industryOptions = [
+  "Agriculture & Farming",
+  "Manufacturing",
+  "Construction",
+  "Transportation & Logistics",
+  "Mining & Quarrying", 
+  "Retail & Wholesale",
+  "Hospitality & Tourism",
+  "Healthcare",
+  "Education",
+  "Real Estate",
+  "IT & Technology",
+  "Financial Services",
+  "Government",
+  "Others"
+];
 
 export default function SignupScreen() {
   const [, setLocation] = useLocation();
@@ -34,6 +56,7 @@ export default function SignupScreen() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -167,37 +190,115 @@ export default function SignupScreen() {
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
-                Phone (Optional)
+                Phone Number *
               </Label>
               <Input
                 id="phone"
                 {...register("phone")}
-                placeholder="Enter your phone number"
+                placeholder="Enter 10-digit mobile number"
                 data-testid="input-phone"
               />
+              {errors.phone && (
+                <p className="text-sm text-red-500" data-testid="error-phone">{errors.phone.message}</p>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="businessName" className="flex items-center gap-2">
-                <Building className="w-4 h-4" />
-                Business Name (Optional)
-              </Label>
-              <Input
-                id="businessName"
-                {...register("businessName")}
-                placeholder="Enter your business name"
-                data-testid="input-businessName"
-              />
-            </div>
+            {/* Business Details Section */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-semibold mb-4 text-primary">Business Details</h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="businessName" className="flex items-center gap-2">
+                    <Building className="w-4 h-4" />
+                    Business Name *
+                  </Label>
+                  <Input
+                    id="businessName"
+                    {...register("businessName")}
+                    placeholder="Enter your business name"
+                    data-testid="input-businessName"
+                  />
+                  {errors.businessName && (
+                    <p className="text-sm text-red-500" data-testid="error-businessName">{errors.businessName.message}</p>
+                  )}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="businessAddress">Business Address (Optional)</Label>
-              <Input
-                id="businessAddress"
-                {...register("businessAddress")}
-                placeholder="Enter your business address"
-                data-testid="input-businessAddress"
-              />
+                <div className="space-y-2">
+                  <Label htmlFor="businessAddress" className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Business Address *
+                  </Label>
+                  <Input
+                    id="businessAddress"
+                    {...register("businessAddress")}
+                    placeholder="Enter complete business address"
+                    data-testid="input-businessAddress"
+                  />
+                  {errors.businessAddress && (
+                    <p className="text-sm text-red-500" data-testid="error-businessAddress">{errors.businessAddress.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="industryType">Industry Type *</Label>
+                  <Controller
+                    name="industryType"
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger data-testid="select-industryType">
+                          <SelectValue placeholder="Select your industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {industryOptions.map((industry) => (
+                            <SelectItem key={industry} value={industry}>
+                              {industry}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.industryType && (
+                    <p className="text-sm text-red-500" data-testid="error-industryType">{errors.industryType.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gstNumber" className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    GST Number *
+                  </Label>
+                  <Input
+                    id="gstNumber"
+                    {...register("gstNumber")}
+                    placeholder="Enter 15-digit GST number"
+                    data-testid="input-gstNumber"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                  {errors.gstNumber && (
+                    <p className="text-sm text-red-500" data-testid="error-gstNumber">{errors.gstNumber.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="panNumber" className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    PAN Number *
+                  </Label>
+                  <Input
+                    id="panNumber"
+                    {...register("panNumber")}
+                    placeholder="Enter 10-digit PAN number"
+                    data-testid="input-panNumber"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                  {errors.panNumber && (
+                    <p className="text-sm text-red-500" data-testid="error-panNumber">{errors.panNumber.message}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <Button
