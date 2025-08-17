@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 
 import SplashScreen from "@/pages/splash";
 import LoginScreen from "@/pages/login";
-import OtpVerificationScreen from "@/pages/otp-verification";
+import SignupScreen from "@/pages/signup";
 import KycUploadScreen from "@/pages/kyc-upload";
 import HomeScreen from "@/pages/home";
 import NewOrderScreen from "@/pages/new-order";
@@ -29,7 +29,7 @@ function Router() {
     <Switch>
       <Route path="/splash" component={SplashScreen} />
       <Route path="/login" component={LoginScreen} />
-      <Route path="/otp-verify" component={OtpVerificationScreen} />
+      <Route path="/signup" component={SignupScreen} />
       
       {user ? (
         <>

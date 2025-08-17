@@ -4,34 +4,25 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import jsPDF from 'jspdf';
-import twilio from 'twilio';
-import nodemailer from 'nodemailer';
+import bcrypt from 'bcryptjs';
 import "./types";
 
-// Initialize Twilio
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
 
-// Initialize email transporter (using Gmail SMTP as example)
-const emailTransporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'noreply@zapygo.com',
-    pass: process.env.EMAIL_PASS || ''
-  }
-});
 
 // Validation schemas
-const sendOtpSchema = z.object({
-  identifier: z.string().min(1),
-  type: z.enum(["phone", "email"]),
+const signupSchema = z.object({
+  name: z.string().min(1),
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  password: z.string().min(6),
+  businessName: z.string().optional(),
+  businessAddress: z.string().optional(),
+  phone: z.string().optional(),
 });
 
-const verifyOtpSchema = z.object({
-  identifier: z.string().min(1),
-  otp: z.string().length(6),
+const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 const createOrderSchema = z.object({
@@ -64,96 +55,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Authentication Routes
-  app.post("/api/auth/send-otp", async (req, res) => {
+  app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { identifier, type } = sendOtpSchema.parse(req.body);
+      const userData = signupSchema.parse(req.body);
       
-      // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      // Check if username or email already exists
+      const existingUser = await storage.getUserByUsername(userData.username) || 
+                           await storage.getUserByEmail(userData.email);
       
-      await storage.createOtp({
-        identifier,
-        otp,
-        type,
-        expiresAt,
-      });
-      
-      // Send OTP via SMS or Email
-      try {
-        if (type === "phone") {
-          // Send SMS via Twilio
-          await twilioClient.messages.create({
-            body: `Your Zapygo OTP is: ${otp}. Valid for 5 minutes.`,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: identifier
-          });
-          console.log(`SMS OTP sent to ${identifier}: ${otp}`);
-        } else if (type === "email") {
-          // Send Email
-          await emailTransporter.sendMail({
-            from: process.env.EMAIL_USER || 'noreply@zapygo.com',
-            to: identifier,
-            subject: 'Your Zapygo OTP Code',
-            html: `
-              <h2>Your Zapygo OTP Code</h2>
-              <p>Your verification code is: <strong>${otp}</strong></p>
-              <p>This code will expire in 5 minutes.</p>
-              <p>If you didn't request this code, please ignore this email.</p>
-            `
-          });
-          console.log(`Email OTP sent to ${identifier}: ${otp}`);
-        }
-      } catch (sendError) {
-        console.error(`Failed to send OTP via ${type}:`, sendError);
-        // Still log to console as fallback
-        console.log(`Fallback - OTP for ${identifier}: ${otp}`);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username or email already exists" });
       }
       
-      res.json({ success: true, message: "OTP sent successfully" });
+      // Hash password
+      const passwordHash = await bcrypt.hash(userData.password, 10);
+      
+      // Create user
+      const newUser = await storage.createUser({
+        ...userData,
+        passwordHash,
+        role: "customer",
+      });
+      
+      // Return user without password hash
+      const { passwordHash: _, ...userResponse } = newUser;
+      
+      res.json({ success: true, user: userResponse });
     } catch (error) {
-      console.error("Send OTP error:", error);
-      res.status(400).json({ error: "Failed to send OTP" });
+      console.error("Signup error:", error);
+      res.status(400).json({ error: "Failed to create account" });
     }
   });
 
-  app.post("/api/auth/verify-otp", async (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
     try {
-      const { identifier, otp } = verifyOtpSchema.parse(req.body);
+      const { username, password } = loginSchema.parse(req.body);
       
-      const verification = await storage.getValidOtp(identifier, otp);
-      if (!verification) {
-        return res.status(400).json({ error: "Invalid or expired OTP" });
-      }
-      
-      await storage.markOtpVerified(verification.id);
-      
-      // Check if user exists
-      let user = await storage.getUserByPhone(identifier) || await storage.getUserByEmail(identifier);
-      
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
       if (!user) {
-        // Create new user
-        const userData = verification.type === "phone" 
-          ? { phone: identifier, name: "", role: "customer" as const }
-          : { email: identifier, name: "", role: "customer" as const };
-        
-        user = await storage.createUser(userData);
+        return res.status(401).json({ error: "Invalid username or password" });
       }
+      
+      // Check password
+      if (!user.passwordHash) {
+        return res.status(401).json({ error: "Account not properly configured" });
+      }
+      
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
+      
+      // Return user without password hash
+      const { passwordHash: _, ...userResponse } = user;
       
       res.json({ 
         success: true, 
-        user: {
-          id: user.id,
-          name: user.name,
-          phone: user.phone,
-          email: user.email,
-          businessName: user.businessName,
-          kycStatus: user.kycStatus
-        }
+        user: userResponse
       });
     } catch (error) {
-      console.error("Verify OTP error:", error);
-      res.status(400).json({ error: "Failed to verify OTP" });
+      console.error("Login error:", error);
+      res.status(400).json({ error: "Login failed" });
     }
   });
 

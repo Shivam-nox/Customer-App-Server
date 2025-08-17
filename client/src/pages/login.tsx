@@ -1,144 +1,157 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import LoadingSpinner from "@/components/loading-spinner";
-import { Mail, Phone } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 const loginSchema = z.object({
-  identifier: z.string().min(1, "Phone number or email is required"),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [loginType, setLoginType] = useState<"phone" | "email">("phone");
-  
-  const form = useForm<LoginForm>({
+  const { setUser } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      identifier: "",
-    },
   });
 
-  const sendOtpMutation = useMutation({
-    mutationFn: async (data: { identifier: string; type: "phone" | "email" }) => {
-      const response = await apiRequest("POST", "/api/auth/send-otp", data);
+  const loginMutation = useMutation({
+    mutationFn: async (data: LoginFormData) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Invalid username or password");
+      }
       return response.json();
     },
-    onSuccess: (data, variables) => {
-      toast({
-        title: "OTP Sent",
-        description: `Verification code sent to ${variables.identifier}`,
-      });
-      // Store identifier for OTP verification
-      sessionStorage.setItem("otpIdentifier", variables.identifier);
-      sessionStorage.setItem("otpType", variables.type);
-      setLocation("/otp-verify");
+    onSuccess: (response) => {
+      if (response.success && response.user) {
+        setUser(response.user);
+        toast({
+          title: "Welcome back!",
+          description: "Successfully signed in to Zapygo",
+        });
+        setLocation("/home");
+      }
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to send OTP",
+        title: "Login failed",
+        description: error.message || "Invalid username or password",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: LoginForm) => {
-    sendOtpMutation.mutate({
-      identifier: data.identifier,
-      type: loginType,
-    });
+  const onSubmit = (data: LoginFormData) => {
+    loginMutation.mutate(data);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="login-screen">
-      <div className="flex-1 p-6">
-        <div className="text-center mb-8 mt-12">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2" data-testid="welcome-title">Welcome Back</h2>
-          <p className="text-gray-600" data-testid="signin-subtitle">Sign in to your account</p>
-        </div>
-
-        <Card>
-          <CardContent className="p-6">
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="flex space-x-2 mb-4">
-                <Button
-                  type="button"
-                  variant={loginType === "phone" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setLoginType("phone")}
-                  className="flex-1"
-                  data-testid="phone-login-tab"
-                >
-                  <Phone size={16} className="mr-2" />
-                  Phone
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginType === "email" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setLoginType("email")}
-                  className="flex-1"
-                  data-testid="email-login-tab"
-                >
-                  <Mail size={16} className="mr-2" />
-                  Email
-                </Button>
-              </div>
-
-              <div className="floating-label">
-                <Input
-                  {...form.register("identifier")}
-                  type={loginType === "email" ? "email" : "tel"}
-                  placeholder=" "
-                  className="peer"
-                  data-testid={`${loginType}-input`}
-                />
-                <Label className="peer-focus:text-primary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">
-                  {loginType === "phone" ? "Phone Number" : "Email Address"}
-                </Label>
-              </div>
-
-              {form.formState.errors.identifier && (
-                <p className="text-sm text-destructive" data-testid="error-message">
-                  {form.formState.errors.identifier.message}
-                </p>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-blue-50 dark:from-primary/10 dark:to-gray-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-lg" data-testid="login-card">
+        <CardHeader className="text-center space-y-2">
+          <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
+            <div className="text-2xl font-bold text-white">Z</div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-primary">Welcome Back</CardTitle>
+          <CardDescription>
+            Sign in to your Zapygo account
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                {...register("username")}
+                placeholder="Enter your username"
+                data-testid="input-username"
+              />
+              {errors.username && (
+                <p className="text-sm text-red-500" data-testid="error-username">{errors.username.message}</p>
               )}
+            </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  placeholder="Enter your password"
+                  data-testid="input-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                  data-testid="button-toggle-password"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-500" data-testid="error-password">{errors.password.message}</p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loginMutation.isPending}
+              data-testid="button-login"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              {loginMutation.isPending ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+
+          <div className="text-center pt-4 border-t">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Don't have an account?{" "}
               <Button
-                type="submit"
-                className="w-full ripple"
-                disabled={sendOtpMutation.isPending}
-                data-testid="send-otp-button"
+                variant="link"
+                className="p-0 h-auto font-medium text-primary"
+                onClick={() => setLocation("/signup")}
+                data-testid="link-signup"
               >
-                {sendOtpMutation.isPending ? (
-                  <LoadingSpinner />
-                ) : (
-                  `Send ${loginType === "phone" ? "SMS" : "Email"} OTP`
-                )}
+                Create one here
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="p-6 text-center">
-        <p className="text-gray-600" data-testid="signup-prompt">
-          New to Zapygo? Contact support for business registration
-        </p>
-      </div>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
