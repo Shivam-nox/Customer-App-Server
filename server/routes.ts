@@ -4,7 +4,24 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import jsPDF from 'jspdf';
+import twilio from 'twilio';
+import nodemailer from 'nodemailer';
 import "./types";
+
+// Initialize Twilio
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// Initialize email transporter (using Gmail SMTP as example)
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'noreply@zapygo.com',
+    pass: process.env.EMAIL_PASS || ''
+  }
+});
 
 // Validation schemas
 const sendOtpSchema = z.object({
@@ -62,8 +79,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt,
       });
       
-      // In production, send actual OTP via SMS/Email
-      console.log(`OTP for ${identifier}: ${otp}`);
+      // Send OTP via SMS or Email
+      try {
+        if (type === "phone") {
+          // Send SMS via Twilio
+          await twilioClient.messages.create({
+            body: `Your Zapygo OTP is: ${otp}. Valid for 5 minutes.`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: identifier
+          });
+          console.log(`SMS OTP sent to ${identifier}: ${otp}`);
+        } else if (type === "email") {
+          // Send Email
+          await emailTransporter.sendMail({
+            from: process.env.EMAIL_USER || 'noreply@zapygo.com',
+            to: identifier,
+            subject: 'Your Zapygo OTP Code',
+            html: `
+              <h2>Your Zapygo OTP Code</h2>
+              <p>Your verification code is: <strong>${otp}</strong></p>
+              <p>This code will expire in 5 minutes.</p>
+              <p>If you didn't request this code, please ignore this email.</p>
+            `
+          });
+          console.log(`Email OTP sent to ${identifier}: ${otp}`);
+        }
+      } catch (sendError) {
+        console.error(`Failed to send OTP via ${type}:`, sendError);
+        // Still log to console as fallback
+        console.log(`Fallback - OTP for ${identifier}: ${otp}`);
+      }
       
       res.json({ success: true, message: "OTP sent successfully" });
     } catch (error) {
