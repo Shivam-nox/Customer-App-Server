@@ -263,7 +263,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUnreadCount(userId: string): Promise<number> {
     const result = await db
-      .select({ count: otpVerifications.id })
+      .select()
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result.length;

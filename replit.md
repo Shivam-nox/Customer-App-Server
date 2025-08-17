@@ -44,12 +44,14 @@ The application uses **PostgreSQL** as the primary database with **Drizzle ORM**
 The database uses **Neon serverless PostgreSQL** with connection pooling for scalability and performance.
 
 ### Authentication System
-The platform implements a **passwordless authentication** system using OTP verification:
+The platform implements a **username/password authentication** system with secure user registration:
 
-- **Multi-channel OTP** support for both phone and email verification
+- **User registration** with username, email, and password (minimum 6 characters)
+- **Password hashing** using bcryptjs for secure storage
 - **Session management** using localStorage for user persistence
 - **Role-based access control** with customer, driver, and admin roles
 - **KYC verification workflow** with document upload and approval status tracking
+- **Business information** capture during registration (optional)
 
 ### File Storage and Management
 The application integrates **Google Cloud Storage** for document and file management:
