@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
@@ -61,7 +61,10 @@ export default function NewOrderScreen() {
   const createOrderMutation = useMutation({
     mutationFn: async (data: OrderForm & { deliveryLatitude?: number; deliveryLongitude?: number }) => {
       const response = await apiRequest("POST", "/api/orders", {
-        ...data,
+        quantity: data.quantity,
+        deliveryAddress: data.deliveryAddress,
+        scheduledDate: data.deliveryDate,
+        scheduledTime: data.deliveryTime,
         deliveryLatitude: coordinates?.lat,
         deliveryLongitude: coordinates?.lng,
       });
@@ -133,6 +136,7 @@ export default function NewOrderScreen() {
   };
 
   const onSubmit = (data: OrderForm) => {
+    console.log("Form data:", data); // Debug log
     createOrderMutation.mutate(data);
   };
 
@@ -286,19 +290,25 @@ export default function NewOrderScreen() {
                   </Label>
                 </div>
 
-                <Select onValueChange={(value) => form.setValue("deliveryTime", value)}>
-                  <SelectTrigger data-testid="delivery-time-select">
-                    <SelectValue placeholder="Select Time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="09:00" data-testid="time-09-00">9:00 AM</SelectItem>
-                    <SelectItem value="10:00" data-testid="time-10-00">10:00 AM</SelectItem>
-                    <SelectItem value="11:00" data-testid="time-11-00">11:00 AM</SelectItem>
-                    <SelectItem value="14:00" data-testid="time-14-00">2:00 PM</SelectItem>
-                    <SelectItem value="15:00" data-testid="time-15-00">3:00 PM</SelectItem>
-                    <SelectItem value="16:00" data-testid="time-16-00">4:00 PM</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="deliveryTime"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger data-testid="delivery-time-select">
+                        <SelectValue placeholder="Select Time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="09:00" data-testid="time-09-00">9:00 AM</SelectItem>
+                        <SelectItem value="10:00" data-testid="time-10-00">10:00 AM</SelectItem>
+                        <SelectItem value="11:00" data-testid="time-11-00">11:00 AM</SelectItem>
+                        <SelectItem value="14:00" data-testid="time-14-00">2:00 PM</SelectItem>
+                        <SelectItem value="15:00" data-testid="time-15-00">3:00 PM</SelectItem>
+                        <SelectItem value="16:00" data-testid="time-16-00">4:00 PM</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
 
               {form.formState.errors.deliveryDate && (
