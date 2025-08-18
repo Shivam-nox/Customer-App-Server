@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
+import TrackingMap from "@/components/TrackingMap";
 import { ArrowLeft, MapPin, Phone, CheckCircle, Clock, Truck, Star } from "lucide-react";
 import { format } from "date-fns";
 
@@ -130,36 +131,50 @@ export default function TrackOrderScreen() {
         <h2 className="text-lg font-medium" data-testid="page-title">Track Order</h2>
       </div>
 
-      {/* Mock GPS Map View */}
-      <div className="h-64 bg-gradient-to-br from-blue-100 to-green-100 relative" data-testid="map-container">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-4 shadow-lg max-w-xs mx-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <div>
-                {order.status === "in_transit" ? (
-                  <p className="font-medium text-sm" data-testid="driver-eta">Driver is 5 minutes away</p>
-                ) : order.status === "delivered" ? (
-                  <p className="font-medium text-sm text-green-600" data-testid="delivery-complete">Order Delivered Successfully</p>
-                ) : (
-                  <p className="font-medium text-sm" data-testid="order-status-message">Preparing your order</p>
-                )}
+      {/* Real Map View */}
+      <div className="p-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Live Tracking</h3>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600">
+                  {order.status === "in_transit" ? "Driver En Route" 
+                   : order.status === "delivered" ? "Delivered" 
+                   : order.status === "confirmed" ? "Order Confirmed"
+                   : "Preparing Order"}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-        {order.status === "in_transit" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="absolute bottom-4 right-4 bg-white"
-            onClick={() => updateLocationMutation.mutate()}
-            disabled={updateLocationMutation.isPending}
-            data-testid="refresh-location-button"
-          >
-            {updateLocationMutation.isPending ? <LoadingSpinner /> : "Refresh Location"}
-          </Button>
-        )}
+            
+            <TrackingMap 
+              deliveryAddress={order.deliveryAddress} 
+              orderStatus={order.status}
+            />
+            
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="flex items-center justify-center space-x-1">
+                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">⛽</span>
+                </div>
+                <span>Fuel Terminal</span>
+              </div>
+              <div className="flex items-center justify-center space-x-1">
+                <div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">📍</span>
+                </div>
+                <span>Your Location</span>
+              </div>
+              <div className="flex items-center justify-center space-x-1">
+                <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">🚛</span>
+                </div>
+                <span>Driver</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex-1 p-4 space-y-4">
