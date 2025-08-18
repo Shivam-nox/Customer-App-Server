@@ -483,6 +483,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Saved Addresses routes
+  app.get("/api/addresses", requireAuth, async (req, res) => {
+    try {
+      const addresses = await storage.getUserSavedAddresses(req.user!.id);
+      res.json({ addresses });
+    } catch (error) {
+      console.error("Get addresses error:", error);
+      res.status(500).json({ error: "Failed to get addresses" });
+    }
+  });
+
+  app.post("/api/addresses", requireAuth, async (req, res) => {
+    try {
+      const addressData = {
+        ...req.body,
+        userId: req.user!.id
+      };
+
+      // Validate pincode for Bangalore area
+      if (!req.body.pincode?.match(/^5[0-9]{5}$/)) {
+        return res.status(400).json({ error: "Invalid Bangalore pincode" });
+      }
+
+      const address = await storage.createSavedAddress(addressData);
+      res.json({ address });
+    } catch (error) {
+      console.error("Create address error:", error);
+      res.status(400).json({ error: "Failed to create address" });
+    }
+  });
+
+  app.put("/api/addresses/:id", requireAuth, async (req, res) => {
+    try {
+      const address = await storage.getSavedAddress(req.params.id);
+      if (!address || address.userId !== req.user!.id) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      const updatedAddress = await storage.updateSavedAddress(req.params.id, req.body);
+      res.json({ address: updatedAddress });
+    } catch (error) {
+      console.error("Update address error:", error);
+      res.status(400).json({ error: "Failed to update address" });
+    }
+  });
+
+  app.delete("/api/addresses/:id", requireAuth, async (req, res) => {
+    try {
+      const address = await storage.getSavedAddress(req.params.id);
+      if (!address || address.userId !== req.user!.id) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      await storage.deleteSavedAddress(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete address error:", error);
+      res.status(400).json({ error: "Failed to delete address" });
+    }
+  });
+
+  app.put("/api/addresses/:id/default", requireAuth, async (req, res) => {
+    try {
+      const address = await storage.getSavedAddress(req.params.id);
+      if (!address || address.userId !== req.user!.id) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      await storage.setDefaultAddress(req.user!.id, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Set default address error:", error);
+      res.status(400).json({ error: "Failed to set default address" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

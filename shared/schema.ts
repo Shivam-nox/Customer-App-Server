@@ -32,6 +32,26 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
 
+// Saved Addresses table
+export const savedAddresses = pgTable("saved_addresses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  label: text("label").notNull(), // "Home", "Office", "Warehouse", etc.
+  addressLine1: text("address_line1").notNull(),
+  addressLine2: text("address_line2"),
+  landmark: text("landmark"),
+  area: text("area").notNull(),
+  city: text("city").notNull().default("Bangalore"),
+  state: text("state").notNull().default("Karnataka"),
+  pincode: varchar("pincode", { length: 6 }).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }),
+  isDefault: boolean("is_default").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
 // OTP verification table
 export const otpVerifications = pgTable("otp_verifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -55,6 +75,7 @@ export const orders = pgTable("orders", {
   gst: decimal("gst", { precision: 10, scale: 2 }).notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   deliveryAddress: text("delivery_address").notNull(),
+  deliveryAddressId: varchar("delivery_address_id").references(() => savedAddresses.id),
   deliveryLatitude: decimal("delivery_latitude", { precision: 10, scale: 7 }),
   deliveryLongitude: decimal("delivery_longitude", { precision: 10, scale: 7 }),
   scheduledDate: timestamp("scheduled_date").notNull(),
@@ -145,9 +166,18 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertSavedAddressSchema = createInsertSchema(savedAddresses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertSavedAddress = z.infer<typeof insertSavedAddressSchema>;
+export type SavedAddress = typeof savedAddresses.$inferSelect;
 
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
 export type OtpVerification = typeof otpVerifications.$inferSelect;

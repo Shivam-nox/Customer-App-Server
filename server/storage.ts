@@ -1,8 +1,9 @@
 import { 
-  users, orders, payments, deliveries, notifications, otpVerifications,
+  users, orders, payments, deliveries, notifications, otpVerifications, savedAddresses,
   type User, type InsertUser, type Order, type InsertOrder,
   type Payment, type InsertPayment, type Delivery, type InsertDelivery,
-  type Notification, type InsertNotification, type OtpVerification, type InsertOtp
+  type Notification, type InsertNotification, type OtpVerification, type InsertOtp,
+  type SavedAddress, type InsertSavedAddress
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -47,6 +48,14 @@ export interface IStorage {
   getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
   markNotificationRead(id: string): Promise<void>;
   getUnreadCount(userId: string): Promise<number>;
+  
+  // Saved Address methods
+  createSavedAddress(address: InsertSavedAddress): Promise<SavedAddress>;
+  getUserSavedAddresses(userId: string): Promise<SavedAddress[]>;
+  getSavedAddress(id: string): Promise<SavedAddress | undefined>;
+  updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress>;
+  deleteSavedAddress(id: string): Promise<void>;
+  setDefaultAddress(userId: string, addressId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -267,6 +276,58 @@ export class DatabaseStorage implements IStorage {
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result.length;
+  }
+
+  // Saved Address methods
+  async createSavedAddress(insertAddress: InsertSavedAddress): Promise<SavedAddress> {
+    const [address] = await db
+      .insert(savedAddresses)
+      .values(insertAddress)
+      .returning();
+    return address;
+  }
+
+  async getUserSavedAddresses(userId: string): Promise<SavedAddress[]> {
+    return await db
+      .select()
+      .from(savedAddresses)
+      .where(and(eq(savedAddresses.userId, userId), eq(savedAddresses.isActive, true)))
+      .orderBy(desc(savedAddresses.isDefault), desc(savedAddresses.createdAt));
+  }
+
+  async getSavedAddress(id: string): Promise<SavedAddress | undefined> {
+    const [address] = await db.select().from(savedAddresses).where(eq(savedAddresses.id, id));
+    return address || undefined;
+  }
+
+  async updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress> {
+    const [address] = await db
+      .update(savedAddresses)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(savedAddresses.id, id))
+      .returning();
+    return address;
+  }
+
+  async deleteSavedAddress(id: string): Promise<void> {
+    await db
+      .update(savedAddresses)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(savedAddresses.id, id));
+  }
+
+  async setDefaultAddress(userId: string, addressId: string): Promise<void> {
+    // First, unset all default addresses for the user
+    await db
+      .update(savedAddresses)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(eq(savedAddresses.userId, userId));
+    
+    // Then set the specified address as default
+    await db
+      .update(savedAddresses)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(savedAddresses.id, addressId));
   }
 }
 

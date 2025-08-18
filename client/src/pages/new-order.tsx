@@ -8,35 +8,48 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
-import { ArrowLeft, MapPin, Locate, Calculator } from "lucide-react";
+import AddressManager from "@/components/AddressManager";
+import { ArrowLeft, Calculator } from "lucide-react";
 
 const orderSchema = z.object({
   quantity: z.number().min(100, "Minimum order is 100 liters").max(10000, "Maximum order is 10,000 liters"),
-  deliveryAddress: z.string().min(10, "Please enter a complete address"),
   deliveryDate: z.string().min(1, "Please select delivery date"),
   deliveryTime: z.string().min(1, "Please select delivery time"),
 });
 
 type OrderForm = z.infer<typeof orderSchema>;
 
+interface SavedAddress {
+  id: string;
+  label: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  area: string;
+  city: string;
+  state: string;
+  pincode: string;
+  latitude?: string;
+  longitude?: string;
+  isDefault: boolean;
+}
+
 export default function NewOrderScreen() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
       quantity: 500,
-      deliveryAddress: "",
       deliveryDate: "",
       deliveryTime: "",
     },
@@ -59,14 +72,21 @@ export default function NewOrderScreen() {
   }, []);
 
   const createOrderMutation = useMutation({
-    mutationFn: async (data: OrderForm & { deliveryLatitude?: number; deliveryLongitude?: number }) => {
+    mutationFn: async (data: OrderForm) => {
+      if (!selectedAddress) {
+        throw new Error("Please select a delivery address");
+      }
+
+      const fullAddress = `${selectedAddress.addressLine1}${selectedAddress.addressLine2 ? ', ' + selectedAddress.addressLine2 : ''}${selectedAddress.landmark ? ', Near ' + selectedAddress.landmark : ''}, ${selectedAddress.area}, ${selectedAddress.city}, ${selectedAddress.state} - ${selectedAddress.pincode}`;
+      
       const response = await apiRequest("POST", "/api/orders", {
         quantity: data.quantity,
-        deliveryAddress: data.deliveryAddress,
+        deliveryAddress: fullAddress,
+        deliveryAddressId: selectedAddress.id,
         scheduledDate: data.deliveryDate,
         scheduledTime: data.deliveryTime,
-        deliveryLatitude: coordinates?.lat,
-        deliveryLongitude: coordinates?.lng,
+        deliveryLatitude: selectedAddress.latitude ? parseFloat(selectedAddress.latitude) : undefined,
+        deliveryLongitude: selectedAddress.longitude ? parseFloat(selectedAddress.longitude) : undefined,
       });
       return response.json();
     },
@@ -86,57 +106,17 @@ export default function NewOrderScreen() {
     },
   });
 
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
+
+
+  const onSubmit = (data: OrderForm) => {
+    if (!selectedAddress) {
       toast({
-        title: "Error",
-        description: "Geolocation is not supported by this browser",
+        title: "Address Required",
+        description: "Please select a delivery address",
         variant: "destructive",
       });
       return;
     }
-
-    setIsGettingLocation(true);
-    
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        setCoordinates({ lat: latitude, lng: longitude });
-        
-        // Reverse geocode to get address
-        try {
-          // In production, use a proper geocoding service
-          const address = `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
-          form.setValue("deliveryAddress", address);
-          
-          toast({
-            title: "Location Found",
-            description: "Current location has been set",
-          });
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: "Failed to get address from location",
-            variant: "destructive",
-          });
-        }
-        
-        setIsGettingLocation(false);
-      },
-      (error) => {
-        setIsGettingLocation(false);
-        toast({
-          title: "Location Error",
-          description: "Please allow location access or enter address manually",
-          variant: "destructive",
-        });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
-  };
-
-  const onSubmit = (data: OrderForm) => {
-    console.log("Form data:", data); // Debug log
     createOrderMutation.mutate(data);
   };
 
@@ -224,50 +204,10 @@ export default function NewOrderScreen() {
           {/* Delivery Location */}
           <Card>
             <CardContent className="p-4">
-              <h3 className="font-bold text-lg mb-4 flex items-center" data-testid="delivery-location-title">
-                <MapPin className="mr-2" size={20} />
-                Delivery Location
-              </h3>
-              
-              <div className="space-y-4">
-                <Button
-                  type="button"
-                  onClick={getCurrentLocation}
-                  disabled={isGettingLocation}
-                  className="w-full ripple"
-                  data-testid="current-location-button"
-                >
-                  {isGettingLocation ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <>
-                      <Locate size={20} className="mr-2" />
-                      Use Current Location
-                    </>
-                  )}
-                </Button>
-
-                <div className="text-center text-gray-500">or</div>
-
-                <div className="floating-label">
-                  <Textarea
-                    {...form.register("deliveryAddress")}
-                    placeholder=" "
-                    rows={3}
-                    className="peer resize-none"
-                    data-testid="address-input"
-                  />
-                  <Label className="peer-focus:text-primary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">
-                    Enter Delivery Address
-                  </Label>
-                </div>
-
-                {form.formState.errors.deliveryAddress && (
-                  <p className="text-sm text-destructive" data-testid="address-error">
-                    {form.formState.errors.deliveryAddress.message}
-                  </p>
-                )}
-              </div>
+              <AddressManager 
+                onSelectAddress={setSelectedAddress}
+                selectedAddressId={selectedAddress?.id}
+              />
             </CardContent>
           </Card>
 
