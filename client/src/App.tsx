@@ -60,14 +60,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <TooltipProvider>
           <div className="max-w-sm mx-auto bg-surface shadow-xl min-h-screen mobile-container relative overflow-hidden">
             <Toaster />
             <Router />
           </div>
-        </AuthProvider>
-      </TooltipProvider>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
