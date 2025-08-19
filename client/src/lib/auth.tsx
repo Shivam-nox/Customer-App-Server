@@ -19,14 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Get stored user ID from localStorage
   const storedUserId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 
-  const { data: userData, isLoading, refetch } = useQuery({
+  const { data: userData, isLoading, refetch } = useQuery<{ user: User }>({
     queryKey: ["/api/user/profile"],
-    queryFn: () => fetch("/api/user/profile", {
-      headers: { "x-user-id": storedUserId || "" },
-    }).then(res => {
-      if (!res.ok) throw new Error("Unauthorized");
-      return res.json();
-    }),
     enabled: !!storedUserId && !user,
     retry: false,
   });
