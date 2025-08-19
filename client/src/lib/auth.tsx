@@ -19,26 +19,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Get stored user ID from localStorage
   const storedUserId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 
-  const { data: userData, isLoading, refetch } = useQuery({
+  const { data: userData, isLoading, refetch, error } = useQuery({
     queryKey: ["/api/user/profile"],
-    queryFn: () => fetch("/api/user/profile", {
-      headers: { "x-user-id": storedUserId || "" },
-    }).then(res => {
-      if (!res.ok) throw new Error("Unauthorized");
-      return res.json();
-    }),
+    queryFn: async () => {
+      const response = await fetch("/api/user/profile", {
+        headers: { "x-user-id": storedUserId || "" },
+      });
+      
+      if (!response.ok) {
+        // If user not found (cleared from database), clear localStorage
+        if (response.status === 404 || response.status === 401) {
+          localStorage.removeItem("userId");
+          throw new Error("User not found - cleared from cache");
+        }
+        throw new Error("Unauthorized");
+      }
+      
+      return response.json();
+    },
     enabled: !!storedUserId && !user,
-    retry: false,
+    retry: (failureCount, error) => {
+      // Don't retry if user was cleared from database
+      if (error?.message?.includes("User not found")) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   useEffect(() => {
     if (userData?.user) {
       setUser(userData.user);
     }
+    // If there's an error and user was cleared, reset state
+    if (error?.message?.includes("User not found")) {
+      setUser(null);
+      setIsInitialized(true);
+    }
     if (!isLoading) {
       setIsInitialized(true);
     }
-  }, [userData, isLoading]);
+  }, [userData, isLoading, error]);
 
   const handleSetUser = (newUser: User | null) => {
     setUser(newUser);
