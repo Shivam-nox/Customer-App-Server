@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user/profile"],
     enabled: !!storedUserId && !user,
     retry: false,
+    staleTime: 0,
   });
 
   useEffect(() => {
