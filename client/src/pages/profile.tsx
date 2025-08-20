@@ -28,9 +28,10 @@ import {
   Clock,
   XCircle,
   User,
-  Plus
+  Plus,
+  MapPin
 } from "lucide-react";
-import AddressesSection from "@/components/AddressesSection";
+
 import { apiRequest } from "@/lib/queryClient";
 
 const profileSchema = z.object({
@@ -154,16 +155,22 @@ export default function ProfileScreen() {
       testId: "kyc-documents-button",
     },
     {
+      icon: MapPin,
+      label: "My Addresses",
+      action: () => setLocation("/addresses"),
+      testId: "my-addresses-button",
+    },
+    {
+      icon: Bell,
+      label: "Notifications",
+      action: () => setLocation("/notifications"),
+      testId: "notifications-button",
+    },
+    {
       icon: CreditCard,
       label: "Payment Methods",
       action: () => toast({ title: "Coming Soon", description: "Payment methods management will be available soon" }),
       testId: "payment-methods-button",
-    },
-    {
-      icon: Bell,
-      label: "Notification Settings",
-      action: () => toast({ title: "Coming Soon", description: "Notification settings will be available soon" }),
-      testId: "notifications-button",
     },
   ];
 
@@ -282,26 +289,7 @@ export default function ProfileScreen() {
             </CardContent>
           </Card>
 
-          {/* My Addresses */}
-          <Card data-testid="my-addresses-section">
-            <CardContent className="p-0">
-              <div className="p-4 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-lg">My Addresses</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toast({ title: "Add Address", description: "Address management coming soon" })}
-                    data-testid="add-address-button"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Add New
-                  </Button>
-                </div>
-              </div>
-              <AddressesSection />
-            </CardContent>
-          </Card>
+
 
           {/* Support & Help */}
           <Card data-testid="support-options">

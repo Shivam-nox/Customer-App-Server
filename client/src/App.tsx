@@ -17,6 +17,7 @@ import PaymentScreen from "@/pages/payment";
 import OrderHistoryScreen from "@/pages/order-history";
 import ProfileScreen from "@/pages/profile";
 import NotificationsScreen from "@/pages/notifications";
+import AddressesScreen from "@/pages/addresses";
 import AdminSettingsScreen from "@/pages/admin-settings";
 import NotFound from "@/pages/not-found";
 
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/orders" component={OrderHistoryScreen} />
           <Route path="/profile" component={ProfileScreen} />
           <Route path="/notifications" component={NotificationsScreen} />
+          <Route path="/addresses" component={AddressesScreen} />
           <Route path="/admin/settings" component={AdminSettingsScreen} />
           <Route path="/">
             <Redirect to="/home" />
