@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { Eye, EyeOff, User, Mail, Phone, Building, MapPin, CreditCard, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -104,8 +105,13 @@ export default function SignupScreen() {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-blue-50 dark:from-primary/10 dark:to-gray-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg" data-testid="signup-card">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
-            <div className="text-2xl font-bold text-white">Z</div>
+          <div className="mx-auto mb-6">
+            <img 
+              src={logoUrl} 
+              alt="Zapygo - Fueling business, Driving progress" 
+              className="h-16 w-auto mx-auto"
+              data-testid="signup-logo"
+            />
           </div>
           <CardTitle className="text-2xl font-bold text-primary">Create Account</CardTitle>
           <CardDescription>
