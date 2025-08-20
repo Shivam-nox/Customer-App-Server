@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import LocationSelector from "@/components/LocationSelector";
+import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
 export default function HomeScreen() {
   const [, setLocation] = useLocation();
@@ -95,13 +96,13 @@ export default function HomeScreen() {
       {/* Header */}
       <div className="zapygo-gradient text-white p-4">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold" data-testid="welcome-message">
-              Welcome, {user.businessName || user.name}
-            </h2>
-            <p className="text-blue-100 text-sm" data-testid="tagline">
-              Fuel delivered to your doorstep
-            </p>
+          <div className="flex items-center">
+            <img 
+              src={logoUrl} 
+              alt="Zapygo - Fueling business, Driving progress" 
+              className="h-12 w-auto"
+              data-testid="company-logo"
+            />
           </div>
           <Button
             variant="ghost"
