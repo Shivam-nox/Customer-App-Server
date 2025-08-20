@@ -1,6 +1,8 @@
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Home, Receipt, MapPin, User } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 interface BottomNavProps {
   activeTab: "home" | "orders" | "track" | "profile";
@@ -8,11 +10,35 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+
+  // Fetch orders to find the most recent trackable order
+  const { data: ordersData } = useQuery({
+    queryKey: ["/api/orders"],
+    queryFn: () => fetch("/api/orders", {
+      headers: { "x-user-id": user?.id || "" },
+    }).then(res => res.json()),
+    enabled: !!user,
+  });
+
+  const orders = ordersData?.orders || [];
+  
+  // Find the most recent order that can be tracked (not delivered)
+  const trackableOrder = orders.find((order: any) => 
+    order.status !== "delivered" && order.status !== "cancelled"
+  ) || orders[0]; // Fallback to most recent order
+
+  const getTrackPath = () => {
+    if (trackableOrder) {
+      return `/track-order/${trackableOrder.id}`;
+    }
+    return "/orders"; // If no orders, go to orders page
+  };
 
   const navItems = [
     { key: "home", label: "Home", icon: Home, path: "/home" },
     { key: "orders", label: "Orders", icon: Receipt, path: "/orders" },
-    { key: "track", label: "Track", icon: MapPin, path: "/track-order" },
+    { key: "track", label: "Track", icon: MapPin, path: getTrackPath() },
     { key: "profile", label: "Profile", icon: User, path: "/profile" },
   ];
 
