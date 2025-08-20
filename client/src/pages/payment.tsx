@@ -18,27 +18,78 @@ export default function PaymentScreen() {
   const { user } = useAuth();
   const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+
+  // Check if this is a new order (from new-order page) or existing order
+  const isNewOrder = orderId === "new";
+
+  useEffect(() => {
+    if (isNewOrder) {
+      // Get pending order data from localStorage
+      const storedData = localStorage.getItem('pendingOrderData');
+      if (storedData) {
+        setPendingOrderData(JSON.parse(storedData));
+      } else {
+        // No pending order data, redirect back to new order
+        setLocation('/new-order');
+      }
+    }
+  }, [isNewOrder, setLocation]);
 
   const { data: orderData, isLoading } = useQuery({
     queryKey: ["/api/orders", orderId],
     queryFn: () => fetch(`/api/orders/${orderId}`, {
       headers: { "x-user-id": user?.id || "" },
     }).then(res => res.json()),
-    enabled: !!orderId && !!user,
+    enabled: !!orderId && !!user && !isNewOrder,
   });
 
-  const processPaymentMutation = useMutation({
-    mutationFn: async (data: { orderId: string; method: string }) => {
-      const response = await apiRequest("POST", "/api/payments", data);
-      return response.json();
+  // Mutation to create order and process payment in one go
+  const createOrderAndPaymentMutation = useMutation({
+    mutationFn: async (data: { method: string }) => {
+      if (isNewOrder && pendingOrderData) {
+        // First create the order
+        const fullAddress = `${pendingOrderData.address.addressLine1}${pendingOrderData.address.addressLine2 ? ', ' + pendingOrderData.address.addressLine2 : ''}${pendingOrderData.address.landmark ? ', Near ' + pendingOrderData.address.landmark : ''}, ${pendingOrderData.address.area}, ${pendingOrderData.address.city}, ${pendingOrderData.address.state} - ${pendingOrderData.address.pincode}`;
+        
+        const orderResponse = await apiRequest("POST", "/api/orders", {
+          quantity: pendingOrderData.quantity,
+          deliveryAddress: fullAddress,
+          deliveryAddressId: pendingOrderData.address.id,
+          scheduledDate: pendingOrderData.deliveryDate,
+          scheduledTime: pendingOrderData.deliveryTime,
+          deliveryLatitude: pendingOrderData.address.latitude ? parseFloat(pendingOrderData.address.latitude) : undefined,
+          deliveryLongitude: pendingOrderData.address.longitude ? parseFloat(pendingOrderData.address.longitude) : undefined,
+        });
+        const orderResult = await orderResponse.json();
+        
+        // Then process payment for the created order
+        const paymentResponse = await apiRequest("POST", "/api/payments", {
+          orderId: orderResult.order.id,
+          method: data.method
+        });
+        const paymentResult = await paymentResponse.json();
+        
+        return { order: orderResult.order, payment: paymentResult.payment };
+      } else {
+        // For existing orders, just process payment
+        const response = await apiRequest("POST", "/api/payments", { orderId, method: data.method });
+        return response.json();
+      }
     },
     onSuccess: (data) => {
+      const finalOrderId = isNewOrder ? data.order.id : orderId;
+      
+      // Clear pending order data
+      if (isNewOrder) {
+        localStorage.removeItem('pendingOrderData');
+      }
+      
       if (selectedMethod === "cod") {
         toast({
           title: "Order Confirmed",
           description: "Your order has been confirmed! Pay when your order is delivered.",
         });
-        setLocation(`/track-order/${orderId}`);
+        setLocation(`/track-order/${finalOrderId}`);
       } else {
         setPaymentProcessing(true);
         // Simulate payment processing
@@ -47,7 +98,7 @@ export default function PaymentScreen() {
             title: "Payment Successful",
             description: "Your order has been confirmed and will be processed shortly",
           });
-          setLocation(`/track-order/${orderId}`);
+          setLocation(`/track-order/${finalOrderId}`);
         }, 3000);
       }
     },
@@ -72,8 +123,7 @@ export default function PaymentScreen() {
 
     // Check if Cash on Delivery is selected
     if (selectedMethod === "cod") {
-      processPaymentMutation.mutate({
-        orderId: orderId!,
+      createOrderAndPaymentMutation.mutate({
         method: selectedMethod,
       });
     } else {
@@ -86,7 +136,7 @@ export default function PaymentScreen() {
     }
   };
 
-  if (!user || isLoading) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -94,7 +144,17 @@ export default function PaymentScreen() {
     );
   }
 
-  if (!orderData?.order) {
+  // For new orders, check if we have pending data
+  if (isNewOrder && !pendingOrderData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // For existing orders, check if order data is loaded
+  if (!isNewOrder && (isLoading || !orderData?.order)) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <div className="flex items-center p-4 border-b bg-white">
@@ -122,7 +182,14 @@ export default function PaymentScreen() {
     );
   }
 
-  const { order } = orderData;
+  // Get order data from either existing order or pending order data
+  const order = isNewOrder ? {
+    quantity: pendingOrderData?.quantity || 0,
+    totalAmount: pendingOrderData?.pricing?.totalAmount || 0,
+    deliveryAddress: `${pendingOrderData?.address?.addressLine1 || ''}${pendingOrderData?.address?.addressLine2 ? ', ' + pendingOrderData.address.addressLine2 : ''}${pendingOrderData?.address?.landmark ? ', Near ' + pendingOrderData.address.landmark : ''}, ${pendingOrderData?.address?.area || ''}, ${pendingOrderData?.address?.city || ''}, ${pendingOrderData?.address?.state || ''} - ${pendingOrderData?.address?.pincode || ''}`,
+    scheduledDate: pendingOrderData?.deliveryDate || '',
+    scheduledTime: pendingOrderData?.deliveryTime || '',
+  } : orderData?.order;
 
   if (paymentProcessing) {
     return (
@@ -309,10 +376,10 @@ export default function PaymentScreen() {
         <Button
           onClick={handlePayment}
           className="w-full bg-primary hover:bg-blue-700 text-white py-4 text-lg font-bold ripple"
-          disabled={processPaymentMutation.isPending || !selectedMethod}
+          disabled={createOrderAndPaymentMutation.isPending || !selectedMethod}
           data-testid="pay-button"
         >
-          {processPaymentMutation.isPending ? (
+          {createOrderAndPaymentMutation.isPending ? (
             <LoadingSpinner />
           ) : selectedMethod === "cod" ? (
             "Confirm Order (COD)"

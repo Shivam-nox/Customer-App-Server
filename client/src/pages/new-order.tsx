@@ -71,43 +71,6 @@ export default function NewOrderScreen() {
     }
   }, []);
 
-  const createOrderMutation = useMutation({
-    mutationFn: async (data: OrderForm) => {
-      if (!selectedAddress) {
-        throw new Error("Please select a delivery address");
-      }
-
-      const fullAddress = `${selectedAddress.addressLine1}${selectedAddress.addressLine2 ? ', ' + selectedAddress.addressLine2 : ''}${selectedAddress.landmark ? ', Near ' + selectedAddress.landmark : ''}, ${selectedAddress.area}, ${selectedAddress.city}, ${selectedAddress.state} - ${selectedAddress.pincode}`;
-      
-      const response = await apiRequest("POST", "/api/orders", {
-        quantity: data.quantity,
-        deliveryAddress: fullAddress,
-        deliveryAddressId: selectedAddress.id,
-        scheduledDate: data.deliveryDate,
-        scheduledTime: data.deliveryTime,
-        deliveryLatitude: selectedAddress.latitude ? parseFloat(selectedAddress.latitude) : undefined,
-        deliveryLongitude: selectedAddress.longitude ? parseFloat(selectedAddress.longitude) : undefined,
-      });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Order Created",
-        description: `Order ${data.order.orderNumber} created successfully`,
-      });
-      setLocation(`/payment/${data.order.id}`);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create order",
-        variant: "destructive",
-      });
-    },
-  });
-
-
-
   const onSubmit = (data: OrderForm) => {
     if (!selectedAddress) {
       toast({
@@ -117,7 +80,25 @@ export default function NewOrderScreen() {
       });
       return;
     }
-    createOrderMutation.mutate(data);
+
+    // Prepare order data to pass to payment page
+    const orderData = {
+      quantity: data.quantity,
+      deliveryDate: data.deliveryDate,
+      deliveryTime: data.deliveryTime,
+      address: selectedAddress,
+      pricing: {
+        ratePerLiter,
+        subtotal,
+        deliveryCharges,
+        gst,
+        totalAmount
+      }
+    };
+
+    // Store order data in localStorage temporarily and redirect to payment
+    localStorage.setItem('pendingOrderData', JSON.stringify(orderData));
+    setLocation('/payment/new');
   };
 
   if (!user) return null;
@@ -268,10 +249,9 @@ export default function NewOrderScreen() {
           <Button
             type="submit"
             className="w-full bg-secondary hover:bg-green-600 text-white py-4 text-lg font-bold ripple"
-            disabled={createOrderMutation.isPending}
             data-testid="proceed-payment-button"
           >
-            {createOrderMutation.isPending ? <LoadingSpinner /> : "Proceed to Payment"}
+            Proceed to Payment
           </Button>
         </form>
       </div>
