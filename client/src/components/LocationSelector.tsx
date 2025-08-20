@@ -99,89 +99,61 @@ export default function LocationSelector() {
 
   const selectedAddress = addresses.find((addr: SavedAddress) => addr.id === selectedAddressId);
 
+  const handleSelectChange = (value: string) => {
+    if (value === "use-current-location") {
+      detectLocation();
+    } else if (value === "add-new-address") {
+      setLocation("/profile");
+    } else {
+      setSelectedAddressId(value);
+    }
+  };
+
   return (
-    <div className="space-y-4" data-testid="location-selector">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <MapPin size={20} className="text-blue-600" />
-          <span className="font-medium text-gray-800">Select Delivery Address</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLocation("/profile")}
-          className="text-blue-600 border-blue-300"
-          data-testid="manage-addresses-button"
-        >
-          <Plus size={16} className="mr-1" />
-          Manage
-        </Button>
-      </div>
-
-      {addresses.length > 0 ? (
-        <div className="space-y-3">
-          <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
-            <SelectTrigger className="w-full" data-testid="address-selector">
-              <SelectValue placeholder="Choose an address" />
-            </SelectTrigger>
-            <SelectContent>
-              {addresses.map((address: SavedAddress) => (
-                <SelectItem key={address.id} value={address.id}>
-                  <div className="text-left">
-                    <p className="font-medium">{address.label}</p>
-                    <p className="text-sm text-gray-600">
-                      {address.addressLine1}, {address.area}, {address.city} - {address.pincode}
-                    </p>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {selectedAddress && (
-            <div className="bg-gray-50 rounded-lg p-3" data-testid="selected-address-details">
-              <p className="font-medium text-gray-800">{selectedAddress.label}</p>
-              <p className="text-sm text-gray-600">
-                {selectedAddress.addressLine1}
-                {selectedAddress.addressLine2 && `, ${selectedAddress.addressLine2}`}
-              </p>
-              <p className="text-sm text-gray-600">
-                {selectedAddress.landmark && `${selectedAddress.landmark}, `}
-                {selectedAddress.area}, {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
-              </p>
+    <div className="space-y-3" data-testid="location-selector">
+      <Select value={selectedAddressId} onValueChange={handleSelectChange}>
+        <SelectTrigger className="w-full" data-testid="address-selector">
+          <SelectValue placeholder="Choose an address" />
+        </SelectTrigger>
+        <SelectContent>
+          {addresses.map((address: SavedAddress) => (
+            <SelectItem key={address.id} value={address.id}>
+              <div className="text-left">
+                <p className="font-medium">{address.label}</p>
+                <p className="text-sm text-gray-600">
+                  {address.addressLine1}, {address.area}, {address.city} - {address.pincode}
+                </p>
+              </div>
+            </SelectItem>
+          ))}
+          <SelectItem value="use-current-location">
+            <div className="flex items-center space-x-2">
+              <Navigation size={16} className="text-green-600" />
+              <span>{isDetecting ? "Detecting Location..." : "Use Current Location"}</span>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="text-center py-4">
-          <p className="text-gray-600 mb-3">No saved addresses found</p>
-          <Button
-            onClick={() => setLocation("/profile")}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            data-testid="add-first-address-button"
-          >
-            <Plus size={16} className="mr-1" />
-            Add Your First Address
-          </Button>
+          </SelectItem>
+          <SelectItem value="add-new-address">
+            <div className="flex items-center space-x-2">
+              <Plus size={16} className="text-blue-600" />
+              <span>Add New Address</span>
+            </div>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+
+      {selectedAddress && (
+        <div className="bg-gray-50 rounded-lg p-3" data-testid="selected-address-details">
+          <p className="font-medium text-gray-800">{selectedAddress.label}</p>
+          <p className="text-sm text-gray-600">
+            {selectedAddress.addressLine1}
+            {selectedAddress.addressLine2 && `, ${selectedAddress.addressLine2}`}
+          </p>
+          <p className="text-sm text-gray-600">
+            {selectedAddress.landmark && `${selectedAddress.landmark}, `}
+            {selectedAddress.area}, {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
+          </p>
         </div>
       )}
-
-      <div className="flex items-center space-x-2">
-        <div className="flex-1 h-px bg-gray-300"></div>
-        <span className="text-xs text-gray-500">OR</span>
-        <div className="flex-1 h-px bg-gray-300"></div>
-      </div>
-
-      <Button
-        onClick={detectLocation}
-        disabled={isDetecting}
-        variant="outline"
-        className="w-full border-green-300 text-green-700 hover:bg-green-50"
-        data-testid="detect-location-button"
-      >
-        <Navigation size={16} className="mr-2" />
-        {isDetecting ? "Detecting Location..." : "Use Current Location"}
-      </Button>
 
       {currentLocation && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3" data-testid="current-location-display">
