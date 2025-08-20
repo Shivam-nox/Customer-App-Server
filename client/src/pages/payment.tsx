@@ -8,7 +8,16 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
-import { ArrowLeft, CreditCard, Smartphone, Building2, Wallet, Shield, CheckCircle, HandCoins } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  Smartphone,
+  Building2,
+  Wallet,
+  Shield,
+  CheckCircle,
+  HandCoins,
+} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function PaymentScreen() {
@@ -26,21 +35,22 @@ export default function PaymentScreen() {
   useEffect(() => {
     if (isNewOrder) {
       // Get pending order data from localStorage
-      const storedData = localStorage.getItem('pendingOrderData');
+      const storedData = localStorage.getItem("pendingOrderData");
       if (storedData) {
         setPendingOrderData(JSON.parse(storedData));
       } else {
         // No pending order data, redirect back to new order
-        setLocation('/new-order');
+        setLocation("/new-order");
       }
     }
   }, [isNewOrder, setLocation]);
 
   const { data: orderData, isLoading } = useQuery({
     queryKey: ["/api/orders", orderId],
-    queryFn: () => fetch(`/api/orders/${orderId}`, {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch(`/api/orders/${orderId}`, {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
     enabled: !!orderId && !!user && !isNewOrder,
   });
 
@@ -49,45 +59,53 @@ export default function PaymentScreen() {
     mutationFn: async (data: { method: string }) => {
       if (isNewOrder && pendingOrderData) {
         // First create the order
-        const fullAddress = `${pendingOrderData.address.addressLine1}${pendingOrderData.address.addressLine2 ? ', ' + pendingOrderData.address.addressLine2 : ''}${pendingOrderData.address.landmark ? ', Near ' + pendingOrderData.address.landmark : ''}, ${pendingOrderData.address.area}, ${pendingOrderData.address.city}, ${pendingOrderData.address.state} - ${pendingOrderData.address.pincode}`;
-        
+        const fullAddress = `${pendingOrderData.address.addressLine1}${pendingOrderData.address.addressLine2 ? ", " + pendingOrderData.address.addressLine2 : ""}${pendingOrderData.address.landmark ? ", Near " + pendingOrderData.address.landmark : ""}, ${pendingOrderData.address.area}, ${pendingOrderData.address.city}, ${pendingOrderData.address.state} - ${pendingOrderData.address.pincode}`;
+
         const orderResponse = await apiRequest("POST", "/api/orders", {
           quantity: pendingOrderData.quantity,
           deliveryAddress: fullAddress,
           deliveryAddressId: pendingOrderData.address.id,
           scheduledDate: pendingOrderData.deliveryDate,
           scheduledTime: pendingOrderData.deliveryTime,
-          deliveryLatitude: pendingOrderData.address.latitude ? parseFloat(pendingOrderData.address.latitude) : undefined,
-          deliveryLongitude: pendingOrderData.address.longitude ? parseFloat(pendingOrderData.address.longitude) : undefined,
+          deliveryLatitude: pendingOrderData.address.latitude
+            ? parseFloat(pendingOrderData.address.latitude)
+            : undefined,
+          deliveryLongitude: pendingOrderData.address.longitude
+            ? parseFloat(pendingOrderData.address.longitude)
+            : undefined,
         });
         const orderResult = await orderResponse.json();
-        
+
         // Then process payment for the created order
         const paymentResponse = await apiRequest("POST", "/api/payments", {
           orderId: orderResult.order.id,
-          method: data.method
+          method: data.method,
         });
         const paymentResult = await paymentResponse.json();
-        
+
         return { order: orderResult.order, payment: paymentResult.payment };
       } else {
         // For existing orders, just process payment
-        const response = await apiRequest("POST", "/api/payments", { orderId, method: data.method });
+        const response = await apiRequest("POST", "/api/payments", {
+          orderId,
+          method: data.method,
+        });
         return response.json();
       }
     },
     onSuccess: (data) => {
       const finalOrderId = isNewOrder ? data.order.id : orderId;
-      
+
       // Clear pending order data
       if (isNewOrder) {
-        localStorage.removeItem('pendingOrderData');
+        localStorage.removeItem("pendingOrderData");
       }
-      
+
       if (selectedMethod === "cod") {
         toast({
           title: "Order Confirmed",
-          description: "Your order has been confirmed! Pay when your order is delivered.",
+          description:
+            "Your order has been confirmed! Pay when your order is delivered.",
         });
         setLocation(`/track-order/${finalOrderId}`);
       } else {
@@ -96,7 +114,8 @@ export default function PaymentScreen() {
         setTimeout(() => {
           toast({
             title: "Payment Successful",
-            description: "Your order has been confirmed and will be processed shortly",
+            description:
+              "Your order has been confirmed and will be processed shortly",
           });
           setLocation(`/track-order/${finalOrderId}`);
         }, 3000);
@@ -130,7 +149,8 @@ export default function PaymentScreen() {
       // Show popup for other payment methods
       toast({
         title: "Payment Method Not Available",
-        description: "This payment method is not supported yet. Please select Cash on Delivery.",
+        description:
+          "This payment method is not supported yet. Please select Cash on Delivery.",
         variant: "destructive",
       });
     }
@@ -183,23 +203,37 @@ export default function PaymentScreen() {
   }
 
   // Get order data from either existing order or pending order data
-  const order = isNewOrder ? {
-    quantity: pendingOrderData?.quantity || 0,
-    totalAmount: pendingOrderData?.pricing?.totalAmount || 0,
-    deliveryAddress: `${pendingOrderData?.address?.addressLine1 || ''}${pendingOrderData?.address?.addressLine2 ? ', ' + pendingOrderData.address.addressLine2 : ''}${pendingOrderData?.address?.landmark ? ', Near ' + pendingOrderData.address.landmark : ''}, ${pendingOrderData?.address?.area || ''}, ${pendingOrderData?.address?.city || ''}, ${pendingOrderData?.address?.state || ''} - ${pendingOrderData?.address?.pincode || ''}`,
-    scheduledDate: pendingOrderData?.deliveryDate || '',
-    scheduledTime: pendingOrderData?.deliveryTime || '',
-  } : orderData?.order;
+  const order = isNewOrder
+    ? {
+        quantity: pendingOrderData?.quantity || 0,
+        ratePerLiter: pendingOrderData?.pricing?.ratePerLiter || 0,
+        subtotal: pendingOrderData?.pricing?.subtotal || 0,
+        deliveryCharges: pendingOrderData?.pricing?.deliveryCharges || 0,
+        gst: pendingOrderData?.pricing?.gst || 0,
+        totalAmount: pendingOrderData?.pricing?.totalAmount || 0,
+        deliveryAddress: `${pendingOrderData?.address?.addressLine1 || ""}${pendingOrderData?.address?.addressLine2 ? ", " + pendingOrderData.address.addressLine2 : ""}${pendingOrderData?.address?.landmark ? ", Near " + pendingOrderData.address.landmark : ""}, ${pendingOrderData?.address?.area || ""}, ${pendingOrderData?.address?.city || ""}, ${pendingOrderData?.address?.state || ""} - ${pendingOrderData?.address?.pincode || ""}`,
+        scheduledDate: pendingOrderData?.deliveryDate || "",
+        scheduledTime: pendingOrderData?.deliveryTime || "",
+      }
+    : orderData?.order;
 
   if (paymentProcessing) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50" data-testid="payment-processing">
+      <div
+        className="min-h-screen flex flex-col items-center justify-center bg-gray-50"
+        data-testid="payment-processing"
+      >
         <Card className="w-full max-w-sm mx-4">
           <CardContent className="p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="text-green-600" size={32} />
             </div>
-            <h3 className="text-xl font-bold mb-2" data-testid="processing-title">Processing Payment</h3>
+            <h3
+              className="text-xl font-bold mb-2"
+              data-testid="processing-title"
+            >
+              Processing Payment
+            </h3>
             <p className="text-gray-600 mb-6" data-testid="processing-message">
               Please wait while we confirm your payment...
             </p>
@@ -254,7 +288,10 @@ export default function PaymentScreen() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="payment-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="payment-screen"
+    >
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
@@ -265,9 +302,10 @@ export default function PaymentScreen() {
         >
           <ArrowLeft size={20} />
         </Button>
-        <h2 className="text-lg font-medium" data-testid="page-title">Payment</h2>
+        <h2 className="text-lg font-medium" data-testid="page-title">
+          Payment
+        </h2>
       </div>
-
       <div className="flex-1 p-4 space-y-4">
         {/* Order Summary */}
         <Card data-testid="order-summary">
@@ -276,28 +314,40 @@ export default function PaymentScreen() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Diesel Quantity:</span>
-                <span className="font-medium" data-testid="order-quantity">{order.quantity}L</span>
+                <span className="font-medium" data-testid="order-quantity">
+                  {order.quantity}L
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Rate per Liter:</span>
-                <span data-testid="rate-per-liter">₹{parseFloat(order.ratePerLiter).toFixed(2)}</span>
+                <span data-testid="rate-per-liter">
+                  ₹{parseFloat(order.ratePerLiter).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span data-testid="subtotal">₹{parseFloat(order.subtotal).toLocaleString()}</span>
+                <span data-testid="subtotal">
+                  ₹{parseFloat(order.subtotal).toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Delivery Charges:</span>
-                <span data-testid="delivery-charges">₹{parseFloat(order.deliveryCharges).toFixed(2)}</span>
+                <span data-testid="delivery-charges">
+                  ₹{parseFloat(order.deliveryCharges).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>GST (18%):</span>
-                <span data-testid="gst">₹{parseFloat(order.gst).toLocaleString()}</span>
+                <span data-testid="gst">
+                  ₹{parseFloat(order.gst).toLocaleString()}
+                </span>
               </div>
               <hr className="my-2" />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total Amount:</span>
-                <span className="text-primary" data-testid="total-amount">₹{parseFloat(order.totalAmount).toLocaleString()}</span>
+                <span className="text-primary" data-testid="total-amount">
+                  ₹{parseFloat(order.totalAmount).toLocaleString()}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -307,36 +357,40 @@ export default function PaymentScreen() {
         <Card data-testid="payment-methods">
           <CardContent className="p-4">
             <h3 className="font-bold text-lg mb-4">Select Payment Method</h3>
-            
-            <RadioGroup value={selectedMethod} onValueChange={setSelectedMethod} className="space-y-3">
+
+            <RadioGroup
+              value={selectedMethod}
+              onValueChange={setSelectedMethod}
+              className="space-y-3"
+            >
               {paymentMethods.map((method) => {
                 const Icon = method.icon;
                 const isDisabled = method.disabled;
                 const isPreferred = method.preferred;
-                
+
                 return (
-                  <div 
-                    key={method.id} 
+                  <div
+                    key={method.id}
                     className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
-                      isPreferred 
-                        ? "border-green-300 bg-green-50" 
-                        : isDisabled 
-                        ? "border-gray-100 bg-gray-50 opacity-60" 
-                        : "border-gray-200 hover:bg-gray-50"
+                      isPreferred
+                        ? "border-green-300 bg-green-50"
+                        : isDisabled
+                          ? "border-gray-100 bg-gray-50 opacity-60"
+                          : "border-gray-200 hover:bg-gray-50"
                     }`}
                   >
-                    <RadioGroupItem 
-                      value={method.id} 
-                      id={method.id} 
+                    <RadioGroupItem
+                      value={method.id}
+                      id={method.id}
                       disabled={isDisabled}
-                      data-testid={`payment-${method.id}`} 
+                      data-testid={`payment-${method.id}`}
                     />
                     <Icon className={`${method.color}`} size={24} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Label 
-                          htmlFor={method.id} 
-                          className={`font-medium cursor-pointer ${isDisabled ? 'text-gray-400' : ''}`}
+                        <Label
+                          htmlFor={method.id}
+                          className={`font-medium cursor-pointer ${isDisabled ? "text-gray-400" : ""}`}
                           data-testid={`${method.id}-label`}
                         >
                           {method.name}
@@ -347,7 +401,10 @@ export default function PaymentScreen() {
                           </span>
                         )}
                       </div>
-                      <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`} data-testid={`${method.id}-description`}>
+                      <p
+                        className={`text-sm ${isDisabled ? "text-gray-400" : "text-gray-600"}`}
+                        data-testid={`${method.id}-description`}
+                      >
                         {method.description}
                       </p>
                     </div>
@@ -359,14 +416,26 @@ export default function PaymentScreen() {
         </Card>
 
         {/* Security Info */}
-        <Card className="bg-green-50 border-green-200" data-testid="security-info">
+        <Card
+          className="bg-green-50 border-green-200"
+          data-testid="security-info"
+        >
           <CardContent className="p-4">
             <div className="flex items-start space-x-3">
               <Shield className="text-green-600 mt-1" size={20} />
               <div>
-                <p className="text-sm font-medium text-green-800" data-testid="security-title">Secure Payment</p>
-                <p className="text-xs text-green-700 mt-1" data-testid="security-description">
-                  Your payment information is encrypted and secure. We don't store your card details.
+                <p
+                  className="text-sm font-medium text-green-800"
+                  data-testid="security-title"
+                >
+                  Secure Payment
+                </p>
+                <p
+                  className="text-xs text-green-700 mt-1"
+                  data-testid="security-description"
+                >
+                  Your payment information is encrypted and secure. We don't
+                  store your card details.
                 </p>
               </div>
             </div>
