@@ -181,20 +181,19 @@ export default function KycUploadScreen() {
                     maxFileSize={5 * 1024 * 1024} // 5MB
                     onGetUploadParameters={handleGetUploadParameters}
                     onComplete={handleUploadComplete(doc.type)}
-                    buttonClassName="w-full bg-gray-50 border border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-100 transition-colors"
+                    buttonClassName="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg py-8 px-6 text-center hover:bg-gray-100 hover:border-blue-400 transition-all duration-200"
                   >
-                    <div className="flex flex-col items-center space-y-3" data-testid={`${doc.type}-upload-button`}>
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Upload className="text-blue-600" size={20} />
+                    <div className="flex flex-col items-center space-y-4" data-testid={`${doc.type}-upload-button`}>
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="text-blue-600" size={24} />
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-base font-medium text-gray-700">Click to upload {doc.name}</p>
-                        <p className="text-sm text-gray-500">PDF or Image (Max 5MB)</p>
-                      </div>
-                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-                        </svg>
+                      <div className="space-y-2 max-w-full">
+                        <h5 className="text-lg font-semibold text-gray-800">
+                          Click to upload {doc.name}
+                        </h5>
+                        <p className="text-sm text-gray-500 px-2">
+                          PDF or Image (Max 5MB)
+                        </p>
                       </div>
                     </div>
                   </ObjectUploader>
