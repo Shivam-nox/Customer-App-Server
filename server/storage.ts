@@ -1,9 +1,9 @@
 import { 
-  users, orders, payments, deliveries, notifications, otpVerifications, savedAddresses,
+  users, orders, payments, deliveries, notifications, otpVerifications, savedAddresses, systemSettings,
   type User, type InsertUser, type Order, type InsertOrder,
   type Payment, type InsertPayment, type Delivery, type InsertDelivery,
   type Notification, type InsertNotification, type OtpVerification, type InsertOtp,
-  type SavedAddress, type InsertSavedAddress
+  type SavedAddress, type InsertSavedAddress, type SystemSetting, type InsertSystemSetting
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -53,6 +53,16 @@ export interface IStorage {
   createSavedAddress(address: InsertSavedAddress): Promise<SavedAddress>;
   getUserSavedAddresses(userId: string): Promise<SavedAddress[]>;
   getSavedAddress(id: string): Promise<SavedAddress | undefined>;
+  updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress>;
+  deleteSavedAddress(id: string): Promise<void>;
+  setDefaultAddress(userId: string, addressId: string): Promise<void>;
+  
+  // System Settings methods
+  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+  getAllSystemSettings(): Promise<SystemSetting[]>;
+  getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
+  updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting>;
+  createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
   updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress>;
   deleteSavedAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
@@ -307,6 +317,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(savedAddresses.id, id))
       .returning();
     return address;
+  }
+
+  // System Settings methods
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting || undefined;
+  }
+
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    return await db.select().from(systemSettings).orderBy(systemSettings.category, systemSettings.key);
+  }
+
+  async getSystemSettingsByCategory(category: string): Promise<SystemSetting[]> {
+    return await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.category, category))
+      .orderBy(systemSettings.key);
+  }
+
+  async updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting> {
+    const [setting] = await db
+      .update(systemSettings)
+      .set({ 
+        value, 
+        updatedAt: new Date(),
+        ...(updatedBy && { updatedBy })
+      })
+      .where(eq(systemSettings.key, key))
+      .returning();
+    return setting;
+  }
+
+  async createSystemSetting(insertSetting: InsertSystemSetting): Promise<SystemSetting> {
+    const [setting] = await db
+      .insert(systemSettings)
+      .values(insertSetting)
+      .returning();
+    return setting;
   }
 
   async deleteSavedAddress(id: string): Promise<void> {

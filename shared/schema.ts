@@ -130,6 +130,19 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
+// System settings table for configurable constants
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 50 }).notNull().unique(),
+  value: text("value").notNull(),
+  dataType: varchar("data_type", { length: 20 }).notNull().default("number"),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull().default("pricing"),
+  isEditable: boolean("is_editable").default(true).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -172,6 +185,11 @@ export const insertSavedAddressSchema = createInsertSchema(savedAddresses).omit(
   updatedAt: true,
 });
 
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -193,3 +211,6 @@ export type Delivery = typeof deliveries.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;

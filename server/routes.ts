@@ -559,6 +559,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // System Settings routes (Admin only)
+  const requireAdmin = async (req: any, res: any, next: any) => {
+    const userId = req.headers['x-user-id'];
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    req.user = user;
+    next();
+  };
+
+  app.get("/api/settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getAllSystemSettings();
+      res.json({ settings });
+    } catch (error) {
+      console.error("Get settings error:", error);
+      res.status(500).json({ error: "Failed to get settings" });
+    }
+  });
+
+  app.get("/api/settings/category/:category", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getSystemSettingsByCategory(req.params.category);
+      res.json({ settings });
+    } catch (error) {
+      console.error("Get settings by category error:", error);
+      res.status(500).json({ error: "Failed to get settings" });
+    }
+  });
+
+  app.get("/api/settings/:key", requireAuth, async (req, res) => {
+    try {
+      const setting = await storage.getSystemSetting(req.params.key);
+      if (!setting) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json({ setting });
+    } catch (error) {
+      console.error("Get setting error:", error);
+      res.status(500).json({ error: "Failed to get setting" });
+    }
+  });
+
+  app.put("/api/settings/:key", requireAdmin, async (req, res) => {
+    try {
+      const { value } = req.body;
+      if (!value) {
+        return res.status(400).json({ error: "Value is required" });
+      }
+      
+      const setting = await storage.updateSystemSetting(req.params.key, value, req.user!.id);
+      res.json({ setting });
+    } catch (error) {
+      console.error("Update setting error:", error);
+      res.status(400).json({ error: "Failed to update setting" });
+    }
+  });
+
+  app.post("/api/settings", requireAdmin, async (req, res) => {
+    try {
+      const settingData = {
+        ...req.body,
+        updatedBy: req.user!.id
+      };
+      
+      const setting = await storage.createSystemSetting(settingData);
+      res.json({ setting });
+    } catch (error) {
+      console.error("Create setting error:", error);
+      res.status(400).json({ error: "Failed to create setting" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

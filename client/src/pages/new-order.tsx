@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +56,33 @@ export default function NewOrderScreen() {
   });
 
   const quantity = form.watch("quantity");
-  const ratePerLiter = 70.50;
+  
+  // Fetch pricing settings from database
+  const { data: pricingSettings } = useQuery({
+    queryKey: ["/api/settings/category/pricing"],
+    enabled: !!user,
+  });
+
+  const { data: taxSettings } = useQuery({
+    queryKey: ["/api/settings/category/tax"],
+    enabled: !!user,
+  });
+
+  const { data: orderSettings } = useQuery({
+    queryKey: ["/api/settings/category/order"],
+    enabled: !!user,
+  });
+
+  // Calculate pricing with dynamic values
+  const ratePerLiter = parseFloat((pricingSettings as any)?.settings?.find((s: any) => s.key === "rate_per_liter")?.value || "70.50");
+  const deliveryCharges = parseFloat((pricingSettings as any)?.settings?.find((s: any) => s.key === "delivery_charges")?.value || "300");
+  const gstRate = parseFloat((taxSettings as any)?.settings?.find((s: any) => s.key === "gst_rate")?.value || "0.18");
+  const minQuantity = parseInt((orderSettings as any)?.settings?.find((s: any) => s.key === "minimum_order_quantity")?.value || "100");
+  const maxQuantity = parseInt((orderSettings as any)?.settings?.find((s: any) => s.key === "maximum_order_quantity")?.value || "10000");
+  const orderStep = parseInt((orderSettings as any)?.settings?.find((s: any) => s.key === "order_step")?.value || "50");
+
   const subtotal = quantity * ratePerLiter;
-  const deliveryCharges = 300;
-  const gst = subtotal * 0.18;
+  const gst = subtotal * gstRate;
   const totalAmount = subtotal + deliveryCharges + gst;
 
   // Set minimum date to today
@@ -134,9 +157,9 @@ export default function NewOrderScreen() {
                     {...form.register("quantity", { valueAsNumber: true })}
                     type="number"
                     placeholder=" "
-                    min="100"
-                    max="10000"
-                    step="50"
+                    min={minQuantity}
+                    max={maxQuantity}
+                    step={orderStep}
                     className="peer"
                     data-testid="quantity-input"
                   />
