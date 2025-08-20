@@ -6,7 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
-import { Bell, Fuel, MapPin, Plus, TrendingUp, Eye, Shield, ArrowLeft } from "lucide-react";
+import {
+  Bell,
+  Fuel,
+  MapPin,
+  Plus,
+  TrendingUp,
+  Eye,
+  Shield,
+  ArrowLeft,
+} from "lucide-react";
 import { format } from "date-fns";
 import LocationSelector from "@/components/LocationSelector";
 
@@ -16,16 +25,18 @@ export default function HomeScreen() {
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ["/api/orders"],
-    queryFn: () => fetch("/api/orders", {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/orders", {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
   });
 
   const { data: notificationsData } = useQuery({
     queryKey: ["/api/notifications"],
-    queryFn: () => fetch("/api/notifications", {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/notifications", {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
   });
 
   const orders = ordersData?.orders || [];
@@ -37,9 +48,15 @@ export default function HomeScreen() {
   const currentYear = new Date().getFullYear();
   const monthlyOrders = orders.filter((order: any) => {
     const orderDate = new Date(order.createdAt);
-    return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    return (
+      orderDate.getMonth() === currentMonth &&
+      orderDate.getFullYear() === currentYear
+    );
   });
-  const monthlyLiters = monthlyOrders.reduce((sum: number, order: any) => sum + order.quantity, 0);
+  const monthlyLiters = monthlyOrders.reduce(
+    (sum: number, order: any) => sum + order.quantity,
+    0,
+  );
   const totalSaved = monthlyOrders.length * 500; // Estimated savings
 
   const getStatusColor = (status: string) => {
@@ -71,7 +88,10 @@ export default function HomeScreen() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="home-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="home-screen"
+    >
       {/* Header */}
       <div className="zapygo-gradient text-white p-4">
         <div className="flex items-center justify-between mb-4">
@@ -79,7 +99,9 @@ export default function HomeScreen() {
             <h2 className="text-xl font-bold" data-testid="welcome-message">
               Welcome, {user.businessName || user.name}
             </h2>
-            <p className="text-blue-100 text-sm" data-testid="tagline">Fuel delivered to your doorstep</p>
+            <p className="text-blue-100 text-sm" data-testid="tagline">
+              Fuel delivered to your doorstep
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -90,7 +112,10 @@ export default function HomeScreen() {
           >
             <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-white" data-testid="notification-count">
+              <span
+                className="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-white"
+                data-testid="notification-count"
+              >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -99,22 +124,39 @@ export default function HomeScreen() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-blue-600 rounded-lg p-3" data-testid="monthly-stats">
+          <div
+            className="bg-blue-600 rounded-lg p-3"
+            data-testid="monthly-stats"
+          >
             <p className="text-blue-100 text-xs">This Month</p>
-            <p className="text-xl font-bold" data-testid="monthly-liters">{monthlyLiters}L</p>
+            <p className="text-xl font-bold" data-testid="monthly-liters">
+              {monthlyLiters}L
+            </p>
           </div>
-          <div className="bg-blue-600 rounded-lg p-3" data-testid="savings-stats">
+          <div
+            className="bg-blue-600 rounded-lg p-3"
+            data-testid="savings-stats"
+          >
             <p className="text-blue-100 text-xs">Total Saved</p>
-            <p className="text-xl font-bold" data-testid="total-saved">₹{totalSaved.toLocaleString()}</p>
+            <p className="text-xl font-bold" data-testid="total-saved">
+              ₹{totalSaved.toLocaleString()}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="flex-1 pb-20">
+        {/* Location Selection at top */}
+        <div className="p-4 pb-0">
+          <LocationSelector />
+        </div>
         {/* KYC CTA Banner */}
         {user.kycStatus === "pending" && (
           <div className="p-4">
-            <Card className="bg-orange-50 border-orange-200 shadow-sm" data-testid="kyc-cta-banner">
+            <Card
+              className="bg-orange-50 border-orange-200 shadow-sm"
+              data-testid="kyc-cta-banner"
+            >
               <CardContent className="p-4">
                 <Button
                   onClick={() => setLocation("/kyc-upload")}
@@ -126,7 +168,9 @@ export default function HomeScreen() {
                       <Shield size={24} />
                       <div className="text-left">
                         <p className="font-medium">Complete KYC Verification</p>
-                        <p className="text-sm text-orange-100">Required to place orders</p>
+                        <p className="text-sm text-orange-100">
+                          Required to place orders
+                        </p>
                       </div>
                     </div>
                     <ArrowLeft className="rotate-180" size={20} />
@@ -137,19 +181,16 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* Location Selection */}
-        <div className="p-4">
-          <h3 className="font-bold text-lg mb-4" data-testid="delivery-location-title">Delivery Location</h3>
-          <Card className="bg-blue-50 border-blue-200 mb-6" data-testid="location-card">
-            <CardContent className="p-4">
-              <LocationSelector />
-            </CardContent>
-          </Card>
-        </div>
+
 
         {/* Quick Actions */}
         <div className="p-4">
-          <h3 className="font-bold text-lg mb-4" data-testid="quick-actions-title">Quick Actions</h3>
+          <h3
+            className="font-bold text-lg mb-4"
+            data-testid="quick-actions-title"
+          >
+            Quick Actions
+          </h3>
           <div className="grid grid-cols-2 gap-4 mb-6">
             <Button
               onClick={() => setLocation("/new-order")}
@@ -173,7 +214,9 @@ export default function HomeScreen() {
         {/* Recent Orders */}
         <div className="px-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg" data-testid="recent-orders-title">Recent Orders</h3>
+            <h3 className="font-bold text-lg" data-testid="recent-orders-title">
+              Recent Orders
+            </h3>
             <Button
               variant="ghost"
               size="sm"
@@ -192,36 +235,58 @@ export default function HomeScreen() {
           ) : recentOrders.length > 0 ? (
             <div className="space-y-4 mb-6">
               {recentOrders.map((order: any) => (
-                <Card key={order.id} className={`shadow-sm border-l-4 ${getStatusBorder(order.status)}`} data-testid={`order-${order.id}`}>
+                <Card
+                  key={order.id}
+                  className={`shadow-sm border-l-4 ${getStatusBorder(order.status)}`}
+                  data-testid={`order-${order.id}`}
+                >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-medium text-gray-800" data-testid={`order-number-${order.id}`}>
+                        <p
+                          className="font-medium text-gray-800"
+                          data-testid={`order-number-${order.id}`}
+                        >
                           Order #{order.orderNumber}
                         </p>
-                        <p className="text-sm text-gray-600" data-testid={`order-date-${order.id}`}>
+                        <p
+                          className="text-sm text-gray-600"
+                          data-testid={`order-date-${order.id}`}
+                        >
                           {format(new Date(order.createdAt), "MMM dd, yyyy")}
                         </p>
                       </div>
-                      <Badge className={getStatusColor(order.status)} data-testid={`order-status-${order.id}`}>
+                      <Badge
+                        className={getStatusColor(order.status)}
+                        data-testid={`order-status-${order.id}`}
+                      >
                         {order.status.replace("_", " ").toLowerCase()}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-gray-600" data-testid={`order-quantity-${order.id}`}>
+                        <p
+                          className="text-sm text-gray-600"
+                          data-testid={`order-quantity-${order.id}`}
+                        >
                           Quantity: {order.quantity}L
                         </p>
-                        <p className="text-sm text-gray-600" data-testid={`order-amount-${order.id}`}>
-                          Amount: ₹{parseFloat(order.totalAmount).toLocaleString()}
+                        <p
+                          className="text-sm text-gray-600"
+                          data-testid={`order-amount-${order.id}`}
+                        >
+                          Amount: ₹
+                          {parseFloat(order.totalAmount).toLocaleString()}
                         </p>
                       </div>
                       <div className="flex space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setLocation(`/track-order/${order.id}`)}
+                          onClick={() =>
+                            setLocation(`/track-order/${order.id}`)
+                          }
                           className="text-primary"
                           data-testid={`track-order-${order.id}`}
                         >
@@ -232,7 +297,9 @@ export default function HomeScreen() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setLocation(`/track-order/${order.id}`)}
+                            onClick={() =>
+                              setLocation(`/track-order/${order.id}`)
+                            }
                             className="text-primary border-primary"
                             data-testid={`live-track-${order.id}`}
                           >
@@ -250,8 +317,12 @@ export default function HomeScreen() {
             <Card className="shadow-sm mb-6" data-testid="no-orders-card">
               <CardContent className="p-8 text-center">
                 <Fuel size={48} className="text-gray-400 mx-auto mb-4" />
-                <h3 className="font-medium text-gray-800 mb-2">No Orders Yet</h3>
-                <p className="text-sm text-gray-600 mb-4">Place your first diesel order to get started</p>
+                <h3 className="font-medium text-gray-800 mb-2">
+                  No Orders Yet
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Place your first diesel order to get started
+                </p>
                 <Button
                   onClick={() => setLocation("/new-order")}
                   className="ripple"
