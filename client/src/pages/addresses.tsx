@@ -140,32 +140,43 @@ export default function AddressesScreen() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
+                      <div className="flex items-center space-x-3 mb-3">
                         {getAddressTypeIcon(address.type)}
-                        <span className="font-medium text-lg">{address.title}</span>
-                        {address.isDefault && (
-                          <Badge variant="secondary" className="text-xs">
-                            Default
-                          </Badge>
-                        )}
-                        <Badge 
-                          className={`text-xs capitalize ${getAddressTypeColor(address.type)}`}
-                          data-testid={`address-type-${address.id}`}
-                        >
-                          {address.type}
-                        </Badge>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900" data-testid={`address-title-${address.id}`}>
+                            {address.label || address.title || `${address.type.charAt(0).toUpperCase() + address.type.slice(1)} Address`}
+                          </h3>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <Badge 
+                              className={`text-xs capitalize ${getAddressTypeColor(address.type)}`}
+                              data-testid={`address-type-${address.id}`}
+                            >
+                              {address.type}
+                            </Badge>
+                            {address.isDefault && (
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-gray-600 mb-2" data-testid={`address-text-${address.id}`}>
-                        {address.address}
-                      </p>
-                      {address.landmark && (
-                        <p className="text-sm text-gray-500 mb-2" data-testid={`address-landmark-${address.id}`}>
-                          Near: {address.landmark}
+                      
+                      <div className="bg-gray-50 p-3 rounded-lg mb-2">
+                        <p className="text-gray-700 font-medium mb-1" data-testid={`address-text-${address.id}`}>
+                          {address.address}
                         </p>
-                      )}
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        {address.landmark && (
+                          <p className="text-sm text-gray-600" data-testid={`address-landmark-${address.id}`}>
+                            <MapPin size={14} className="inline mr-1" />
+                            Near: {address.landmark}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
                         {address.city && (
-                          <span data-testid={`address-city-${address.id}`}>
+                          <span className="font-medium" data-testid={`address-city-${address.id}`}>
                             {address.city}
                           </span>
                         )}
