@@ -140,7 +140,7 @@ export default function AddressesScreen() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-3">
+                      <div className="flex items-center space-x-3 mb-2">
                         {getAddressTypeIcon(address.type)}
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg text-gray-900" data-testid={`address-title-${address.id}`}>
@@ -162,29 +162,14 @@ export default function AddressesScreen() {
                         </div>
                       </div>
                       
-                      <div className="bg-gray-50 p-3 rounded-lg mb-2">
-                        <p className="text-gray-700 font-medium mb-1" data-testid={`address-text-${address.id}`}>
-                          {address.address}
-                        </p>
-                        {address.landmark && (
-                          <p className="text-sm text-gray-600" data-testid={`address-landmark-${address.id}`}>
-                            <MapPin size={14} className="inline mr-1" />
-                            Near: {address.landmark}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        {address.city && (
-                          <span className="font-medium" data-testid={`address-city-${address.id}`}>
-                            {address.city}
-                          </span>
-                        )}
-                        {address.pincode && (
-                          <span data-testid={`address-pincode-${address.id}`}>
-                            PIN: {address.pincode}
-                          </span>
-                        )}
+                      {/* Complete address display matching order page format */}
+                      <div className="text-sm text-gray-700 leading-relaxed" data-testid={`address-text-${address.id}`}>
+                        {address.addressLine1 || address.address}
+                        {address.addressLine2 && `, ${address.addressLine2}`}
+                        {address.landmark && `, Near ${address.landmark}`}
+                        <br />
+                        {address.area && `${address.area}, `}
+                        {address.city || 'Bangalore'}, {address.state || 'Karnataka'} - {address.pincode}
                       </div>
                     </div>
                     
