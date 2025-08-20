@@ -8,6 +8,7 @@ import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
 import { Bell, Fuel, MapPin, Plus, TrendingUp, Eye, Shield, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
+import LocationSelector from "@/components/LocationSelector";
 
 export default function HomeScreen() {
   const [, setLocation] = useLocation();
@@ -135,6 +136,16 @@ export default function HomeScreen() {
             </Card>
           </div>
         )}
+
+        {/* Location Selection */}
+        <div className="p-4">
+          <h3 className="font-bold text-lg mb-4" data-testid="delivery-location-title">Delivery Location</h3>
+          <Card className="bg-blue-50 border-blue-200 mb-6" data-testid="location-card">
+            <CardContent className="p-4">
+              <LocationSelector />
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Quick Actions */}
         <div className="p-4">

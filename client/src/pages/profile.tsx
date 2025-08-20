@@ -27,8 +27,10 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  User
+  User,
+  Plus
 } from "lucide-react";
+import AddressesSection from "@/components/AddressesSection";
 import { apiRequest } from "@/lib/queryClient";
 
 const profileSchema = z.object({
@@ -277,6 +279,27 @@ export default function ProfileScreen() {
                   </Button>
                 );
               })}
+            </CardContent>
+          </Card>
+
+          {/* My Addresses */}
+          <Card data-testid="my-addresses-section">
+            <CardContent className="p-0">
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg">My Addresses</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toast({ title: "Add Address", description: "Address management coming soon" })}
+                    data-testid="add-address-button"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Add New
+                  </Button>
+                </div>
+              </div>
+              <AddressesSection />
             </CardContent>
           </Card>
 
