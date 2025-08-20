@@ -8,7 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import LoadingSpinner from "@/components/loading-spinner";
-import { ArrowLeft, Shield, CheckCircle, Upload, FileText, CreditCard, Award } from "lucide-react";
+import {
+  ArrowLeft,
+  Shield,
+  CheckCircle,
+  Upload,
+  FileText,
+  CreditCard,
+  Award,
+} from "lucide-react";
 import type { UploadResult } from "@uppy/core";
 
 interface KycDocument {
@@ -86,29 +94,33 @@ export default function KycUploadScreen() {
     };
   };
 
-  const handleUploadComplete = (docType: string) => (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      const fileUrl = uploadedFile.uploadURL;
-      
-      setDocuments(prev => 
-        prev.map(doc => 
-          doc.type === docType 
-            ? { ...doc, uploaded: true, url: fileUrl }
-            : doc
-        )
-      );
+  const handleUploadComplete =
+    (docType: string) =>
+    (
+      result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
+    ) => {
+      if (result.successful && result.successful.length > 0) {
+        const uploadedFile = result.successful[0];
+        const fileUrl = uploadedFile.uploadURL;
 
-      toast({
-        title: "Upload Successful",
-        description: `${documents.find(d => d.type === docType)?.name} uploaded successfully`,
-      });
-    }
-  };
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.type === docType
+              ? { ...doc, uploaded: true, url: fileUrl }
+              : doc,
+          ),
+        );
+
+        toast({
+          title: "Upload Successful",
+          description: `${documents.find((d) => d.type === docType)?.name} uploaded successfully`,
+        });
+      }
+    };
 
   const handleSubmitKyc = async () => {
-    const uploadedDocs = documents.filter(doc => doc.uploaded);
-    
+    const uploadedDocs = documents.filter((doc) => doc.uploaded);
+
     if (uploadedDocs.length < 3) {
       toast({
         title: "Incomplete Documents",
@@ -119,7 +131,7 @@ export default function KycUploadScreen() {
     }
 
     const docUrls: Record<string, string> = {};
-    uploadedDocs.forEach(doc => {
+    uploadedDocs.forEach((doc) => {
       if (doc.url) {
         docUrls[doc.type] = doc.url;
       }
@@ -133,7 +145,10 @@ export default function KycUploadScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="kyc-upload-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="kyc-upload-screen"
+    >
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
@@ -144,7 +159,9 @@ export default function KycUploadScreen() {
         >
           <ArrowLeft size={20} />
         </Button>
-        <h2 className="text-lg font-medium" data-testid="page-title">Complete KYC</h2>
+        <h2 className="text-lg font-medium" data-testid="page-title">
+          Complete KYC
+        </h2>
       </div>
 
       <div className="flex-1 p-6">
@@ -152,8 +169,12 @@ export default function KycUploadScreen() {
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
             <Shield className="text-orange-600" size={32} />
           </div>
-          <h3 className="text-xl font-bold mb-2" data-testid="verify-title">Verify Your Business</h3>
-          <p className="text-gray-600" data-testid="verify-description">Upload required documents to complete verification</p>
+          <h3 className="text-xl font-bold mb-2" data-testid="verify-title">
+            Verify Your Business
+          </h3>
+          <p className="text-gray-600" data-testid="verify-description">
+            Upload required documents to complete verification
+          </p>
         </div>
 
         <div className="space-y-4 mb-6">
@@ -164,12 +185,26 @@ export default function KycUploadScreen() {
                   <div className="flex items-center space-x-3">
                     <div className="text-gray-600">{doc.icon}</div>
                     <div>
-                      <h4 className="font-medium" data-testid={`${doc.type}-title`}>{doc.name}</h4>
-                      <p className="text-sm text-gray-600" data-testid={`${doc.type}-description`}>{doc.description}</p>
+                      <h4
+                        className="font-medium"
+                        data-testid={`${doc.type}-title`}
+                      >
+                        {doc.name}
+                      </h4>
+                      <p
+                        className="text-sm text-gray-600"
+                        data-testid={`${doc.type}-description`}
+                      >
+                        {doc.description}
+                      </p>
                     </div>
                   </div>
                   {doc.uploaded ? (
-                    <CheckCircle className="text-green-500" size={24} data-testid={`${doc.type}-success`} />
+                    <CheckCircle
+                      className="text-green-500"
+                      size={24}
+                      data-testid={`${doc.type}-success`}
+                    />
                   ) : (
                     <Upload className="text-gray-400" size={24} />
                   )}
@@ -181,26 +216,34 @@ export default function KycUploadScreen() {
                     maxFileSize={5 * 1024 * 1024} // 5MB
                     onGetUploadParameters={handleGetUploadParameters}
                     onComplete={handleUploadComplete(doc.type)}
-                    buttonClassName="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg py-8 px-6 text-center hover:bg-gray-100 hover:border-blue-400 transition-all duration-200"
+                    buttonClassName="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg py-7 px-6 text-center hover:bg-gray-100 hover:border-blue-400 transition-all duration-200"
                   >
-                    <div className="flex flex-col items-center space-y-4" data-testid={`${doc.type}-upload-button`}>
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div
+                      className="flex flex-col items-center space-y-4"
+                      data-testid={`${doc.type}-upload-button`}
+                    >
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                         <Upload className="text-blue-600" size={24} />
                       </div>
-                      <div className="space-y-2 max-w-full">
-                        <h5 className="text-lg font-semibold text-gray-800">
+                      <div className="flex flex-col items-center justify-center h-full max-w-full">
+                        <h6 className="text-lg font-semibold text-gray-800">
                           Click to upload {doc.name}
-                        </h5>
-                        <p className="text-sm text-gray-500 px-2">
-                          PDF or Image (Max 5MB)
-                        </p>
+                          <p className="text-sm text-gray-500 px-2">
+                            PDF or Image (Max 5MB)
+                          </p>
+                        </h6>
                       </div>
                     </div>
                   </ObjectUploader>
                 ) : (
                   <div className="w-full bg-green-50 border border-green-300 rounded-lg p-4 text-center">
-                    <CheckCircle className="text-green-500 mb-2 mx-auto" size={24} />
-                    <p className="text-sm text-green-600 font-medium">Document uploaded successfully</p>
+                    <CheckCircle
+                      className="text-green-500 mb-2 mx-auto"
+                      size={24}
+                    />
+                    <p className="text-sm text-green-600 font-medium">
+                      Document uploaded successfully
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -211,10 +254,17 @@ export default function KycUploadScreen() {
         <Button
           onClick={handleSubmitKyc}
           className="w-full ripple mb-4"
-          disabled={updateKycMutation.isPending || documents.filter(d => d.uploaded).length < 3}
+          disabled={
+            updateKycMutation.isPending ||
+            documents.filter((d) => d.uploaded).length < 3
+          }
           data-testid="submit-kyc-button"
         >
-          {updateKycMutation.isPending ? <LoadingSpinner /> : "Submit for Verification"}
+          {updateKycMutation.isPending ? (
+            <LoadingSpinner />
+          ) : (
+            "Submit for Verification"
+          )}
         </Button>
 
         <Card className="bg-blue-50 border-blue-200">
@@ -222,9 +272,18 @@ export default function KycUploadScreen() {
             <div className="flex items-start space-x-3">
               <Shield className="text-blue-600 mt-1" size={20} />
               <div>
-                <p className="text-sm text-blue-800 font-medium" data-testid="verification-info-title">Verification Process</p>
-                <p className="text-xs text-blue-700 mt-1" data-testid="verification-info-description">
-                  Documents will be reviewed within 24-48 hours. You'll receive notification once approved.
+                <p
+                  className="text-sm text-blue-800 font-medium"
+                  data-testid="verification-info-title"
+                >
+                  Verification Process
+                </p>
+                <p
+                  className="text-xs text-blue-700 mt-1"
+                  data-testid="verification-info-description"
+                >
+                  Documents will be reviewed within 24-48 hours. You'll receive
+                  notification once approved.
                 </p>
               </div>
             </div>

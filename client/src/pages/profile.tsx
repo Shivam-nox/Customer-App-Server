@@ -224,17 +224,33 @@ export default function ProfileScreen() {
               </div>
 
               {/* KYC Status */}
-              <div className={`flex items-center justify-between p-3 border rounded-lg ${getKycStatusColor(user.kycStatus)}`} data-testid="kyc-status">
-                <div className="flex items-center space-x-2">
-                  {getKycStatusIcon(user.kycStatus)}
-                  <span className="font-medium">{getKycStatusText(user.kycStatus)}</span>
+              {user.kycStatus === "pending" ? (
+                <Button
+                  onClick={() => setLocation("/kyc-upload")}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-lg p-3 h-auto ripple"
+                  data-testid="kyc-pending-cta"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-2">
+                      <Shield size={20} />
+                      <span className="font-medium">Complete KYC Verification</span>
+                    </div>
+                    <ArrowLeft className="rotate-180" size={16} />
+                  </div>
+                </Button>
+              ) : (
+                <div className={`flex items-center justify-between p-3 border rounded-lg ${getKycStatusColor(user.kycStatus)}`} data-testid="kyc-status">
+                  <div className="flex items-center space-x-2">
+                    {getKycStatusIcon(user.kycStatus)}
+                    <span className="font-medium">{getKycStatusText(user.kycStatus)}</span>
+                  </div>
+                  {user.kycStatus === "verified" && (
+                    <span className="text-xs" data-testid="kyc-verified-date">
+                      Verified
+                    </span>
+                  )}
                 </div>
-                {user.kycStatus === "verified" && (
-                  <span className="text-xs" data-testid="kyc-verified-date">
-                    Verified
-                  </span>
-                )}
-              </div>
+              )}
             </CardContent>
           </Card>
 

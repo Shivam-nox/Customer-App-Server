@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
-import { Bell, Fuel, MapPin, Plus, TrendingUp, Eye } from "lucide-react";
+import { Bell, Fuel, MapPin, Plus, TrendingUp, Eye, Shield, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 
 export default function HomeScreen() {
@@ -110,6 +110,32 @@ export default function HomeScreen() {
       </div>
 
       <div className="flex-1 pb-20">
+        {/* KYC CTA Banner */}
+        {user.kycStatus === "pending" && (
+          <div className="p-4">
+            <Card className="bg-orange-50 border-orange-200 shadow-sm" data-testid="kyc-cta-banner">
+              <CardContent className="p-4">
+                <Button
+                  onClick={() => setLocation("/kyc-upload")}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-lg p-4 h-auto ripple"
+                  data-testid="kyc-home-cta"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-3">
+                      <Shield size={24} />
+                      <div className="text-left">
+                        <p className="font-medium">Complete KYC Verification</p>
+                        <p className="text-sm text-orange-100">Required to place orders</p>
+                      </div>
+                    </div>
+                    <ArrowLeft className="rotate-180" size={20} />
+                  </div>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="p-4">
           <h3 className="font-bold text-lg mb-4" data-testid="quick-actions-title">Quick Actions</h3>
