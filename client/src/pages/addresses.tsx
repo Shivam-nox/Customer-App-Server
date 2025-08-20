@@ -3,21 +3,27 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Home, 
-  Building, 
+import {
+  ArrowLeft,
+  MapPin,
+  Plus,
+  Edit,
+  Trash2,
+  Home,
+  Building,
   MapIcon,
-  MoreVertical
+  MoreVertical,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -30,15 +36,19 @@ export default function AddressesScreen() {
 
   const { data: addressesData, isLoading } = useQuery({
     queryKey: ["/api/addresses"],
-    queryFn: () => fetch("/api/addresses", {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/addresses", {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
     enabled: !!user,
   });
 
   const deleteAddressMutation = useMutation({
     mutationFn: async (addressId: string) => {
-      const response = await apiRequest("DELETE", `/api/addresses/${addressId}`);
+      const response = await apiRequest(
+        "DELETE",
+        `/api/addresses/${addressId}`,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -90,7 +100,10 @@ export default function AddressesScreen() {
   const addresses = addressesData?.addresses || [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="addresses-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="addresses-screen"
+    >
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center">
           <Button
@@ -102,7 +115,9 @@ export default function AddressesScreen() {
           >
             <ArrowLeft size={20} />
           </Button>
-          <h2 className="text-lg font-medium" data-testid="page-title">My Addresses</h2>
+          <h2 className="text-lg font-medium" data-testid="page-title">
+            My Addresses
+          </h2>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
@@ -122,8 +137,12 @@ export default function AddressesScreen() {
         ) : addresses.length === 0 ? (
           <div className="text-center py-8" data-testid="no-addresses">
             <MapPin className="mx-auto mb-4 text-gray-400" size={48} />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">No Addresses Found</h3>
-            <p className="text-gray-500 mb-4">Add your first delivery address to get started</p>
+            <h3 className="text-lg font-medium text-gray-600 mb-2">
+              No Addresses Found
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Add your first delivery address to get started
+            </p>
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               className="bg-primary hover:bg-primary/90"
@@ -136,48 +155,69 @@ export default function AddressesScreen() {
         ) : (
           <div className="space-y-4">
             {addresses.map((address: any) => (
-              <Card key={address.id} className="hover:shadow-md transition-shadow" data-testid={`address-card-${address.id}`}>
+              <Card
+                key={address.id}
+                className="hover:shadow-md transition-shadow"
+                data-testid={`address-card-${address.id}`}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         {getAddressTypeIcon(address.type)}
                         <div className="flex-1">
-                          <h3 className="font-semibold text-lg text-gray-900" data-testid={`address-title-${address.id}`}>
-                            {address.label || address.title || `${address.type.charAt(0).toUpperCase() + address.type.slice(1)} Address`}
+                          <h3
+                            className="font-semibold text-lg text-gray-900"
+                            data-testid={`address-title-${address.id}`}
+                          >
+                            {address.label ||
+                              address.title ||
+                              `${address.type.charAt(0).toUpperCase() + address.type.slice(1)} Address`}
                           </h3>
                           <div className="flex items-center space-x-2 mt-1">
-                            <Badge 
+                            <Badge
                               className={`text-xs capitalize ${getAddressTypeColor(address.type)}`}
                               data-testid={`address-type-${address.id}`}
                             >
                               {address.type}
                             </Badge>
                             {address.isDefault && (
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-green-100 text-green-800"
+                              >
                                 Default
                               </Badge>
                             )}
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Complete address display matching order page format */}
-                      <div className="text-sm text-gray-700 leading-relaxed" data-testid={`address-text-${address.id}`}>
+                      <div
+                        className="text-sm text-gray-700 leading-relaxed"
+                        data-testid={`address-text-${address.id}`}
+                      >
                         {address.addressLine1 || address.address}
                         {address.addressLine2 && `, ${address.addressLine2}`}
                         {address.landmark && `, Near ${address.landmark}`}
                         <br />
                         {address.area && `${address.area}, `}
-                        {address.city || 'Bangalore'}, {address.state || 'Karnataka'} - {address.pincode}
+                        {address.city || "Bangalore"},{" "}
+                        {address.state || "Karnataka"} - {address.pincode}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2 ml-4">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toast({ title: "Edit Address", description: "Address editing coming soon" })}
+                        onClick={() =>
+                          toast({
+                            title: "Edit Address",
+                            description: "Address editing coming soon",
+                          })
+                        }
                         data-testid={`edit-address-${address.id}`}
                       >
                         <Edit size={14} />
