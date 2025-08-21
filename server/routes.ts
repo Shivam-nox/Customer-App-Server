@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
+import { driverService } from "./driverService";
 import jsPDF from 'jspdf';
 import bcrypt from 'bcryptjs';
 import "./types";
@@ -219,7 +220,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orderId: order.id
       });
       
-      res.json({ order });
+      // Notify driver app about the new order
+      const notificationSuccess = await driverService.notifyNewOrder(order, req.user!);
+      
+      res.json({ 
+        order,
+        driverNotified: notificationSuccess
+      });
     } catch (error) {
       console.error("Create order error:", error);
       res.status(400).json({ error: "Failed to create order" });
@@ -452,6 +459,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Mark notification read error:", error);
       res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  // Driver Integration Routes
+  
+  // Test driver app connection
+  app.get("/api/integration/driver/test", async (req, res) => {
+    try {
+      const connectionTest = await driverService.testConnection();
+      const integrationInfo = await driverService.getIntegrationInfo();
+      
+      res.json({
+        connected: connectionTest,
+        timestamp: new Date().toISOString(),
+        ...integrationInfo
+      });
+    } catch (error) {
+      console.error("Driver integration test error:", error);
+      res.status(500).json({ error: "Failed to test driver integration" });
+    }
+  });
+  
+  // Get driver integration info
+  app.get("/api/integration/driver/info", async (req, res) => {
+    try {
+      const integrationInfo = await driverService.getIntegrationInfo();
+      res.json(integrationInfo);
+    } catch (error) {
+      console.error("Driver integration info error:", error);
+      res.status(500).json({ error: "Failed to get integration info" });
+    }
+  });
+
+  // Update order status from driver app (for future use)
+  app.put("/api/orders/:id/status", async (req, res) => {
+    try {
+      const { status, driverId } = req.body;
+      
+      // Validate status
+      const validStatuses = ["pending", "confirmed", "fuel_loaded", "in_transit", "delivered", "cancelled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      
+      const order = await storage.updateOrderStatus(req.params.id, status, driverId);
+      
+      // Create notification for customer
+      const customer = await storage.getUser(order.customerId);
+      if (customer) {
+        await storage.createNotification({
+          userId: customer.id,
+          title: "Order Status Updated",
+          message: `Your order #${order.orderNumber} is now ${status.replace('_', ' ')}`,
+          type: "order_update",
+          orderId: order.id
+        });
+      }
+      
+      res.json({ order });
+    } catch (error) {
+      console.error("Update order status error:", error);
+      res.status(500).json({ error: "Failed to update order status" });
     }
   });
 

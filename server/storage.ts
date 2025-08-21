@@ -28,7 +28,7 @@ export interface IStorage {
   createOrder(order: InsertOrder): Promise<Order>;
   getOrder(id: string): Promise<Order | undefined>;
   getUserOrders(customerId: string, limit?: number): Promise<Order[]>;
-  updateOrderStatus(id: string, status: string): Promise<Order>;
+  updateOrderStatus(id: string, status: string, driverId?: string): Promise<Order>;
   generateOrderNumber(): Promise<string>;
   
   // Payment methods
@@ -168,10 +168,14 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async updateOrderStatus(id: string, status: string): Promise<Order> {
+  async updateOrderStatus(id: string, status: string, driverId?: string): Promise<Order> {
+    const updates: any = { status: status as any, updatedAt: new Date() };
+    if (driverId) {
+      updates.driverId = driverId;
+    }
     const [order] = await db
       .update(orders)
-      .set({ status: status as any, updatedAt: new Date() })
+      .set(updates)
       .where(eq(orders.id, id))
       .returning();
     return order;
