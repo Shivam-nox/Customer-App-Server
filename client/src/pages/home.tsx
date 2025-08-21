@@ -97,9 +97,9 @@ export default function HomeScreen() {
       <div className="zapygo-gradient text-white p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <img 
-              src={logoUrl} 
-              alt="Zapygo - Fueling business, Driving progress" 
+            <img
+              src={logoUrl}
+              alt="Zapygo - Fueling business, Driving progress"
               className="h-12 w-auto"
               data-testid="company-logo"
             />
@@ -181,8 +181,6 @@ export default function HomeScreen() {
             </Card>
           </div>
         )}
-
-
 
         {/* Quick Actions */}
         <div className="p-4">
