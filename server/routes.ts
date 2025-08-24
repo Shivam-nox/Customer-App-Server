@@ -492,6 +492,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check API secrets
+  app.get("/api/integration/driver/debug", async (req, res) => {
+    try {
+      const apiSecret = process.env.CUSTOMER_APP_KEY || 'NOT_SET';
+      const driverUrl = process.env.DRIVER_APP_URL || 'NOT_SET';
+      
+      res.json({
+        apiSecret: apiSecret.substring(0, 10) + '...' + (apiSecret.length > 10 ? apiSecret.substring(apiSecret.length - 4) : ''),
+        apiSecretLength: apiSecret.length,
+        driverUrl: driverUrl,
+        isApiSecretUrl: apiSecret.startsWith('http'),
+        issue: apiSecret.startsWith('http') ? 'API_SECRET_IS_URL_NOT_KEY' : null,
+        suggestion: apiSecret.startsWith('http') ? 'Update CUSTOMER_APP_KEY to be an API key, not a URL' : 'Configuration looks correct',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Driver integration debug error:", error);
+      res.status(500).json({ error: "Failed to get debug info" });
+    }
+  });
+
   // Update order status from driver app (for future use)
   app.put("/api/orders/:id/status", async (req, res) => {
     try {
