@@ -4,11 +4,9 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { driverService } from "./driverService";
-import jsPDF from 'jspdf';
-import bcrypt from 'bcryptjs';
+import jsPDF from "jspdf";
+import bcrypt from "bcryptjs";
 import "./types";
-
-
 
 // Validation schemas
 const signupSchema = z.object({
@@ -46,7 +44,7 @@ const processPaymentSchema = z.object({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   const requireAuth = async (req: any, res: any, next: any) => {
-    const userId = req.headers['x-user-id'];
+    const userId = req.headers["x-user-id"];
     if (!userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
@@ -62,18 +60,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const userData = signupSchema.parse(req.body);
-      
+
       // Check if username or email already exists
-      const existingUser = await storage.getUserByUsername(userData.username) || 
-                           await storage.getUserByEmail(userData.email);
-      
+      const existingUser =
+        (await storage.getUserByUsername(userData.username)) ||
+        (await storage.getUserByEmail(userData.email));
+
       if (existingUser) {
-        return res.status(400).json({ error: "Username or email already exists" });
+        return res
+          .status(400)
+          .json({ error: "Username or email already exists" });
       }
-      
+
       // Hash password
       const passwordHash = await bcrypt.hash(userData.password, 10);
-      
+
       // Create user
       const newUser = await storage.createUser({
         name: userData.name,
@@ -88,10 +89,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         panNumber: userData.panNumber,
         role: "customer",
       });
-      
+
       // Return user without password hash
       const { passwordHash: _, ...userResponse } = newUser;
-      
+
       res.json({ success: true, user: userResponse });
     } catch (error) {
       console.error("Signup error:", error);
@@ -102,29 +103,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
-      
+
       // Get user by username
       const user = await storage.getUserByUsername(username);
       if (!user) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
-      
+
       // Check password
       if (!user.passwordHash) {
-        return res.status(401).json({ error: "Account not properly configured" });
+        return res
+          .status(401)
+          .json({ error: "Account not properly configured" });
       }
-      
+
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
-      
+
       // Return user without password hash
       const { passwordHash: _, ...userResponse } = user;
-      
-      res.json({ 
-        success: true, 
-        user: userResponse
+
+      res.json({
+        success: true,
+        user: userResponse,
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -165,17 +168,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { documents } = req.body;
       const user = await storage.updateUser(req.user!.id, {
         kycDocuments: documents,
-        kycStatus: "submitted"
+        kycStatus: "submitted",
       });
-      
+
       // Create notification
       await storage.createNotification({
         userId: user.id,
         title: "KYC Documents Submitted",
-        message: "Your KYC documents have been submitted for verification. You'll be notified once reviewed.",
-        type: "kyc"
+        message:
+          "Your KYC documents have been submitted for verification. You'll be notified once reviewed.",
+        type: "kyc",
       });
-      
+
       res.json({ user });
     } catch (error) {
       console.error("KYC documents error:", error);
@@ -187,14 +191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/orders", requireAuth, async (req, res) => {
     try {
       const orderData = createOrderSchema.parse(req.body);
-      
+
       // Calculate pricing
-      const ratePerLiter = 70.50;
+      const ratePerLiter = 70.5;
       const subtotal = orderData.quantity * ratePerLiter;
       const deliveryCharges = 300;
       const gst = subtotal * 0.18;
       const totalAmount = subtotal + deliveryCharges + gst;
-      
+
       const order = await storage.createOrder({
         customerId: req.user!.id,
         quantity: orderData.quantity,
@@ -208,24 +212,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deliveryLongitude: orderData.deliveryLongitude?.toString(),
         scheduledDate: new Date(orderData.scheduledDate),
         scheduledTime: orderData.scheduledTime,
-        status: "pending"
+        status: "pending",
       });
-      
+
       // Create notification
       await storage.createNotification({
         userId: req.user!.id,
         title: "Order Created",
         message: `Your order #${order.orderNumber} has been created successfully.`,
         type: "order_update",
-        orderId: order.id
+        orderId: order.id,
       });
-      
+
       // Notify driver app about the new order
-      const notificationSuccess = await driverService.notifyNewOrder(order, req.user!);
-      
-      res.json({ 
+      const notificationSuccess = await driverService.notifyNewOrder(
         order,
-        driverNotified: notificationSuccess
+        req.user!,
+      );
+
+      res.json({
+        order,
+        driverNotified: notificationSuccess,
       });
     } catch (error) {
       console.error("Create order error:", error);
@@ -250,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
-      
+
       const delivery = await storage.getDelivery(order.id);
       res.json({ order, delivery });
     } catch (error) {
@@ -263,12 +270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/payments", requireAuth, async (req, res) => {
     try {
       const { orderId, method } = processPaymentSchema.parse(req.body);
-      
+
       const order = await storage.getOrder(orderId);
       if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
-      
+
       // Handle COD differently from other payment methods
       if (method === "cod") {
         const payment = await storage.createPayment({
@@ -276,25 +283,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerId: req.user!.id,
           amount: order.totalAmount,
           method,
-          status: "pending" // COD payments remain pending until delivery
+          status: "pending", // COD payments remain pending until delivery
         });
-        
+
         // Immediately confirm the order for COD
         await storage.updateOrderStatus(orderId, "confirmed");
-        
+
         // Create notifications for COD
         await storage.createNotification({
           userId: req.user!.id,
           title: "Order Confirmed (COD)",
           message: `Your order #${order.orderNumber} has been confirmed. Pay ₹${order.totalAmount} when delivered.`,
           type: "order_update",
-          orderId
+          orderId,
         });
-        
-        res.json({ 
-          payment, 
+
+        res.json({
+          payment,
           message: "Order confirmed with Cash on Delivery",
-          orderStatus: "confirmed"
+          orderStatus: "confirmed",
         });
       } else {
         const payment = await storage.createPayment({
@@ -302,37 +309,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerId: req.user!.id,
           amount: order.totalAmount,
           method,
-          status: "processing"
+          status: "processing",
         });
-        
+
         // Simulate payment processing for other methods
         setTimeout(async () => {
           try {
             const transactionId = `TXN${Date.now()}`;
-            await storage.updatePaymentStatus(payment.id, "completed", transactionId);
+            await storage.updatePaymentStatus(
+              payment.id,
+              "completed",
+              transactionId,
+            );
             await storage.updateOrderStatus(orderId, "confirmed");
-            
+
             // Create notifications
             await storage.createNotification({
               userId: req.user!.id,
               title: "Payment Successful",
               message: `Payment of ₹${order.totalAmount} completed successfully.`,
               type: "payment",
-              orderId
+              orderId,
             });
-            
+
             await storage.createNotification({
               userId: req.user!.id,
               title: "Order Confirmed",
               message: `Your order #${order.orderNumber} has been confirmed and assigned to a driver.`,
               type: "order_update",
-              orderId
+              orderId,
             });
           } catch (error) {
             console.error("Payment processing error:", error);
           }
         }, 2000);
-        
+
         res.json({ payment, message: "Payment processing initiated" });
       }
     } catch (error) {
@@ -361,79 +372,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!order || order.customerId !== req.user!.id) {
         return res.status(404).json({ error: "Order not found" });
       }
-      
+
       const payment = await storage.getPaymentByOrder(order.id);
       if (!payment || payment.status !== "completed") {
         return res.status(400).json({ error: "Payment not completed" });
       }
-      
+
       // Generate PDF invoice
       const doc = new jsPDF();
-      
+
       // Header
       doc.setFontSize(20);
-      doc.text('ZAPYGO', 20, 20);
+      doc.text("ZAPYGO", 20, 20);
       doc.setFontSize(12);
-      doc.text('Doorstep Diesel Delivery', 20, 30);
-      
+      doc.text("Doorstep Diesel Delivery", 20, 30);
+
       // Invoice details
       doc.setFontSize(16);
-      doc.text('INVOICE', 150, 20);
+      doc.text("INVOICE", 150, 20);
       doc.setFontSize(10);
       doc.text(`Invoice #: ${order.orderNumber}`, 150, 30);
-      doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 150, 38);
-      
+      doc.text(
+        `Date: ${new Date(order.createdAt).toLocaleDateString()}`,
+        150,
+        38,
+      );
+
       // Customer details
       doc.setFontSize(12);
-      doc.text('Bill To:', 20, 60);
+      doc.text("Bill To:", 20, 60);
       doc.setFontSize(10);
       doc.text(req.user!.businessName || req.user!.name, 20, 70);
-      doc.text(req.user!.phone || '', 20, 78);
-      doc.text(req.user!.email || '', 20, 86);
-      
+      doc.text(req.user!.phone || "", 20, 78);
+      doc.text(req.user!.email || "", 20, 86);
+
       // Order details
-      doc.text('Delivery Address:', 20, 100);
+      doc.text("Delivery Address:", 20, 100);
       doc.text(order.deliveryAddress, 20, 108);
-      
+
       // Items table
       doc.line(20, 125, 190, 125);
-      doc.text('Description', 25, 135);
-      doc.text('Qty', 100, 135);
-      doc.text('Rate', 130, 135);
-      doc.text('Amount', 160, 135);
+      doc.text("Description", 25, 135);
+      doc.text("Qty", 100, 135);
+      doc.text("Rate", 130, 135);
+      doc.text("Amount", 160, 135);
       doc.line(20, 140, 190, 140);
-      
-      doc.text('Diesel Fuel', 25, 150);
+
+      doc.text("Diesel Fuel", 25, 150);
       doc.text(`${order.quantity}L`, 100, 150);
       doc.text(`₹${order.ratePerLiter}`, 130, 150);
       doc.text(`₹${order.subtotal}`, 160, 150);
-      
-      doc.text('Delivery Charges', 25, 160);
-      doc.text('1', 100, 160);
+
+      doc.text("Delivery Charges", 25, 160);
+      doc.text("1", 100, 160);
       doc.text(`₹${order.deliveryCharges}`, 130, 160);
       doc.text(`₹${order.deliveryCharges}`, 160, 160);
-      
-      doc.text('GST (18%)', 25, 170);
-      doc.text('-', 100, 170);
-      doc.text('-', 130, 170);
+
+      doc.text("GST (18%)", 25, 170);
+      doc.text("-", 100, 170);
+      doc.text("-", 130, 170);
       doc.text(`₹${order.gst}`, 160, 170);
-      
+
       doc.line(20, 175, 190, 175);
       doc.setFontSize(12);
-      doc.text('Total Amount:', 130, 185);
+      doc.text("Total Amount:", 130, 185);
       doc.text(`₹${order.totalAmount}`, 160, 185);
-      
+
       // Footer
       doc.setFontSize(8);
-      doc.text('Thank you for choosing Zapygo!', 20, 250);
-      doc.text('For support, contact: support@zapygo.com | +91 1800-123-4567', 20, 260);
-      
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.orderNumber}.pdf`);
+      doc.text("Thank you for choosing Zapygo!", 20, 250);
+      doc.text(
+        "For support, contact: support@zapygo.com | +91 1800-123-4567",
+        20,
+        260,
+      );
+
+      const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=invoice-${order.orderNumber}.pdf`,
+      );
       res.send(pdfBuffer);
-      
     } catch (error) {
       console.error("Generate invoice error:", error);
       res.status(500).json({ error: "Failed to generate invoice" });
@@ -463,24 +484,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Driver Integration Routes
-  
+
   // Test driver app connection
   app.get("/api/integration/driver/test", async (req, res) => {
     try {
       const connectionTest = await driverService.testConnection();
       const integrationInfo = await driverService.getIntegrationInfo();
-      
+
       res.json({
         connected: connectionTest,
-        timestamp: new Date().toISOString(),
-        ...integrationInfo
+        // timestamp: new Date().toISOString(),
+        // ...integrationInfo
       });
+      console.log("Driver app timestamp testing done");
     } catch (error) {
       console.error("Driver integration test error:", error);
       res.status(500).json({ error: "Failed to test driver integration" });
     }
   });
-  
+
   // Get driver integration info
   app.get("/api/integration/driver/info", async (req, res) => {
     try {
@@ -495,17 +517,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Debug endpoint to check API secrets
   app.get("/api/integration/driver/debug", async (req, res) => {
     try {
-      const apiSecret = process.env.CUSTOMER_APP_KEY || 'NOT_SET';
-      const driverUrl = process.env.DRIVER_APP_URL || 'NOT_SET';
-      
+      const apiSecret = process.env.CUSTOMER_APP_KEY || "NOT_SET";
+      const driverUrl = process.env.DRIVER_APP_URL || "NOT_SET";
+
       res.json({
-        apiSecret: apiSecret.substring(0, 10) + '...' + (apiSecret.length > 10 ? apiSecret.substring(apiSecret.length - 4) : ''),
+        apiSecret:
+          apiSecret.substring(0, 10) +
+          "..." +
+          (apiSecret.length > 10
+            ? apiSecret.substring(apiSecret.length - 4)
+            : ""),
         apiSecretLength: apiSecret.length,
         driverUrl: driverUrl,
-        isApiSecretUrl: apiSecret.startsWith('http'),
-        issue: apiSecret.startsWith('http') ? 'API_SECRET_IS_URL_NOT_KEY' : null,
-        suggestion: apiSecret.startsWith('http') ? 'Update CUSTOMER_APP_KEY to be an API key, not a URL' : 'Configuration looks correct',
-        timestamp: new Date().toISOString()
+        isApiSecretUrl: apiSecret.startsWith("http"),
+        issue: apiSecret.startsWith("http")
+          ? "API_SECRET_IS_URL_NOT_KEY"
+          : null,
+        suggestion: apiSecret.startsWith("http")
+          ? "Update CUSTOMER_APP_KEY to be an API key, not a URL"
+          : "Configuration looks correct",
+        // timestamp: new Date().toISOString()
       });
     } catch (error) {
       console.error("Driver integration debug error:", error);
@@ -517,27 +548,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/orders/:id/status", async (req, res) => {
     try {
       const { status, driverId } = req.body;
-      
+
       // Validate status
-      const validStatuses = ["pending", "confirmed", "fuel_loaded", "in_transit", "delivered", "cancelled"];
+      const validStatuses = [
+        "pending",
+        "confirmed",
+        "fuel_loaded",
+        "in_transit",
+        "delivered",
+        "cancelled",
+      ];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: "Invalid status" });
       }
-      
-      const order = await storage.updateOrderStatus(req.params.id, status, driverId);
-      
+
+      const order = await storage.updateOrderStatus(
+        req.params.id,
+        status,
+        driverId,
+      );
+
       // Create notification for customer
       const customer = await storage.getUser(order.customerId);
       if (customer) {
         await storage.createNotification({
           userId: customer.id,
           title: "Order Status Updated",
-          message: `Your order #${order.orderNumber} is now ${status.replace('_', ' ')}`,
+          message: `Your order #${order.orderNumber} is now ${status.replace("_", " ")}`,
           type: "order_update",
-          orderId: order.id
+          orderId: order.id,
         });
       }
-      
+
       res.json({ order });
     } catch (error) {
       console.error("Update order status error:", error);
@@ -549,7 +591,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/orders/:id/update-driver-location", async (req, res) => {
     try {
       const { latitude, longitude } = req.body;
-      const delivery = await storage.updateDriverLocation(req.params.id, latitude, longitude);
+      const delivery = await storage.updateDriverLocation(
+        req.params.id,
+        latitude,
+        longitude,
+      );
       res.json({ delivery });
     } catch (error) {
       console.error("Update driver location error:", error);
@@ -561,11 +607,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/kyc-documents/:filePath(*)", requireAuth, async (req, res) => {
     try {
       const objectStorageService = new ObjectStorageService();
-      const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${req.params.filePath}`);
-      
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        `/objects/${req.params.filePath}`,
+      );
+
       // Check if user owns this document (basic security)
       // In production, implement proper ACL checking
-      
+
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Get KYC document error:", error);
@@ -588,7 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const addressData = {
         ...req.body,
-        userId: req.user!.id
+        userId: req.user!.id,
       };
 
       // Validate pincode for Bangalore area
@@ -611,7 +659,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Address not found" });
       }
 
-      const updatedAddress = await storage.updateSavedAddress(req.params.id, req.body);
+      const updatedAddress = await storage.updateSavedAddress(
+        req.params.id,
+        req.body,
+      );
       res.json({ address: updatedAddress });
     } catch (error) {
       console.error("Update address error:", error);
@@ -651,12 +702,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // System Settings routes (Admin only)
   const requireAdmin = async (req: any, res: any, next: any) => {
-    const userId = req.headers['x-user-id'];
+    const userId = req.headers["x-user-id"];
     if (!userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
     const user = await storage.getUser(userId);
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
     req.user = user;
@@ -675,7 +726,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/settings/category/:category", requireAuth, async (req, res) => {
     try {
-      const settings = await storage.getSystemSettingsByCategory(req.params.category);
+      const settings = await storage.getSystemSettingsByCategory(
+        req.params.category,
+      );
       res.json({ settings });
     } catch (error) {
       console.error("Get settings by category error:", error);
@@ -702,8 +755,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!value) {
         return res.status(400).json({ error: "Value is required" });
       }
-      
-      const setting = await storage.updateSystemSetting(req.params.key, value, req.user!.id);
+
+      const setting = await storage.updateSystemSetting(
+        req.params.key,
+        value,
+        req.user!.id,
+      );
       res.json({ setting });
     } catch (error) {
       console.error("Update setting error:", error);
@@ -715,9 +772,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const settingData = {
         ...req.body,
-        updatedBy: req.user!.id
+        updatedBy: req.user!.id,
       };
-      
+
       const setting = await storage.createSystemSetting(settingData);
       res.json({ setting });
     } catch (error) {
