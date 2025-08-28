@@ -783,6 +783,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook middleware for driver app authentication
+  const requireDriverAuth = async (req: any, res: any, next: any) => {
+    const apiSecret = req.headers["x-api-secret"];
+    const expectedSecret = process.env.CUSTOMER_APP_KEY;
+    
+    if (!apiSecret || !expectedSecret) {
+      return res.status(401).json({ error: "API secret required" });
+    }
+    
+    if (apiSecret !== expectedSecret) {
+      return res.status(401).json({ error: "Invalid API secret" });
+    }
+    
+    next();
+  };
+
+  // Webhook Routes for Driver App Integration
+  const deliveryStatusSchema = z.object({
+    orderId: z.string().min(1),
+    status: z.enum(["confirmed", "fuel_loaded", "in_transit", "delivered"]),
+    driverId: z.string().min(1).optional(),
+    timestamp: z.string().optional(),
+  });
+
+  app.post("/api/webhooks/delivery-status", requireDriverAuth, async (req, res) => {
+    try {
+      const statusUpdate = deliveryStatusSchema.parse(req.body);
+      
+      console.log(`📦 Received delivery status update from driver app:`, statusUpdate);
+      
+      // Update order status in database
+      const updatedOrder = await storage.updateOrderStatus(
+        statusUpdate.orderId,
+        statusUpdate.status,
+        statusUpdate.driverId
+      );
+      
+      // Create notification for customer
+      await storage.createNotification({
+        userId: updatedOrder.customerId,
+        title: "Order Status Updated",
+        message: `Your order ${updatedOrder.orderNumber} is now ${statusUpdate.status.replace('_', ' ')}`,
+        type: "order_update",
+        orderId: updatedOrder.id,
+      });
+      
+      console.log(`✅ Order ${updatedOrder.orderNumber} status updated to: ${statusUpdate.status}`);
+      
+      res.json({ 
+        success: true, 
+        order: updatedOrder,
+        message: "Status updated successfully" 
+      });
+    } catch (error) {
+      console.error("Webhook delivery status error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Invalid payload", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to update delivery status" });
+    }
+  });
+
+  // Test endpoint for driver app to verify webhook connectivity
+  app.post("/api/webhooks/test", requireDriverAuth, async (req, res) => {
+    res.json({ 
+      success: true, 
+      message: "Webhook connection successful",
+      timestamp: new Date().toISOString()
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
