@@ -291,10 +291,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔐 Generated delivery OTP for order ${order.orderNumber}: ${otp}`);
       
+      // Send OTP to driver app via webhook
+      const otpNotificationSuccess = await driverService.sendOtpToDriver(order.orderNumber, otp);
+      
       res.json({ 
         success: true, 
         message: "Delivery OTP generated successfully",
-        otp 
+        otp,
+        driverNotified: otpNotificationSuccess
       });
     } catch (error) {
       console.error("Generate OTP error:", error);

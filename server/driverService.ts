@@ -118,6 +118,54 @@ export class DriverService {
     }
   }
 
+  async sendOtpToDriver(orderNumber: string, otp: string): Promise<boolean> {
+    try {
+      if (!this.driverAppUrl || !this.apiSecret) {
+        console.log(
+          "Driver app integration not configured - skipping OTP notification",
+        );
+        return false;
+      }
+
+      const otpNotification = {
+        orderId: orderNumber,
+        otp: otp,
+        action: "otp_generated"
+      };
+
+      console.log(`📱 Sending OTP to driver app for order: ${orderNumber}`);
+      console.log(`🔐 OTP: ${otp}`);
+
+      const response = await fetch(`${this.driverAppUrl}/api/notifications`, {
+        method: "POST",
+        headers: {
+          "x-api-secret": this.apiSecret,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(otpNotification),
+      });
+
+      const success = response.ok;
+
+      if (success) {
+        console.log(
+          `✅ Successfully sent OTP to driver app for order ${orderNumber}`,
+        );
+      } else {
+        console.error(
+          `❌ Failed to send OTP to driver app: ${response.status} ${response.statusText}`,
+        );
+        const errorText = await response.text().catch(() => "Unknown error");
+        console.error("Driver app OTP error response:", errorText);
+      }
+
+      return success;
+    } catch (error) {
+      console.error("Error sending OTP to driver app:", error);
+      return false;
+    }
+  }
+
   async getIntegrationInfo() {
     return {
       driverAppUrl: this.driverAppUrl,
