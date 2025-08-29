@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
-import { ArrowLeft, Download, RefreshCw, Filter } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, Filter, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -215,6 +215,17 @@ export default function OrderHistoryScreen() {
                               Download Invoice
                             </>
                           )}
+                        </Button>
+                      )}
+                      {order.status !== "delivered" && (
+                        <Button
+                          onClick={() => setLocation(`/track-order/${order.id}`)}
+                          variant="ghost"
+                          className="flex-1 text-sm font-medium ripple"
+                          data-testid={`view-order-${order.id}`}
+                        >
+                          <Eye size={16} className="mr-1" />
+                          View
                         </Button>
                       )}
                       <Button
