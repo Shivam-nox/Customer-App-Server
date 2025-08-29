@@ -98,7 +98,7 @@ export default function OrderHistoryScreen() {
   const filteredOrders = orders.filter((order: any) => {
     if (filter === "all") return true;
     if (filter === "delivered") return order.status === "delivered";
-    if (filter === "pending") return ["pending", "confirmed", "fuel_loaded", "in_transit"].includes(order.status);
+    if (filter === "pending") return ["pending", "confirmed", "in_transit"].includes(order.status);
     if (filter === "cancelled") return order.status === "cancelled";
     return true;
   });
@@ -110,7 +110,6 @@ export default function OrderHistoryScreen() {
       case "in_transit":
         return "bg-orange-100 text-orange-800";
       case "confirmed":
-      case "fuel_loaded":
         return "bg-blue-100 text-blue-800";
       case "cancelled":
         return "bg-red-100 text-red-800";

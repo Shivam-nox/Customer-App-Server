@@ -88,7 +88,6 @@ export default function TrackOrderScreen() {
       case "in_transit":
         return "bg-orange-100 text-orange-800";
       case "confirmed":
-      case "fuel_loaded":
         return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -98,12 +97,11 @@ export default function TrackOrderScreen() {
   const getProgressSteps = () => {
     const steps = [
       { key: "confirmed", label: "Order Confirmed", icon: CheckCircle },
-      { key: "fuel_loaded", label: "Fuel Loaded", icon: CheckCircle },
       { key: "in_transit", label: "Out for Delivery", icon: Truck },
       { key: "delivered", label: "Delivered", icon: MapPin },
     ];
 
-    const statusOrder = ["pending", "confirmed", "fuel_loaded", "in_transit", "delivered"];
+    const statusOrder = ["pending", "confirmed", "in_transit", "delivered"];
     const currentStatusIndex = statusOrder.indexOf(order.status);
 
     return steps.map((step, index) => ({

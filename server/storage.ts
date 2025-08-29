@@ -1,9 +1,28 @@
-import { 
-  users, orders, payments, deliveries, notifications, otpVerifications, savedAddresses, systemSettings,
-  type User, type InsertUser, type Order, type InsertOrder,
-  type Payment, type InsertPayment, type Delivery, type InsertDelivery,
-  type Notification, type InsertNotification, type OtpVerification, type InsertOtp,
-  type SavedAddress, type InsertSavedAddress, type SystemSetting, type InsertSystemSetting
+import {
+  users,
+  orders,
+  payments,
+  deliveries,
+  notifications,
+  otpVerifications,
+  savedAddresses,
+  systemSettings,
+  type User,
+  type InsertUser,
+  type Order,
+  type InsertOrder,
+  type Payment,
+  type InsertPayment,
+  type Delivery,
+  type InsertDelivery,
+  type Notification,
+  type InsertNotification,
+  type OtpVerification,
+  type InsertOtp,
+  type SavedAddress,
+  type InsertSavedAddress,
+  type SystemSetting,
+  type InsertSystemSetting,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
@@ -17,53 +36,78 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User>;
-  
+
   // OTP methods
   createOtp(otp: InsertOtp): Promise<OtpVerification>;
-  getValidOtp(identifier: string, otp: string): Promise<OtpVerification | undefined>;
+  getValidOtp(
+    identifier: string,
+    otp: string,
+  ): Promise<OtpVerification | undefined>;
   markOtpVerified(id: string): Promise<void>;
   cleanupExpiredOtps(): Promise<void>;
-  
+
   // Order methods
   createOrder(order: InsertOrder): Promise<Order>;
   getOrder(id: string): Promise<Order | undefined>;
   getUserOrders(customerId: string, limit?: number): Promise<Order[]>;
-  updateOrderStatus(id: string, status: string, driverId?: string): Promise<Order>;
+  updateOrderStatus(
+    id: string,
+    status: string,
+    driverId?: string,
+  ): Promise<Order>;
   generateOrderNumber(): Promise<string>;
-  
+
   // Payment methods
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPayment(id: string): Promise<Payment | undefined>;
   getPaymentByOrder(orderId: string): Promise<Payment | undefined>;
-  updatePaymentStatus(id: string, status: string, transactionId?: string): Promise<Payment>;
-  
+  updatePaymentStatus(
+    id: string,
+    status: string,
+    transactionId?: string,
+  ): Promise<Payment>;
+
   // Delivery methods
   createDelivery(delivery: InsertDelivery): Promise<Delivery>;
   getDelivery(orderId: string): Promise<Delivery | undefined>;
-  updateDriverLocation(orderId: string, latitude: number, longitude: number): Promise<Delivery>;
+  updateDriverLocation(
+    orderId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<Delivery>;
   markDelivered(orderId: string, proofOfDelivery: string): Promise<Delivery>;
-  
+
   // Notification methods
   createNotification(notification: InsertNotification): Promise<Notification>;
   getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
   markNotificationRead(id: string): Promise<void>;
   getUnreadCount(userId: string): Promise<number>;
-  
+
   // Saved Address methods
   createSavedAddress(address: InsertSavedAddress): Promise<SavedAddress>;
   getUserSavedAddresses(userId: string): Promise<SavedAddress[]>;
   getSavedAddress(id: string): Promise<SavedAddress | undefined>;
-  updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress>;
+  updateSavedAddress(
+    id: string,
+    updates: Partial<InsertSavedAddress>,
+  ): Promise<SavedAddress>;
   deleteSavedAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
-  
+
   // System Settings methods
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   getAllSystemSettings(): Promise<SystemSetting[]>;
   getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
-  updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting>;
+  updateSystemSetting(
+    key: string,
+    value: string,
+    updatedBy?: string,
+  ): Promise<SystemSetting>;
   createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
-  updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress>;
+  updateSavedAddress(
+    id: string,
+    updates: Partial<InsertSavedAddress>,
+  ): Promise<SavedAddress>;
   deleteSavedAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
 }
@@ -86,15 +130,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
     return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
@@ -116,7 +160,10 @@ export class DatabaseStorage implements IStorage {
     return otp;
   }
 
-  async getValidOtp(identifier: string, otp: string): Promise<OtpVerification | undefined> {
+  async getValidOtp(
+    identifier: string,
+    otp: string,
+  ): Promise<OtpVerification | undefined> {
     const [verification] = await db
       .select()
       .from(otpVerifications)
@@ -125,8 +172,8 @@ export class DatabaseStorage implements IStorage {
           eq(otpVerifications.identifier, identifier),
           eq(otpVerifications.otp, otp),
           eq(otpVerifications.isVerified, false),
-          gte(otpVerifications.expiresAt, new Date())
-        )
+          gte(otpVerifications.expiresAt, new Date()),
+        ),
       );
     return verification || undefined;
   }
@@ -159,7 +206,10 @@ export class DatabaseStorage implements IStorage {
     return order || undefined;
   }
 
-  async getUserOrders(customerId: string, limit: number = 20): Promise<Order[]> {
+  async getUserOrders(
+    customerId: string,
+    limit: number = 20,
+  ): Promise<Order[]> {
     return await db
       .select()
       .from(orders)
@@ -168,22 +218,28 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async updateOrderStatus(id: string, status: string, driverId?: string): Promise<Order> {
+  async updateOrderStatus(
+    id: string,
+    status: string,
+    driverId?: string,
+  ): Promise<Order> {
     const updates: any = { status: status as any, updatedAt: new Date() };
-    if (driverId) {
-      updates.driverId = driverId;
-    }
+    // if (driverId) {
+    //   updates.driverId = driverId;
+    // }
     const [order] = await db
       .update(orders)
       .set(updates)
-      .where(eq(orders.id, id))
+      .where(eq(orders.orderNumber, id))
       .returning();
     return order;
   }
 
   async generateOrderNumber(): Promise<string> {
     const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
     return `ZAP${timestamp}${random}`;
   }
 
@@ -197,16 +253,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
-    const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, id));
     return payment || undefined;
   }
 
   async getPaymentByOrder(orderId: string): Promise<Payment | undefined> {
-    const [payment] = await db.select().from(payments).where(eq(payments.orderId, orderId));
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.orderId, orderId));
     return payment || undefined;
   }
 
-  async updatePaymentStatus(id: string, status: string, transactionId?: string): Promise<Payment> {
+  async updatePaymentStatus(
+    id: string,
+    status: string,
+    transactionId?: string,
+  ): Promise<Payment> {
     const updates: any = { status, updatedAt: new Date() };
     if (transactionId) {
       updates.transactionId = transactionId;
@@ -229,30 +295,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDelivery(orderId: string): Promise<Delivery | undefined> {
-    const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, orderId));
+    const [delivery] = await db
+      .select()
+      .from(deliveries)
+      .where(eq(deliveries.orderId, orderId));
     return delivery || undefined;
   }
 
-  async updateDriverLocation(orderId: string, latitude: number, longitude: number): Promise<Delivery> {
+  async updateDriverLocation(
+    orderId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<Delivery> {
     const [delivery] = await db
       .update(deliveries)
-      .set({ 
+      .set({
         currentLatitude: latitude.toString(),
         currentLongitude: longitude.toString(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(deliveries.orderId, orderId))
       .returning();
     return delivery;
   }
 
-  async markDelivered(orderId: string, proofOfDelivery: string): Promise<Delivery> {
+  async markDelivered(
+    orderId: string,
+    proofOfDelivery: string,
+  ): Promise<Delivery> {
     const [delivery] = await db
       .update(deliveries)
-      .set({ 
+      .set({
         proofOfDelivery,
         deliveredAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(deliveries.orderId, orderId))
       .returning();
@@ -260,7 +336,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Notification methods
-  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+  async createNotification(
+    insertNotification: InsertNotification,
+  ): Promise<Notification> {
     const [notification] = await db
       .insert(notifications)
       .values(insertNotification)
@@ -268,7 +346,10 @@ export class DatabaseStorage implements IStorage {
     return notification;
   }
 
-  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 50,
+  ): Promise<Notification[]> {
     return await db
       .select()
       .from(notifications)
@@ -288,12 +369,16 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(notifications)
-      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
+      );
     return result.length;
   }
 
   // Saved Address methods
-  async createSavedAddress(insertAddress: InsertSavedAddress): Promise<SavedAddress> {
+  async createSavedAddress(
+    insertAddress: InsertSavedAddress,
+  ): Promise<SavedAddress> {
     const [address] = await db
       .insert(savedAddresses)
       .values(insertAddress)
@@ -305,16 +390,27 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(savedAddresses)
-      .where(and(eq(savedAddresses.userId, userId), eq(savedAddresses.isActive, true)))
+      .where(
+        and(
+          eq(savedAddresses.userId, userId),
+          eq(savedAddresses.isActive, true),
+        ),
+      )
       .orderBy(desc(savedAddresses.isDefault), desc(savedAddresses.createdAt));
   }
 
   async getSavedAddress(id: string): Promise<SavedAddress | undefined> {
-    const [address] = await db.select().from(savedAddresses).where(eq(savedAddresses.id, id));
+    const [address] = await db
+      .select()
+      .from(savedAddresses)
+      .where(eq(savedAddresses.id, id));
     return address || undefined;
   }
 
-  async updateSavedAddress(id: string, updates: Partial<InsertSavedAddress>): Promise<SavedAddress> {
+  async updateSavedAddress(
+    id: string,
+    updates: Partial<InsertSavedAddress>,
+  ): Promise<SavedAddress> {
     const [address] = await db
       .update(savedAddresses)
       .set({ ...updates, updatedAt: new Date() })
@@ -325,15 +421,23 @@ export class DatabaseStorage implements IStorage {
 
   // System Settings methods
   async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
-    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    const [setting] = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, key));
     return setting || undefined;
   }
 
   async getAllSystemSettings(): Promise<SystemSetting[]> {
-    return await db.select().from(systemSettings).orderBy(systemSettings.category, systemSettings.key);
+    return await db
+      .select()
+      .from(systemSettings)
+      .orderBy(systemSettings.category, systemSettings.key);
   }
 
-  async getSystemSettingsByCategory(category: string): Promise<SystemSetting[]> {
+  async getSystemSettingsByCategory(
+    category: string,
+  ): Promise<SystemSetting[]> {
     return await db
       .select()
       .from(systemSettings)
@@ -341,20 +445,26 @@ export class DatabaseStorage implements IStorage {
       .orderBy(systemSettings.key);
   }
 
-  async updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting> {
+  async updateSystemSetting(
+    key: string,
+    value: string,
+    updatedBy?: string,
+  ): Promise<SystemSetting> {
     const [setting] = await db
       .update(systemSettings)
-      .set({ 
-        value, 
+      .set({
+        value,
         updatedAt: new Date(),
-        ...(updatedBy && { updatedBy })
+        ...(updatedBy && { updatedBy }),
       })
       .where(eq(systemSettings.key, key))
       .returning();
     return setting;
   }
 
-  async createSystemSetting(insertSetting: InsertSystemSetting): Promise<SystemSetting> {
+  async createSystemSetting(
+    insertSetting: InsertSystemSetting,
+  ): Promise<SystemSetting> {
     const [setting] = await db
       .insert(systemSettings)
       .values(insertSetting)
@@ -375,7 +485,7 @@ export class DatabaseStorage implements IStorage {
       .update(savedAddresses)
       .set({ isDefault: false, updatedAt: new Date() })
       .where(eq(savedAddresses.userId, userId));
-    
+
     // Then set the specified address as default
     await db
       .update(savedAddresses)
