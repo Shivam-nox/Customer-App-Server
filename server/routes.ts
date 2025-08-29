@@ -4,6 +4,9 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { driverService } from "./driverService";
+import { db } from "./db";
+import { orders } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import jsPDF from "jspdf";
 import bcrypt from "bcryptjs";
 import "./types";
@@ -263,6 +266,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get order error:", error);
       res.status(500).json({ error: "Failed to get order" });
+    }
+  });
+
+  app.post("/api/orders/:id/generate-otp", requireAuth, async (req, res) => {
+    try {
+      const order = await storage.getOrder(req.params.id);
+      if (!order || order.customerId !== req.user!.id) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      if (order.status !== "in_transit") {
+        return res.status(400).json({ 
+          error: "OTP can only be generated for orders that are out for delivery" 
+        });
+      }
+
+      // Generate new OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const updatedOrder = await storage.updateOrderStatus(order.id, "in_transit");
+      
+      // Manually update the OTP since the status didn't change
+      await db.update(orders).set({ deliveryOtp: otp }).where(eq(orders.id, order.id));
+      
+      console.log(`🔐 Generated delivery OTP for order ${order.orderNumber}: ${otp}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Delivery OTP generated successfully",
+        otp 
+      });
+    } catch (error) {
+      console.error("Generate OTP error:", error);
+      res.status(500).json({ error: "Failed to generate delivery OTP" });
     }
   });
 

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import LoadingSpinner from "@/components/loading-spinner";
 import TrackingMap from "@/components/TrackingMap";
 import {
@@ -15,6 +17,7 @@ import {
   Clock,
   Truck,
   Star,
+  Key,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -22,6 +25,7 @@ export default function TrackOrderScreen() {
   const { orderId } = useParams<{ orderId: string }>();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/orders", orderId],
@@ -47,6 +51,37 @@ export default function TrackOrderScreen() {
         },
       );
       return response.json();
+    },
+  });
+
+  const generateOtpMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/orders/${orderId}/generate-otp`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || ""
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to generate OTP");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "OTP Generated",
+        description: "Delivery verification code has been created",
+      });
+      // Refresh the order data to show the new OTP
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", orderId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate OTP",
+        variant: "destructive",
+      });
     },
   });
 
@@ -255,27 +290,53 @@ export default function TrackOrderScreen() {
           </CardContent>
         </Card>
 
-        {/* OTP Display for In-Transit Orders */}
-        {order.status === "in_transit" && order.deliveryOtp && (
-          <Card className="border-2 border-orange-200 bg-orange-50" data-testid="delivery-otp-card">
+        {/* OTP Section for In-Transit Orders */}
+        {order.status === "in_transit" && (
+          <Card className="border-2 border-orange-200 bg-orange-50" data-testid="delivery-otp-section">
             <CardContent className="p-4 text-center">
               <div className="flex items-center justify-center mb-2">
                 <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-white text-sm">🔐</span>
+                  <Key className="text-white" size={16} />
                 </div>
-                <h3 className="font-bold text-lg text-orange-800">Delivery Verification Code</h3>
+                <h3 className="font-bold text-lg text-orange-800">Delivery Verification</h3>
               </div>
-              <p className="text-sm text-orange-700 mb-3">
-                Share this code with your driver to authorize delivery
-              </p>
-              <div className="bg-white rounded-lg p-4 border-2 border-orange-300">
-                <div className="text-3xl font-bold text-orange-600 tracking-widest" data-testid="delivery-otp">
-                  {order.deliveryOtp}
-                </div>
-              </div>
-              <p className="text-xs text-orange-600 mt-2">
-                ⚠️ Only share this code when the driver arrives at your location
-              </p>
+              
+              {order.deliveryOtp ? (
+                <>
+                  <p className="text-sm text-orange-700 mb-3">
+                    Share this code with your driver to authorize delivery
+                  </p>
+                  <div className="bg-white rounded-lg p-4 border-2 border-orange-300">
+                    <div className="text-3xl font-bold text-orange-600 tracking-widest" data-testid="delivery-otp">
+                      {order.deliveryOtp}
+                    </div>
+                  </div>
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ Only share this code when the driver arrives at your location
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-orange-700 mb-4">
+                    Generate a verification code to authorize delivery when your driver arrives
+                  </p>
+                  <Button
+                    onClick={() => generateOtpMutation.mutate()}
+                    disabled={generateOtpMutation.isPending}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-medium"
+                    data-testid="generate-otp-button"
+                  >
+                    {generateOtpMutation.isPending ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <>
+                        <Key size={16} className="mr-2" />
+                        Generate Delivery OTP
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
