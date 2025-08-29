@@ -224,15 +224,26 @@ export class DatabaseStorage implements IStorage {
     driverId?: string,
   ): Promise<Order> {
     const updates: any = { status: status as any, updatedAt: new Date() };
-    // if (driverId) {
-    //   updates.driverId = driverId;
-    // }
+    
+    if (driverId) {
+      updates.driverId = driverId;
+    }
+    
+    // Generate OTP when order goes in_transit
+    if (status === "in_transit") {
+      updates.deliveryOtp = this.generateDeliveryOtp();
+    }
+    
     const [order] = await db
       .update(orders)
       .set(updates)
-      .where(eq(orders.orderNumber, id))
+      .where(eq(orders.id, id))
       .returning();
     return order;
+  }
+
+  generateDeliveryOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   async generateOrderNumber(): Promise<string> {

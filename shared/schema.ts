@@ -82,6 +82,7 @@ export const orders = pgTable("orders", {
   scheduledTime: varchar("scheduled_time", { length: 5 }).notNull(),
   status: orderStatusEnum("status").default("pending").notNull(),
   driverId: varchar("driver_id").references(() => users.id),
+  deliveryOtp: varchar("delivery_otp", { length: 6 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),

@@ -7,7 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
 import TrackingMap from "@/components/TrackingMap";
-import { ArrowLeft, MapPin, Phone, CheckCircle, Clock, Truck, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Phone,
+  CheckCircle,
+  Clock,
+  Truck,
+  Star,
+} from "lucide-react";
 import { format } from "date-fns";
 
 export default function TrackOrderScreen() {
@@ -17,23 +25,27 @@ export default function TrackOrderScreen() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/orders", orderId],
-    queryFn: () => fetch(`/api/orders/${orderId}`, {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch(`/api/orders/${orderId}`, {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
     enabled: !!orderId && !!user,
   });
 
   const updateLocationMutation = useMutation({
     mutationFn: async () => {
       // Simulate driver location update
-      const response = await fetch(`/api/orders/${orderId}/update-driver-location`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          latitude: 19.0760 + (Math.random() - 0.5) * 0.01,
-          longitude: 72.8777 + (Math.random() - 0.5) * 0.01,
-        }),
-      });
+      const response = await fetch(
+        `/api/orders/${orderId}/update-driver-location`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: 19.076 + (Math.random() - 0.5) * 0.01,
+            longitude: 72.8777 + (Math.random() - 0.5) * 0.01,
+          }),
+        },
+      );
       return response.json();
     },
   });
@@ -66,10 +78,7 @@ export default function TrackOrderScreen() {
           <Card>
             <CardContent className="p-6 text-center">
               <p className="text-gray-600">Order not found or access denied</p>
-              <Button 
-                onClick={() => setLocation("/orders")} 
-                className="mt-4"
-              >
+              <Button onClick={() => setLocation("/orders")} className="mt-4">
                 View All Orders
               </Button>
             </CardContent>
@@ -80,7 +89,7 @@ export default function TrackOrderScreen() {
   }
 
   const { order, delivery } = data;
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "delivered":
@@ -115,18 +124,23 @@ export default function TrackOrderScreen() {
   const steps = getProgressSteps();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="track-order-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="track-order-screen"
+    >
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/home")}
+          onClick={() => setLocation("/orders")}
           className="mr-3"
           data-testid="back-button"
         >
           <ArrowLeft size={20} />
         </Button>
-        <h2 className="text-lg font-medium" data-testid="page-title">Track Order</h2>
+        <h2 className="text-lg font-medium" data-testid="page-title">
+          Track Order
+        </h2>
       </div>
 
       {/* Real Map View */}
@@ -138,19 +152,22 @@ export default function TrackOrderScreen() {
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600">
-                  {order.status === "in_transit" ? "Driver En Route" 
-                   : order.status === "delivered" ? "Delivered" 
-                   : order.status === "confirmed" ? "Order Confirmed"
-                   : "Preparing Order"}
+                  {order.status === "in_transit"
+                    ? "Driver En Route"
+                    : order.status === "delivered"
+                      ? "Delivered"
+                      : order.status === "confirmed"
+                        ? "Order Confirmed"
+                        : "Preparing Order"}
                 </span>
               </div>
             </div>
-            
-            <TrackingMap 
-              deliveryAddress={order.deliveryAddress} 
+
+            <TrackingMap
+              deliveryAddress={order.deliveryAddress}
               orderStatus={order.status}
             />
-            
+
             <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
               <div className="flex items-center justify-center space-x-1">
                 <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
@@ -180,8 +197,13 @@ export default function TrackOrderScreen() {
         <Card>
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg" data-testid="order-id">Order #{order.orderNumber}</h3>
-              <Badge className={getStatusColor(order.status)} data-testid="order-status">
+              <h3 className="font-bold text-lg" data-testid="order-id">
+                Order #{order.orderNumber}
+              </h3>
+              <Badge
+                className={getStatusColor(order.status)}
+                data-testid="order-status"
+              >
                 {order.status.replace("_", " ").toLowerCase()}
               </Badge>
             </div>
@@ -189,32 +211,42 @@ export default function TrackOrderScreen() {
             {/* Progress Timeline */}
             <div className="space-y-4">
               {steps.map((step, index) => (
-                <div key={step.key} className="flex items-center space-x-3" data-testid={`step-${step.key}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    step.completed 
-                      ? "bg-green-500" 
-                      : step.current 
-                        ? "bg-orange-500" 
-                        : "bg-gray-300"
-                  }`}>
-                    <step.icon 
-                      size={16} 
+                <div
+                  key={step.key}
+                  className="flex items-center space-x-3"
+                  data-testid={`step-${step.key}`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      step.completed
+                        ? "bg-green-500"
+                        : step.current
+                          ? "bg-orange-500"
+                          : "bg-gray-300"
+                    }`}
+                  >
+                    <step.icon
+                      size={16}
                       className={`${step.completed || step.current ? "text-white" : "text-gray-600"} ${
                         step.current ? "animate-pulse" : ""
-                      }`} 
+                      }`}
                     />
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium ${step.completed || step.current ? "text-gray-800" : "text-gray-500"}`}>
+                    <p
+                      className={`font-medium ${step.completed || step.current ? "text-gray-800" : "text-gray-500"}`}
+                    >
                       {step.label}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {step.completed 
-                        ? format(new Date(order.updatedAt), "MMM dd, yyyy - h:mm a")
-                        : step.current 
+                      {step.completed
+                        ? format(
+                            new Date(order.updatedAt),
+                            "MMM dd, yyyy - h:mm a",
+                          )
+                        : step.current
                           ? "In progress..."
-                          : "Pending"
-                      }
+                          : "Pending"}
                     </p>
                   </div>
                 </div>
@@ -223,6 +255,31 @@ export default function TrackOrderScreen() {
           </CardContent>
         </Card>
 
+        {/* OTP Display for In-Transit Orders */}
+        {order.status === "in_transit" && order.deliveryOtp && (
+          <Card className="border-2 border-orange-200 bg-orange-50" data-testid="delivery-otp-card">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-white text-sm">🔐</span>
+                </div>
+                <h3 className="font-bold text-lg text-orange-800">Delivery Verification Code</h3>
+              </div>
+              <p className="text-sm text-orange-700 mb-3">
+                Share this code with your driver to authorize delivery
+              </p>
+              <div className="bg-white rounded-lg p-4 border-2 border-orange-300">
+                <div className="text-3xl font-bold text-orange-600 tracking-widest" data-testid="delivery-otp">
+                  {order.deliveryOtp}
+                </div>
+              </div>
+              <p className="text-xs text-orange-600 mt-2">
+                ⚠️ Only share this code when the driver arrives at your location
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Driver Info */}
         {delivery && (
           <Card data-testid="driver-info-card">
@@ -230,17 +287,29 @@ export default function TrackOrderScreen() {
               <h3 className="font-bold text-lg mb-3">Driver Details</h3>
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-medium">{delivery.driverName.charAt(0)}</span>
+                  <span className="text-lg font-medium">
+                    {delivery.driverName.charAt(0)}
+                  </span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium" data-testid="driver-name">{delivery.driverName}</p>
-                  <p className="text-sm text-gray-600" data-testid="driver-vehicle">
+                  <p className="font-medium" data-testid="driver-name">
+                    {delivery.driverName}
+                  </p>
+                  <p
+                    className="text-sm text-gray-600"
+                    data-testid="driver-vehicle"
+                  >
                     Vehicle: {delivery.vehicleNumber}
                   </p>
                   {delivery.driverRating && (
                     <div className="flex items-center space-x-1 mt-1">
-                      <Star className="text-yellow-500 fill-current" size={16} />
-                      <span className="text-sm" data-testid="driver-rating">{delivery.driverRating}</span>
+                      <Star
+                        className="text-yellow-500 fill-current"
+                        size={16}
+                      />
+                      <span className="text-sm" data-testid="driver-rating">
+                        {delivery.driverRating}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -265,30 +334,42 @@ export default function TrackOrderScreen() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Quantity:</span>
-                <span className="font-medium" data-testid="order-quantity">{order.quantity}L</span>
+                <span className="font-medium" data-testid="order-quantity">
+                  {order.quantity}L
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Rate per Liter:</span>
-                <span data-testid="order-rate">₹{parseFloat(order.ratePerLiter).toFixed(2)}</span>
+                <span data-testid="order-rate">
+                  ₹{parseFloat(order.ratePerLiter).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Delivery Charges:</span>
-                <span data-testid="delivery-charges">₹{parseFloat(order.deliveryCharges).toFixed(2)}</span>
+                <span data-testid="delivery-charges">
+                  ₹{parseFloat(order.deliveryCharges).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>GST (18%):</span>
-                <span data-testid="gst-amount">₹{parseFloat(order.gst).toFixed(2)}</span>
+                <span data-testid="gst-amount">
+                  ₹{parseFloat(order.gst).toFixed(2)}
+                </span>
               </div>
               <hr className="my-2" />
               <div className="flex justify-between font-bold text-base">
                 <span>Total Amount:</span>
-                <span data-testid="total-amount">₹{parseFloat(order.totalAmount).toLocaleString()}</span>
+                <span data-testid="total-amount">
+                  ₹{parseFloat(order.totalAmount).toLocaleString()}
+                </span>
               </div>
             </div>
-            
+
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm text-gray-600 mb-1">Delivery Address:</p>
-              <p className="text-sm" data-testid="delivery-address">{order.deliveryAddress}</p>
+              <p className="text-sm" data-testid="delivery-address">
+                {order.deliveryAddress}
+              </p>
             </div>
           </CardContent>
         </Card>
