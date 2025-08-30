@@ -119,10 +119,17 @@ export class DriverService {
   }
 
   async sendOtpToDriver(orderNumber: string, otp: string): Promise<boolean> {
+    console.log(`🚀 ENTERING sendOtpToDriver function - Order: ${orderNumber}, OTP: ${otp}`);
+    
     try {
+      console.log(`🔍 Driver service configuration check:`);
+      console.log(`   - Driver App URL: ${this.driverAppUrl || 'NOT_SET'}`);
+      console.log(`   - API Secret exists: ${!!this.apiSecret}`);
+      console.log(`   - API Secret preview: ${this.apiSecret ? this.apiSecret.substring(0, 20) + '...' : 'NOT_SET'}`);
+      
       if (!this.driverAppUrl || !this.apiSecret) {
         console.log(
-          "Driver app integration not configured - skipping OTP notification",
+          "❌ Driver app integration not configured - skipping OTP notification",
         );
         return false;
       }
@@ -133,17 +140,32 @@ export class DriverService {
         action: "otp_generated"
       };
 
-      console.log(`📱 Sending OTP to driver app for order: ${orderNumber}`);
-      console.log(`🔐 OTP: ${otp}`);
+      console.log(`📱 Preparing to send OTP to driver app:`);
+      console.log(`   - Order Number: ${orderNumber}`);
+      console.log(`   - OTP: ${otp}`);
+      console.log(`   - Payload:`, JSON.stringify(otpNotification, null, 2));
+      console.log(`   - Target URL: ${this.driverAppUrl}/api/notifications`);
 
+      const requestHeaders = {
+        "x-api-secret": this.apiSecret,
+        "Content-Type": "application/json",
+      };
+      console.log(`📋 Request headers:`, {
+        "x-api-secret": this.apiSecret.substring(0, 10) + "...",
+        "Content-Type": "application/json"
+      });
+
+      console.log(`🌐 Making HTTP POST request to driver app...`);
       const response = await fetch(`${this.driverAppUrl}/api/notifications`, {
         method: "POST",
-        headers: {
-          "x-api-secret": this.apiSecret,
-          "Content-Type": "application/json",
-        },
+        headers: requestHeaders,
         body: JSON.stringify(otpNotification),
       });
+
+      console.log(`📨 HTTP Response received:`);
+      console.log(`   - Status: ${response.status} ${response.statusText}`);
+      console.log(`   - OK: ${response.ok}`);
+      console.log(`   - Headers:`, Object.fromEntries(response.headers.entries()));
 
       const success = response.ok;
 
@@ -151,17 +173,46 @@ export class DriverService {
         console.log(
           `✅ Successfully sent OTP to driver app for order ${orderNumber}`,
         );
+        try {
+          const responseText = await response.text();
+          console.log(`📄 Response body:`, responseText);
+        } catch (e) {
+          console.log(`📄 Could not read response body`);
+        }
       } else {
         console.error(
           `❌ Failed to send OTP to driver app: ${response.status} ${response.statusText}`,
         );
         const errorText = await response.text().catch(() => "Unknown error");
         console.error("Driver app OTP error response:", errorText);
+        
+        // Log specific issues to help debugging
+        if (response.status === 401) {
+          console.error(
+            "🔑 Authentication failed - check CUSTOMER_APP_KEY secret",
+          );
+        } else if (response.status === 400) {
+          console.error(
+            "📝 Request validation failed - check payload structure",
+          );
+        } else if (response.status === 404) {
+          console.error(
+            "🔍 Endpoint not found - check driver app URL and /api/notifications path",
+          );
+        } else if (response.status >= 500) {
+          console.error(
+            "💥 Driver app server error - check driver app logs",
+          );
+        }
       }
 
+      console.log(`🔚 sendOtpToDriver function completed with result: ${success}`);
       return success;
     } catch (error) {
-      console.error("Error sending OTP to driver app:", error);
+      console.error("💥 ERROR in sendOtpToDriver:", error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error("🌐 Network error - check if driver app URL is accessible");
+      }
       return false;
     }
   }
