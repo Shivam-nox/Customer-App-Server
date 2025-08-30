@@ -269,18 +269,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/orders/:id/generate-otp", requireAuth, async (req, res) => {
-    console.log(`🔥 OTP GENERATION REQUEST - Order ID: ${req.params.id}, User ID: ${req.user?.id}`);
-    
+  app.post("/api/notifications", requireAuth, async (req, res) => {
+    console.log(
+      `🔥 OTP GENERATION REQUEST - Order ID: 123456, User ID: ${req.user?.id}`,
+    );
+
     try {
-      const order = await storage.getOrder(req.params.id);
+      const order = await storage.getOrder("123456");
       console.log(`📋 Order lookup result:`, {
         found: !!order,
         orderNumber: order?.orderNumber,
         status: order?.status,
         customerId: order?.customerId,
         requestUserId: req.user?.id,
-        ownerMatch: order?.customerId === req.user?.id
+        ownerMatch: order?.customerId === req.user?.id,
       });
 
       if (!order || order.customerId !== req.user!.id) {
@@ -289,7 +291,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (order.status !== "in_transit") {
-        console.log(`❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`);
+        console.log(
+          `❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`,
+        );
         return res.status(400).json({
           error:
             "OTP can only be generated for orders that are out for delivery",
@@ -299,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate new OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       console.log(`🎲 Generated OTP: ${otp} for order ${order.orderNumber}`);
-      
+
       const updatedOrder = await storage.updateOrderStatus(
         order.id,
         "in_transit",
@@ -322,7 +326,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         order.orderNumber,
         otp,
       );
-      console.log(`📱 Driver notification result: ${otpNotificationSuccess ? 'SUCCESS' : 'FAILED'}`);
+      console.log(
+        `📱 Driver notification result: ${otpNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+      );
 
       res.json({
         success: true,
@@ -896,6 +902,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           statusUpdate.driverId,
         );
 
+        console.log(
+          `✅ Order ${statusUpdate.orderId} status updated to: ${statusUpdate.status}`,
+        );
+
+        // If order is now in_transit and has OTP, send it to driver app
+        if (statusUpdate.status === "in_transit" && updatedOrder.deliveryOtp) {
+          console.log(`📤 Order transitioned to in_transit - sending OTP to driver app`);
+          console.log(`🔐 Auto-generated OTP: ${updatedOrder.deliveryOtp} for order: ${updatedOrder.orderNumber}`);
+          
+          const otpNotificationSuccess = await driverService.sendOtpToDriver(
+            updatedOrder.orderNumber,
+            updatedOrder.deliveryOtp,
+          );
+          
+          console.log(`📱 Driver OTP notification result: ${otpNotificationSuccess ? 'SUCCESS' : 'FAILED'}`);
+        }
+
         // // Create notification for customer
         // await storage.createNotification({
         //   userId: updatedOrder.customerId,
@@ -904,10 +927,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         //   type: "order_update",
         //   orderId: updatedOrder.id,
         // });
-
-        console.log(
-          `✅ Order ${statusUpdate.orderId} status updated to: ${statusUpdate.status}`,
-        );
 
         res.json({
           success: true,
