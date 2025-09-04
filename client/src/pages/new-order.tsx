@@ -88,7 +88,7 @@ export default function NewOrderScreen() {
   const ratePerLiter = parseFloat(
     (pricingSettings as any)?.settings?.find(
       (s: any) => s.key === "rate_per_liter",
-    )?.value || "70.50",
+    )?.value || "90",
   );
   const deliveryCharges = parseFloat(
     (pricingSettings as any)?.settings?.find(
@@ -115,7 +115,7 @@ export default function NewOrderScreen() {
   );
 
   const subtotal = quantity * ratePerLiter;
-  const gst = subtotal * gstRate;
+  const gst = deliveryCharges * gstRate;
   const totalAmount = subtotal + deliveryCharges + gst;
 
   // Set minimum date to today

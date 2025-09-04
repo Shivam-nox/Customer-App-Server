@@ -195,12 +195,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderData = createOrderSchema.parse(req.body);
 
-      // Calculate pricing
-      const ratePerLiter = 70.5;
+      // Fetch dynamic pricing from system settings
+      const ratePerLiterSetting = await storage.getSystemSetting("rate_per_liter");
+      const deliveryChargesSetting = await storage.getSystemSetting("delivery_charges");
+      const gstRateSetting = await storage.getSystemSetting("gst_rate");
+
+      // Use dynamic values from system_settings, with fallbacks
+      const ratePerLiter = parseFloat(ratePerLiterSetting?.value || "70.5");
+      const deliveryCharges = parseFloat(deliveryChargesSetting?.value || "300");
+      const gstRate = parseFloat(gstRateSetting?.value || "0.18");
+
+      // Calculate pricing with dynamic values
       const subtotal = orderData.quantity * ratePerLiter;
-      const deliveryCharges = 300;
-      const gst = subtotal * 0.18;
+      const gst = subtotal * gstRate;
       const totalAmount = subtotal + deliveryCharges + gst;
+
+      console.log(`💰 Order pricing calculation using dynamic settings:`);
+      console.log(`   • Rate per liter: ₹${ratePerLiter} (from system_settings)`);
+      console.log(`   • Delivery charges: ₹${deliveryCharges} (from system_settings)`);
+      console.log(`   • GST rate: ${(gstRate * 100).toFixed(1)}% (from system_settings)`);
+      console.log(`   • Quantity: ${orderData.quantity} liters`);
+      console.log(`   • Subtotal: ₹${subtotal.toFixed(2)}`);
+      console.log(`   • GST: ₹${gst.toFixed(2)}`);
+      console.log(`   • Total: ₹${totalAmount.toFixed(2)}`);
 
       const order = await storage.createOrder({
         customerId: req.user!.id,
