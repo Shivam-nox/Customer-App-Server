@@ -1,8 +1,46 @@
 import type { Order, User } from "@shared/schema";
 
+// Enhanced notification payload for driver app with comprehensive order details
 interface DriverOrderNotification {
+  // Basic order information
   message: string;
   orderId: string;
+  orderNumber: string;
+  action: string;
+  
+  // Customer details for contact and delivery
+  customer: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  
+  // Order details for delivery preparation
+  orderDetails: {
+    quantity: number;
+    fuelType: string;
+    deliveryAddress: string;
+    deliveryCoordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  
+  // Delivery scheduling information
+  delivery: {
+    scheduledDate: string;
+    scheduledTime: string;
+    deliveryInstructions?: string;
+  };
+  
+  // Financial details for reference
+  payment: {
+    totalAmount: string;
+    paymentMethod: string;
+    ratePerLiter: string;
+    deliveryCharges: string;
+    gst: string;
+  };
 }
 
 export class DriverService {
@@ -59,6 +97,10 @@ export class DriverService {
     }
   }
 
+  /**
+   * Notify driver app about new order with comprehensive details
+   * Sends customer info, order details, delivery schedule, and payment info
+   */
   async notifyNewOrder(order: Order, customer: User): Promise<boolean> {
     try {
       if (!this.driverAppUrl || !this.apiSecret) {
@@ -68,15 +110,65 @@ export class DriverService {
         return false;
       }
 
+      // Prepare comprehensive order notification with all necessary details
       const orderNotification: DriverOrderNotification = {
-        message: `Customer has placed an order: ${order.orderNumber}`,
+        // Basic order information
+        message: `New delivery request from ${customer.name}`,
         orderId: order.id,
+        orderNumber: order.orderNumber,
+        action: "new_order",
+        
+        // Customer contact and identification details
+        customer: {
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+        },
+        
+        // Order specifications for delivery preparation
+        orderDetails: {
+          quantity: order.quantity,
+          fuelType: "Diesel", // Standard fuel type for the platform
+          deliveryAddress: order.deliveryAddress,
+          ...(order.deliveryLatitude && order.deliveryLongitude && {
+            deliveryCoordinates: {
+              latitude: parseFloat(order.deliveryLatitude),
+              longitude: parseFloat(order.deliveryLongitude),
+            },
+          }),
+        },
+        
+        // Delivery timing and logistics information
+        delivery: {
+          scheduledDate: order.scheduledDate.toISOString().split('T')[0], // YYYY-MM-DD format
+          scheduledTime: order.scheduledTime,
+          deliveryInstructions: `Contact ${customer.name} at ${customer.phone} upon arrival`,
+        },
+        
+        // Financial details for driver reference
+        payment: {
+          totalAmount: order.totalAmount,
+          paymentMethod: "Prepaid", // Orders are paid before delivery
+          ratePerLiter: order.ratePerLiter,
+          deliveryCharges: order.deliveryCharges,
+          gst: order.gst,
+        },
       };
 
-      console.log(`Notifying driver app about new order: ${order.orderNumber}`);
-      console.log(`Using API secret: ${this.apiSecret.substring(0, 10)}...`);
-      console.log(`Driver URL: ${this.driverAppUrl}/api/notifications`);
+      // Log comprehensive order notification details
+      console.log(`\n🚚 =================================`);
+      console.log(`📦 NOTIFYING DRIVER ABOUT NEW ORDER`);
+      console.log(`🚚 =================================`);
+      console.log(`📋 Order: ${order.orderNumber}`);
+      console.log(`👤 Customer: ${customer.name} (${customer.phone})`);
+      console.log(`⛽ Quantity: ${order.quantity} liters`);
+      console.log(`📍 Address: ${order.deliveryAddress}`);
+      console.log(`📅 Scheduled: ${order.scheduledDate.toISOString().split('T')[0]} at ${order.scheduledTime}`);
+      console.log(`💰 Amount: ₹${order.totalAmount}`);
+      console.log(`🔗 Driver URL: ${this.driverAppUrl}/api/notifications`);
+      console.log(`🔑 API Secret: ${this.apiSecret.substring(0, 10)}...`);
 
+      // Send detailed notification to driver app
       const response = await fetch(`${this.driverAppUrl}/api/notifications`, {
         method: "POST",
         headers: {
@@ -88,32 +180,48 @@ export class DriverService {
 
       const success = response.ok;
 
+      // Log notification result with detailed status
       if (success) {
-        console.log(
-          `✅ Successfully notified driver app about order ${order.orderNumber}`,
-        );
+        console.log(`\n✅ SUCCESS: Driver notification sent successfully!`);
+        console.log(`📱 Driver app received comprehensive order details`);
+        console.log(`📋 Order ${order.orderNumber} - Driver can now see:`);
+        console.log(`   • Customer contact: ${customer.name} (${customer.phone})`);
+        console.log(`   • Delivery location: ${order.deliveryAddress}`);
+        console.log(`   • Fuel quantity: ${order.quantity} liters`);
+        console.log(`   • Scheduled delivery: ${order.scheduledDate.toISOString().split('T')[0]} ${order.scheduledTime}`);
+        console.log(`   • Payment amount: ₹${order.totalAmount}`);
+        console.log(`🚚 =================================\n`);
       } else {
-        console.error(
-          `❌ Failed to notify driver app: ${response.status} ${response.statusText}`,
-        );
+        console.error(`\n❌ FAILED: Driver notification failed!`);
+        console.error(`📱 Driver app did not receive order details`);
+        console.error(`🔥 Response: ${response.status} ${response.statusText}`);
+        
         const errorText = await response.text().catch(() => "Unknown error");
-        console.error("Driver app error response:", errorText);
+        console.error(`📄 Error details:`, errorText);
 
-        // Log specific issues to help debugging
+        // Enhanced error logging for different failure scenarios
         if (response.status === 401) {
-          console.error(
-            "🔑 Authentication failed - check CUSTOMER_APP_KEY secret",
-          );
+          console.error(`🔑 Authentication failed - check CUSTOMER_APP_KEY secret`);
         } else if (response.status === 400) {
-          console.error(
-            "📝 Request validation failed - check payload structure",
-          );
+          console.error(`📝 Request validation failed - driver app may expect different payload structure`);
+        } else if (response.status === 404) {
+          console.error(`🔍 Endpoint not found - check driver app URL and /api/notifications path`);
+        } else if (response.status >= 500) {
+          console.error(`💥 Driver app server error - check driver app server status`);
         }
+        console.log(`🚚 =================================\n`);
       }
 
       return success;
     } catch (error) {
-      console.error("Error notifying driver app:", error);
+      console.error(`\n💥 EXCEPTION: Error sending order details to driver app`);
+      console.error(`📋 Order: ${order.orderNumber}`);
+      console.error(`👤 Customer: ${customer.name}`);
+      console.error(`🔥 Error:`, error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error(`🌐 Network error - check if driver app URL is accessible`);
+      }
+      console.log(`🚚 =================================\n`);
       return false;
     }
   }
