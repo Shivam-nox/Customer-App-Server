@@ -196,24 +196,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderData = createOrderSchema.parse(req.body);
 
       // Fetch dynamic pricing from system settings
-      const ratePerLiterSetting = await storage.getSystemSetting("rate_per_liter");
-      const deliveryChargesSetting = await storage.getSystemSetting("delivery_charges");
+      const ratePerLiterSetting =
+        await storage.getSystemSetting("rate_per_liter");
+      const deliveryChargesSetting =
+        await storage.getSystemSetting("delivery_charges");
       const gstRateSetting = await storage.getSystemSetting("gst_rate");
 
       // Use dynamic values from system_settings, with fallbacks
       const ratePerLiter = parseFloat(ratePerLiterSetting?.value || "70.5");
-      const deliveryCharges = parseFloat(deliveryChargesSetting?.value || "300");
+      const deliveryCharges = parseFloat(
+        deliveryChargesSetting?.value || "300",
+      );
       const gstRate = parseFloat(gstRateSetting?.value || "0.18");
 
       // Calculate pricing with dynamic values
       const subtotal = orderData.quantity * ratePerLiter;
-      const gst = subtotal * gstRate;
+      const gst = deliveryCharges * gstRate;
       const totalAmount = subtotal + deliveryCharges + gst;
 
       console.log(`💰 Order pricing calculation using dynamic settings:`);
-      console.log(`   • Rate per liter: ₹${ratePerLiter} (from system_settings)`);
-      console.log(`   • Delivery charges: ₹${deliveryCharges} (from system_settings)`);
-      console.log(`   • GST rate: ${(gstRate * 100).toFixed(1)}% (from system_settings)`);
+      console.log(
+        `   • Rate per liter: ₹${ratePerLiter} (from system_settings)`,
+      );
+      console.log(
+        `   • Delivery charges: ₹${deliveryCharges} (from system_settings)`,
+      );
+      console.log(
+        `   • GST rate: ${(gstRate * 100).toFixed(1)}% (from system_settings)`,
+      );
       console.log(`   • Quantity: ${orderData.quantity} liters`);
       console.log(`   • Subtotal: ₹${subtotal.toFixed(2)}`);
       console.log(`   • GST: ₹${gst.toFixed(2)}`);
@@ -925,15 +935,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // If order is now in_transit and has OTP, send it to driver app
         if (statusUpdate.status === "in_transit" && updatedOrder.deliveryOtp) {
-          console.log(`📤 Order transitioned to in_transit - sending OTP to driver app`);
-          console.log(`🔐 Auto-generated OTP: ${updatedOrder.deliveryOtp} for order: ${updatedOrder.orderNumber}`);
-          
+          console.log(
+            `📤 Order transitioned to in_transit - sending OTP to driver app`,
+          );
+          console.log(
+            `🔐 Auto-generated OTP: ${updatedOrder.deliveryOtp} for order: ${updatedOrder.orderNumber}`,
+          );
+
           const otpNotificationSuccess = await driverService.sendOtpToDriver(
             updatedOrder.orderNumber,
             updatedOrder.deliveryOtp,
           );
-          
-          console.log(`📱 Driver OTP notification result: ${otpNotificationSuccess ? 'SUCCESS' : 'FAILED'}`);
+
+          console.log(
+            `📱 Driver OTP notification result: ${otpNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+          );
         }
 
         // // Create notification for customer
