@@ -4,6 +4,7 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { driverService } from "./driverService";
+import { adminService } from "./adminService";
 import { db } from "./db";
 import { orders } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -93,10 +94,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: "customer",
       });
 
+      // Notify admin dashboard about new customer registration
+      console.log(`🚀 New customer registered: ${newUser.name} (${newUser.username || newUser.email})`);
+      console.log(`📧 Attempting to notify admin dashboard about customer registration...`);
+      
+      const adminNotificationSuccess = await adminService.notifyCustomerRegistration(newUser);
+      
+      console.log(`📊 Admin dashboard notification result: ${adminNotificationSuccess ? 'SUCCESS' : 'FAILED'}`);
+      
+      if (adminNotificationSuccess) {
+        console.log(`✅ Admin dashboard successfully notified about new customer: ${newUser.name}`);
+      } else {
+        console.log(`⚠️  Admin dashboard notification failed for customer: ${newUser.name} - user registration completed but admin was not notified`);
+      }
+
       // Return user without password hash
       const { passwordHash: _, ...userResponse } = newUser;
 
-      res.json({ success: true, user: userResponse });
+      res.json({ 
+        success: true, 
+        user: userResponse,
+        adminNotified: adminNotificationSuccess
+      });
     } catch (error) {
       console.error("Signup error:", error);
       res.status(400).json({ error: "Failed to create account" });
