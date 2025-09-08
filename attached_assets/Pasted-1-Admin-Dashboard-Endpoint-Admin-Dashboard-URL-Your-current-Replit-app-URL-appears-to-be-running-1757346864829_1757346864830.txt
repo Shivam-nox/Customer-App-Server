@@ -1,0 +1,129 @@
+1. Admin Dashboard Endpoint
+Admin Dashboard URL:
+
+Your current Replit app URL (appears to be running on port 5000)
+For production, it would be your deployed Replit URL
+API Endpoint for Customer Registration:
+
+POST /api/external/customer-registration
+Full URL Example:
+
+https://your-replit-app-name.replit.app/api/external/customer-registration
+(Replace with your actual Replit URL)
+
+🔐 2. Authentication
+Method: API Key Authentication
+
+Headers Required:
+
+X-API-Key: zapygo-admin-2025-secure-key
+Alternative format:
+
+Authorization: Bearer zapygo-admin-2025-secure-key
+Security Note: You can change this API key by setting the ADMIN_API_KEY environment variable in your admin dashboard.
+
+📋 3. Customer Data to Send
+Required Fields:
+
+name (string, 2-100 characters)
+phone (string, 10-15 characters)
+Optional Fields:
+
+username (string, 3-50 characters)
+email (valid email format)
+businessName (string, max 200 characters)
+industryType (string, max 100 characters)
+Auto-Generated Defaults:
+
+Email: {phone}@customer.zapygo.com (if not provided)
+Business Name: {name}'s Business (if not provided)
+Business Address: "Address to be updated"
+Industry Type: "General Business" (if not provided)
+KYC Status: "pending"
+Role: "customer"
+Credit Limit: "0"
+🔧 4. Payload Format
+Minimal Payload (as you requested):
+
+{
+  "name": "Customer Name",
+  "phone": "+91 9876543210",
+  "username": "customer123"
+}
+Full Payload (optional fields):
+
+{
+  "name": "Customer Name",
+  "phone": "+91 9876543210", 
+  "username": "customer123",
+  "email": "customer@example.com",
+  "businessName": "Customer's Business Pvt Ltd",
+  "industryType": "Manufacturing"
+}
+✨ 5. Response Format
+Success Response (201):
+
+{
+  "success": true,
+  "message": "Customer registered successfully in admin dashboard",
+  "customer": {
+    "id": "28b20cd1-bc9e-440e-a753-b2ed46a1eaaa",
+    "name": "Customer Name",
+    "phone": "+91 9876543210",
+    "email": "customer@example.com",
+    "businessName": "Customer's Business",
+    "kycStatus": "pending",
+    "createdAt": "2025-09-08T15:28:18.470Z"
+  }
+}
+Error Responses:
+
+// Authentication Error (401)
+{
+  "error": "Unauthorized",
+  "message": "Valid API key required. Set X-API-Key header or Authorization: Bearer <key>"
+}
+// Validation Error (400)
+{
+  "success": false,
+  "error": "Validation failed",
+  "details": [
+    {
+      "field": "phone",
+      "message": "String must contain at least 10 character(s)"
+    }
+  ]
+}
+// Duplicate Customer (409)
+{
+  "success": false,
+  "error": "Customer already exists",
+  "message": "A customer with this phone number or email already exists"
+}
+💻 6. Example Implementation
+cURL Example:
+
+curl -X POST https://your-admin-dashboard.replit.app/api/external/customer-registration \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: zapygo-admin-2025-secure-key" \
+  -d '{
+    "name": "John Doe",
+    "phone": "+91 9876543210",
+    "username": "johndoe123"
+  }'
+JavaScript/Node.js Example:
+
+const response = await fetch('https://your-admin-dashboard.replit.app/api/external/customer-registration', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'zapygo-admin-2025-secure-key'
+  },
+  body: JSON.stringify({
+    name: 'John Doe',
+    phone: '+91 9876543210',
+    username: 'johndoe123'
+  })
+});
+const data = await response.json();
+console.log(data);
