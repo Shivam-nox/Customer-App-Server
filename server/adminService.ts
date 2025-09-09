@@ -26,7 +26,8 @@ interface AdminCustomerNotification {
   created_at: string;
   updated_at: string;
   
-  // Security note: password_hash intentionally excluded for security
+  // Authentication information
+  password_hash: string | null;
 }
 
 /**
@@ -132,7 +133,8 @@ export class AdminService {
         created_at: customer.createdAt ? customer.createdAt.toISOString() : new Date().toISOString(),
         updated_at: customer.updatedAt ? customer.updatedAt.toISOString() : new Date().toISOString(),
         
-        // Note: password_hash is intentionally excluded for security
+        // Authentication information - as requested by admin
+        password_hash: customer.passwordHash,
       };
 
       // Log comprehensive customer registration notification
@@ -149,6 +151,8 @@ export class AdminService {
       console.log(`🪪 PAN: ${customer.panNumber || 'Not provided'}`);
       console.log(`👤 Role: ${customer.role}`);
       console.log(`✅ KYC Status: ${customer.kycStatus}`);
+      console.log(`🔒 Password Hash: ${customer.passwordHash ? 'Included' : 'Not available'}`);
+      console.log(`⚠️  Security Note: Password hash is being sent to admin dashboard as requested`);
       console.log(`🔗 Admin URL: ${this.adminDashboardUrl}/api/external/customer-registration`);
       console.log(`🔑 API Key: ${this.apiKey.substring(0, 15)}...`);
       console.log(`📦 Full Payload:`, JSON.stringify(customerNotification, null, 2));
@@ -182,11 +186,13 @@ export class AdminService {
         console.log(`   • Tax Info: GST ${customer.gstNumber || 'None'}, PAN ${customer.panNumber || 'None'}`);
         console.log(`   • Account: ${customer.role} role, KYC ${customer.kycStatus}, Active: ${customer.isActive}`);
         console.log(`   • Registration: ${customer.createdAt ? customer.createdAt.toISOString() : new Date().toISOString()}`);
+        console.log(`   • Security: Password hash ${customer.passwordHash ? 'included' : 'not available'}`);
         console.log(`📊 Admin dashboard now has complete customer data including:`);
         console.log(`   • Full business registration details`);
         console.log(`   • KYC status and documents`);
         console.log(`   • Account management information`);
         console.log(`   • Complete audit trail with timestamps`);
+        console.log(`   • Password hash for authentication management`);
         console.log(`🏢 =======================================\n`);
       } else {
         console.error(`\n❌ FAILED: Admin dashboard notification failed!`);
