@@ -39,7 +39,7 @@ export class AdminService {
 
   constructor() {
     // Admin dashboard configuration
-    this.adminDashboardUrl = process.env.ADMIN_APP_URL || "NOT_SET";
+    this.adminDashboardUrl = "https://dfce8961-587a-418c-badd-91e67a04838d-00-1wfu1zybfjof6.kirk.replit.dev";
     this.apiKey = "zapygo-admin-2025-secure-key";
 
     // Remove trailing slash from URL to prevent double slashes
@@ -106,27 +106,52 @@ export class AdminService {
         return false;
       }
 
-      // Prepare customer registration payload as specified
+      // Prepare comprehensive customer registration payload with all details
       const customerNotification: AdminCustomerNotification = {
+        // Basic customer information
+        id: customer.id,
         name: customer.name,
-        phone: customer.phone,
-        username: customer.username || customer.email.split("@")[0], // Use email prefix as fallback if username is null
+        username: customer.username, // Keep null if not provided
         email: customer.email,
+        phone: customer.phone,
+        
+        // Business information
+        business_name: customer.businessName,
+        business_address: customer.businessAddress,
+        industry_type: customer.industryType,
+        gst_number: customer.gstNumber,
+        pan_number: customer.panNumber,
+        
+        // Account information
+        role: customer.role,
+        kyc_status: customer.kycStatus,
+        kyc_documents: customer.kycDocuments,
+        is_active: customer.isActive,
+        
+        // Timestamp information
+        created_at: customer.createdAt ? customer.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: customer.updatedAt ? customer.updatedAt.toISOString() : new Date().toISOString(),
+        
+        // Note: password_hash is intentionally excluded for security
       };
 
-      // Log detailed customer registration notification
+      // Log comprehensive customer registration notification
       console.log(`\n🏢 =======================================`);
       console.log(`👤 NOTIFYING ADMIN ABOUT NEW CUSTOMER`);
       console.log(`🏢 =======================================`);
-      console.log(`📋 Customer: ${customer.name} (${customer.username})`);
+      console.log(`📋 Customer: ${customer.name} (${customer.username || 'No username'})`);
       console.log(`📞 Phone: ${customer.phone}`);
       console.log(`📧 Email: ${customer.email}`);
       console.log(`🆔 User ID: ${customer.id}`);
-      console.log(
-        `🔗 Admin URL: ${this.adminDashboardUrl}/api/external/customer-registration`,
-      );
+      console.log(`🏢 Business: ${customer.businessName || 'Not provided'}`);
+      console.log(`🏭 Industry: ${customer.industryType || 'Not specified'}`);
+      console.log(`📄 GST: ${customer.gstNumber || 'Not provided'}`);
+      console.log(`🪪 PAN: ${customer.panNumber || 'Not provided'}`);
+      console.log(`👤 Role: ${customer.role}`);
+      console.log(`✅ KYC Status: ${customer.kycStatus}`);
+      console.log(`🔗 Admin URL: ${this.adminDashboardUrl}/api/external/customer-registration`);
       console.log(`🔑 API Key: ${this.apiKey.substring(0, 15)}...`);
-      console.log(`📦 Payload:`, JSON.stringify(customerNotification, null, 2));
+      console.log(`📦 Full Payload:`, JSON.stringify(customerNotification, null, 2));
 
       // Send customer registration notification to admin dashboard
       const response = await fetch(
@@ -148,20 +173,20 @@ export class AdminService {
         console.log(
           `\n✅ SUCCESS: Admin dashboard notification sent successfully!`,
         );
-        console.log(`🏢 Admin dashboard received new customer details`);
+        console.log(`🏢 Admin dashboard received comprehensive customer details`);
         console.log(
-          `👤 Customer ${customer.username} (${customer.name}) registered:`,
+          `👤 Customer ${customer.username || customer.email} (${customer.name}) registered:`,
         );
-        console.log(`   • Name: ${customer.name}`);
-        console.log(`   • Phone: ${customer.phone}`);
-        console.log(`   • Username: ${customer.username}`);
-        console.log(
-          `   • Registration time: ${customer.createdAt || new Date().toISOString()}`,
-        );
-        console.log(`📊 Admin can now:`);
-        console.log(`   • Track new customer acquisition`);
-        console.log(`   • Monitor user registration trends`);
-        console.log(`   • Manage customer database`);
+        console.log(`   • Basic Info: ${customer.name}, ${customer.phone}, ${customer.email}`);
+        console.log(`   • Business: ${customer.businessName || 'Not provided'} (${customer.industryType || 'No industry'})`);
+        console.log(`   • Tax Info: GST ${customer.gstNumber || 'None'}, PAN ${customer.panNumber || 'None'}`);
+        console.log(`   • Account: ${customer.role} role, KYC ${customer.kycStatus}, Active: ${customer.isActive}`);
+        console.log(`   • Registration: ${customer.createdAt ? customer.createdAt.toISOString() : new Date().toISOString()}`);
+        console.log(`📊 Admin dashboard now has complete customer data including:`);
+        console.log(`   • Full business registration details`);
+        console.log(`   • KYC status and documents`);
+        console.log(`   • Account management information`);
+        console.log(`   • Complete audit trail with timestamps`);
         console.log(`🏢 =======================================\n`);
       } else {
         console.error(`\n❌ FAILED: Admin dashboard notification failed!`);
