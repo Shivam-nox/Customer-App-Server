@@ -102,22 +102,6 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
 
-// Deliveries table
-export const deliveries = pgTable("deliveries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").notNull().references(() => orders.id),
-  driverId: varchar("driver_id").notNull().references(() => users.id),
-  driverName: varchar("driver_name", { length: 100 }).notNull(),
-  vehicleNumber: varchar("vehicle_number", { length: 20 }).notNull(),
-  driverPhone: varchar("driver_phone", { length: 15 }).notNull(),
-  driverRating: decimal("driver_rating", { precision: 2, scale: 1 }),
-  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
-  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
-  proofOfDelivery: text("proof_of_delivery"), // image URL or OTP
-  deliveredAt: timestamp("delivered_at"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
-});
 
 // Notifications table
 export const notifications = pgTable("notifications", {
@@ -169,11 +153,6 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   updatedAt: true,
 });
 
-export const insertDeliverySchema = createInsertSchema(deliveries).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
@@ -207,8 +186,6 @@ export type Order = typeof orders.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
 
-export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
-export type Delivery = typeof deliveries.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
