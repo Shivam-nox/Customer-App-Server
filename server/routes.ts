@@ -95,26 +95,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Notify admin dashboard about new customer registration
-      console.log(`🚀 New customer registered: ${newUser.name} (${newUser.username || newUser.email})`);
-      console.log(`📧 Attempting to notify admin dashboard about customer registration...`);
-      
-      const adminNotificationSuccess = await adminService.notifyCustomerRegistration(newUser);
-      
-      console.log(`📊 Admin dashboard notification result: ${adminNotificationSuccess ? 'SUCCESS' : 'FAILED'}`);
-      
+      console.log(
+        `🚀 New customer registered: ${newUser.name} (${newUser.username || newUser.email})`,
+      );
+      console.log(
+        `📧 Attempting to notify admin dashboard about customer registration...`,
+      );
+
+      const adminNotificationSuccess =
+        await adminService.notifyCustomerRegistration(newUser);
+
+      console.log(
+        `📊 Admin dashboard notification result: ${adminNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+      );
+
       if (adminNotificationSuccess) {
-        console.log(`✅ Admin dashboard successfully notified about new customer: ${newUser.name}`);
+        console.log(
+          `✅ Admin dashboard successfully notified about new customer: ${newUser.name}`,
+        );
       } else {
-        console.log(`⚠️  Admin dashboard notification failed for customer: ${newUser.name} - user registration completed but admin was not notified`);
+        console.log(
+          `⚠️  Admin dashboard notification failed for customer: ${newUser.name} - user registration completed but admin was not notified`,
+        );
       }
 
       // Return user without password hash
       const { passwordHash: _, ...userResponse } = newUser;
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         user: userResponse,
-        adminNotified: adminNotificationSuccess
+        adminNotified: adminNotificationSuccess,
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -666,48 +677,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update order status from driver app (for future use)
-  app.put("/api/orders/:id/status", async (req, res) => {
-    try {
-      const { status, driverId } = req.body;
+  // // Webhook middleware for driver app authentication
+  // const requireDriverAuth = async (req: any, res: any, next: any) => {
+  //   const apiSecret = req.headers["x-api-secret"];
+  //   const expectedSecret = process.env.CUSTOMER_APP_KEY;
 
-      // Validate status
-      const validStatuses = [
-        "pending",
-        "confirmed",
-        "fuel_loaded",
-        "in_transit",
-        "delivered",
-        "cancelled",
-      ];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Invalid status" });
-      }
+  //   if (!apiSecret || !expectedSecret) {
+  //     return res.status(401).json({ error: "API secret required" });
+  //   }
 
-      const order = await storage.updateOrderStatus(
-        req.params.id,
-        status,
-        driverId,
-      );
+  //   if (apiSecret !== expectedSecret) {
+  //     return res.status(401).json({ error: "Invalid API secret" });
+  //   }
 
-      // Create notification for customer
-      const customer = await storage.getUser(order.customerId);
-      if (customer) {
-        await storage.createNotification({
-          userId: customer.id,
-          title: "Order Status Updated",
-          message: `Your order #${order.orderNumber} is now ${status.replace("_", " ")}`,
-          type: "order_update",
-          orderId: order.id,
-        });
-      }
+  //   next();
+  // };
 
-      res.json({ order });
-    } catch (error) {
-      console.error("Update order status error:", error);
-      res.status(500).json({ error: "Failed to update order status" });
-    }
-  });
+  // // Webhook Routes for Driver App Integration
+  // const deliveryStatusSchema = z.object({
+  //   orderId: z.string().min(1),
+  //   status: z.enum(["confirmed", "fuel_loaded", "in_transit", "delivered"]),
+  //   driverId: z.string().min(1).optional(),
+  //   timestamp: z.string().optional(),
+  // });
+
+  // app.post("/api/webhooks/delivery-status", requireDriverAuth, async (req, res) => {
+  //   try {
+  //     const statusUpdate = deliveryStatusSchema.parse(req.body);
+
+  //     console.log(`📦 Received delivery status update from driver app:`, statusUpdate);
+
+  //     // Update order status in database
+  //     const updatedOrder = await storage.updateOrderStatus(
+  //       statusUpdate.orderId,
+  //       statusUpdate.status,
+  //       statusUpdate.driverId
+  //     );
+
+  //     // Create notification for customer
+  //     await storage.createNotification({
+  //       userId: updatedOrder.customerId,
+  //       title: "Order Status Updated",
+  //       message: `Your order ${updatedOrder.orderNumber} is now ${statusUpdate.status.replace('_', ' ')}`,
+  //       type: "order_update",
+  //       orderId: updatedOrder.id,
+  //     });
+
+  //     console.log(`✅ Order ${updatedOrder.orderNumber} status updated to: ${statusUpdate.status}`);
+
+  //     res.json({
+  //       success: true,
+  //       order: updatedOrder,
+  //       message: "Status updated successfully"
+  //     });
+  //   } catch (error) {
+  //     console.error("Webhook delivery status error:", error);
+  //     if (error instanceof z.ZodError) {
+  //       return res.status(400).json({
+  //         error: "Invalid payload",
+  //         details: error.errors
+  //       });
+  //     }
+  //     res.status(500).json({ error: "Failed to update delivery status" });
+  //   }
+  // });
+
+  // // Test endpoint for driver app to verify webhook connectivity
+  // app.post("/api/webhooks/test", requireDriverAuth, async (req, res) => {
+  //   res.json({
+  //     success: true,
+  //     message: "Webhook connection successful",
+  //     timestamp: new Date().toISOString()
+  //   });
+  // });
+
+  // // Update order status from driver app (for future use)
+  // app.put("/api/webhooks/delivery-status", async (req, res) => {
+  //   try {
+  //     const { status, driverId } = req.body;
+
+  //     // Validate status
+  //     const validStatuses = [
+  //       "pending",
+  //       "confirmed",
+  //       "fuel_loaded",
+  //       "in_transit",
+  //       "delivered",
+  //       "cancelled",
+  //     ];
+  //     if (!validStatuses.includes(status)) {
+  //       return res.status(400).json({ error: "Invalid status" });
+  //     }
+
+  //     const order = await storage.updateOrderStatus(
+  //       req.body.id,
+  //       status,
+  //       driverId,
+  //     );
+
+  //     // Create notification for customer
+  //     const customer = await storage.getUser(order.customerId);
+  //     if (customer) {
+  //       await storage.createNotification({
+  //         userId: customer.id,
+  //         title: "Order Status Updated",
+  //         message: `Your order #${order.orderNumber} is now ${status.replace("_", " ")}`,
+  //         type: "order_update",
+  //         orderId: order.id,
+  //       });
+  //     }
+
+  //     res.json({ order });
+  //   } catch (error) {
+  //     console.error("Update order status error:", error);
+  //     res.status(500).json({ error: "Failed to update order status" });
+  //   }
+  // });
 
   // Mock driver location updates (for simulation)
   app.post("/api/orders/:id/update-driver-location", async (req, res) => {
