@@ -2,7 +2,6 @@ import {
   users,
   orders,
   payments,
-  deliveries,
   notifications,
   otpVerifications,
   savedAddresses,
@@ -13,8 +12,6 @@ import {
   type InsertOrder,
   type Payment,
   type InsertPayment,
-  type Delivery,
-  type InsertDelivery,
   type Notification,
   type InsertNotification,
   type OtpVerification,
@@ -67,15 +64,6 @@ export interface IStorage {
     transactionId?: string,
   ): Promise<Payment>;
 
-  // Delivery methods
-  createDelivery(delivery: InsertDelivery): Promise<Delivery>;
-  getDelivery(orderId: string): Promise<Delivery | undefined>;
-  updateDriverLocation(
-    orderId: string,
-    latitude: number,
-    longitude: number,
-  ): Promise<Delivery>;
-  markDelivered(orderId: string, proofOfDelivery: string): Promise<Delivery>;
 
   // Notification methods
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -296,55 +284,6 @@ export class DatabaseStorage implements IStorage {
     return payment;
   }
 
-  // Delivery methods
-  async createDelivery(insertDelivery: InsertDelivery): Promise<Delivery> {
-    const [delivery] = await db
-      .insert(deliveries)
-      .values(insertDelivery)
-      .returning();
-    return delivery;
-  }
-
-  async getDelivery(orderId: string): Promise<Delivery | undefined> {
-    const [delivery] = await db
-      .select()
-      .from(deliveries)
-      .where(eq(deliveries.orderId, orderId));
-    return delivery || undefined;
-  }
-
-  async updateDriverLocation(
-    orderId: string,
-    latitude: number,
-    longitude: number,
-  ): Promise<Delivery> {
-    const [delivery] = await db
-      .update(deliveries)
-      .set({
-        currentLatitude: latitude.toString(),
-        currentLongitude: longitude.toString(),
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.orderId, orderId))
-      .returning();
-    return delivery;
-  }
-
-  async markDelivered(
-    orderId: string,
-    proofOfDelivery: string,
-  ): Promise<Delivery> {
-    const [delivery] = await db
-      .update(deliveries)
-      .set({
-        proofOfDelivery,
-        deliveredAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(deliveries.orderId, orderId))
-      .returning();
-    return delivery;
-  }
 
   // Notification methods
   async createNotification(
