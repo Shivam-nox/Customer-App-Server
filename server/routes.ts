@@ -318,8 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const delivery = await storage.getDelivery(order.id);
-      res.json({ order, delivery });
+      res.json({ order });
     } catch (error) {
       console.error("Get order error:", error);
       res.status(500).json({ error: "Failed to get order" });
@@ -794,21 +793,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Mock driver location updates (for simulation)
-  app.post("/api/orders/:id/update-driver-location", async (req, res) => {
-    try {
-      const { latitude, longitude } = req.body;
-      const delivery = await storage.updateDriverLocation(
-        req.params.id,
-        latitude,
-        longitude,
-      );
-      res.json({ delivery });
-    } catch (error) {
-      console.error("Update driver location error:", error);
-      res.status(500).json({ error: "Failed to update driver location" });
-    }
-  });
 
   // Serve KYC documents
   app.get("/api/kyc-documents/:filePath(*)", requireAuth, async (req, res) => {
