@@ -318,7 +318,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      res.json({ order });
+      // If order has a driver assigned, fetch driver details to maintain frontend compatibility
+      let delivery = null;
+      if (order.driverId) {
+        const driver = await storage.getUser(order.driverId);
+        if (driver) {
+          delivery = {
+            id: `delivery-${order.id}`,
+            orderId: order.id,
+            driverId: driver.id,
+            driverName: driver.name,
+            vehicleNumber: "KA-05-HE-1234", // Mock vehicle number since not in users table
+            driverPhone: driver.phone,
+            driverRating: "4.5", // Mock rating since not in users table
+            currentLatitude: null,
+            currentLongitude: null,
+            proofOfDelivery: null,
+            deliveredAt: null,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+          };
+        }
+      }
+
+      res.json({ order, delivery });
     } catch (error) {
       console.error("Get order error:", error);
       res.status(500).json({ error: "Failed to get order" });
