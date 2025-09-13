@@ -1,38 +1,38 @@
 import {
-  users,
+  customers,
   orders,
   payments,
-  notifications,
   otpVerifications,
   savedAddresses,
   systemSettings,
-  type User,
-  type InsertUser,
+  notifications,
+  type Customer,
+  type InsertCustomer,
   type Order,
   type InsertOrder,
   type Payment,
   type InsertPayment,
-  type Notification,
-  type InsertNotification,
   type OtpVerification,
   type InsertOtp,
   type SavedAddress,
   type InsertSavedAddress,
   type SystemSetting,
   type InsertSystemSetting,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lt } from "drizzle-orm";
+import { eq, desc, and, gte, lt, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // User methods
-  getUser(id: string): Promise<User | undefined>;
-  getUserByPhone(phone: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, updates: Partial<InsertUser>): Promise<User>;
+  // Customer methods
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  getCustomerByEmail(email: string): Promise<Customer | undefined>;
+  getCustomerByUsername(username: string): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer>;
 
   // OTP methods
   createOtp(otp: InsertOtp): Promise<OtpVerification>;
@@ -65,11 +65,6 @@ export interface IStorage {
   ): Promise<Payment>;
 
 
-  // Notification methods
-  createNotification(notification: InsertNotification): Promise<Notification>;
-  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
-  markNotificationRead(id: string): Promise<void>;
-  getUnreadCount(userId: string): Promise<number>;
 
   // Saved Address methods
   createSavedAddress(address: InsertSavedAddress): Promise<SavedAddress>;
@@ -82,6 +77,13 @@ export interface IStorage {
   deleteSavedAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
 
+  // Notification methods
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+  getUnreadCount(userId: string): Promise<number>;
+  markNotificationRead(id: string): Promise<void>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+
   // System Settings methods
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   getAllSystemSettings(): Promise<SystemSetting[]>;
@@ -92,51 +94,70 @@ export interface IStorage {
     updatedBy?: string,
   ): Promise<SystemSetting>;
   createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
-  updateSavedAddress(
-    id: string,
-    updates: Partial<InsertSavedAddress>,
-  ): Promise<SavedAddress>;
-  deleteSavedAddress(id: string): Promise<void>;
-  setDefaultAddress(userId: string, addressId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // User methods
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  // Customer methods
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer || undefined;
   }
 
-  async getUserByPhone(phone: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.phone, phone));
-    return user || undefined;
+  async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    return customer || undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
+  async getCustomerByEmail(email: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.email, email));
+    return customer || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db
+  async getCustomerByUsername(username: string): Promise<Customer | undefined> {
+    const [customer] = await db
       .select()
-      .from(users)
-      .where(eq(users.username, username));
-    return user || undefined;
+      .from(customers)
+      .where(eq(customers.username, username));
+    return customer || undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+    const [customer] = await db.insert(customers).values(insertCustomer).returning();
+    return customer;
   }
 
-  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
-    const [user] = await db
-      .update(users)
+  async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
+    const [customer] = await db
+      .update(customers)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(users.id, id))
+      .where(eq(customers.id, id))
       .returning();
-    return user;
+    return customer;
+  }
+
+  // Backward compatibility wrappers (remove after routes updated)
+  async getUser(id: string): Promise<Customer | undefined> {
+    return this.getCustomer(id);
+  }
+
+  async getUserByPhone(phone: string): Promise<Customer | undefined> {
+    return this.getCustomerByPhone(phone);
+  }
+
+  async getUserByEmail(email: string): Promise<Customer | undefined> {
+    return this.getCustomerByEmail(email);
+  }
+
+  async getUserByUsername(username: string): Promise<Customer | undefined> {
+    return this.getCustomerByUsername(username);
+  }
+
+  async createUser(insertCustomer: InsertCustomer): Promise<Customer> {
+    return this.createCustomer(insertCustomer);
+  }
+
+  async updateUser(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
+    return this.updateCustomer(id, updates);
   }
 
   // OTP methods
@@ -285,45 +306,6 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-  // Notification methods
-  async createNotification(
-    insertNotification: InsertNotification,
-  ): Promise<Notification> {
-    const [notification] = await db
-      .insert(notifications)
-      .values(insertNotification)
-      .returning();
-    return notification;
-  }
-
-  async getUserNotifications(
-    userId: string,
-    limit: number = 50,
-  ): Promise<Notification[]> {
-    return await db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, userId))
-      .orderBy(desc(notifications.createdAt))
-      .limit(limit);
-  }
-
-  async markNotificationRead(id: string): Promise<void> {
-    await db
-      .update(notifications)
-      .set({ isRead: true })
-      .where(eq(notifications.id, id));
-  }
-
-  async getUnreadCount(userId: string): Promise<number> {
-    const result = await db
-      .select()
-      .from(notifications)
-      .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
-      );
-    return result.length;
-  }
 
   // Saved Address methods
   async createSavedAddress(
@@ -441,6 +423,51 @@ export class DatabaseStorage implements IStorage {
       .update(savedAddresses)
       .set({ isDefault: true, updatedAt: new Date() })
       .where(eq(savedAddresses.id, addressId));
+  }
+
+  // Notification methods
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(insertNotification)
+      .returning();
+    return notification;
+  }
+
+  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql`COUNT(*)`.as("count") })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        )
+      );
+    return Number(result[0]?.count || 0);
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: true, updatedAt: new Date() })
+      .where(eq(notifications.id, id));
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: true, updatedAt: new Date() })
+      .where(eq(notifications.userId, userId));
   }
 }
 

@@ -267,7 +267,7 @@ export class DriverService {
 
       const otpNotification = {
         orderId: orderNumber,
-        otp: otp,
+        deliveryOtp: otp,
         action: "otp_generated",
       };
 

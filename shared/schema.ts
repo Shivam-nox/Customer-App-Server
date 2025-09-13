@@ -11,8 +11,8 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "processin
 export const paymentMethodEnum = pgEnum("payment_method", ["upi", "cards", "netbanking", "wallet", "cod"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["order_update", "payment", "kyc", "delivery", "general"]);
 
-// Users table
-export const users = pgTable("users", {
+// Customers table  
+export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   username: varchar("username", { length: 50 }).unique(),
@@ -35,7 +35,7 @@ export const users = pgTable("users", {
 // Saved Addresses table
 export const savedAddresses = pgTable("saved_addresses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  userId: varchar("user_id").notNull(),
   label: text("label").notNull(), // "Home", "Office", "Warehouse", etc.
   addressLine1: text("address_line1").notNull(),
   addressLine2: text("address_line2"),
@@ -67,7 +67,7 @@ export const otpVerifications = pgTable("otp_verifications", {
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orderNumber: varchar("order_number", { length: 20 }).unique().notNull(),
-  customerId: varchar("customer_id").notNull().references(() => users.id),
+  customerId: varchar("customer_id").notNull(),
   quantity: integer("quantity").notNull(),
   ratePerLiter: decimal("rate_per_liter", { precision: 10, scale: 2 }).notNull(),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
@@ -81,7 +81,7 @@ export const orders = pgTable("orders", {
   scheduledDate: timestamp("scheduled_date").notNull(),
   scheduledTime: varchar("scheduled_time", { length: 5 }).notNull(),
   status: orderStatusEnum("status").default("pending").notNull(),
-  driverId: varchar("driver_id").references(() => users.id),
+  driverId: varchar("driver_id"),
   deliveryOtp: varchar("delivery_otp", { length: 6 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
@@ -92,7 +92,7 @@ export const orders = pgTable("orders", {
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orderId: varchar("order_id").notNull().references(() => orders.id),
-  customerId: varchar("customer_id").notNull().references(() => users.id),
+  customerId: varchar("customer_id").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   method: paymentMethodEnum("method").notNull(),
   status: paymentStatusEnum("status").default("pending").notNull(),
@@ -103,16 +103,18 @@ export const payments = pgTable("payments", {
 });
 
 
+
 // Notifications table
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  title: varchar("title", { length: 255 }).notNull(),
+  userId: varchar("user_id").notNull(),
+  title: text("title").notNull(),
   message: text("message").notNull(),
   type: notificationTypeEnum("type").notNull(),
-  orderId: varchar("order_id").references(() => orders.id),
   isRead: boolean("is_read").default(false).notNull(),
+  orderId: varchar("order_id"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
 
 // System settings table for configurable constants
@@ -125,11 +127,11 @@ export const systemSettings = pgTable("system_settings", {
   category: varchar("category", { length: 50 }).notNull().default("pricing"),
   isEditable: boolean("is_editable").default(true).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
-  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedBy: varchar("updated_by"),
 });
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({
+export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -154,12 +156,14 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
 });
 
 
-export const insertNotificationSchema = createInsertSchema(notifications).omit({
-  id: true,
-  createdAt: true,
-});
 
 export const insertSavedAddressSchema = createInsertSchema(savedAddresses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -171,8 +175,8 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
 });
 
 // Types
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
 
 export type InsertSavedAddress = z.infer<typeof insertSavedAddressSchema>;
 export type SavedAddress = typeof savedAddresses.$inferSelect;
@@ -185,7 +189,6 @@ export type Order = typeof orders.$inferSelect;
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
-
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
