@@ -140,12 +140,17 @@ export default function AddressManager({
   // Create address mutation with geocoding
   const createAddressMutation = useMutation({
     mutationFn: async (data: AddressForm) => {
+      console.log('📍 [ADDRESS MANAGER] Starting address creation with data:', data);
+      
       // Build complete address string for geocoding
       const fullAddress = buildAddressString(data);
-      
+      console.log('🏠 [ADDRESS MANAGER] Built full address string:', fullAddress);
+
       // Attempt to geocode the address
+      console.log('🗺️ [ADDRESS MANAGER] Starting geocoding process...');
       const coordinates = await geocodeAddress(fullAddress);
-      
+      console.log('📍 [ADDRESS MANAGER] Geocoding result:', coordinates);
+
       // Prepare address data with coordinates (if available)
       const addressData = {
         ...data,
@@ -153,6 +158,8 @@ export default function AddressManager({
         longitude: coordinates?.longitude.toString() || null,
       };
       
+      console.log('💾 [ADDRESS MANAGER] Final address data to save:', addressData);
+
       const response = await apiRequest("POST", "/api/addresses", addressData);
       return response.json();
     },
@@ -339,7 +346,12 @@ export default function AddressManager({
               {/* Area */}
               <div>
                 <Label htmlFor="area">Area *</Label>
-                <Controller
+                <Input
+                  {...form.register("area")}
+                  placeholder="Area in Bangalore."
+                  data-testid="area-select"
+                />
+                {/* <Controller
                   name="area"
                   control={form.control}
                   render={({ field }) => (
@@ -356,7 +368,7 @@ export default function AddressManager({
                       </SelectContent>
                     </Select>
                   )}
-                />
+                /> */}
                 {form.formState.errors.area && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.area.message}

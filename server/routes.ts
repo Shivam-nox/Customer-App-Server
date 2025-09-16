@@ -848,10 +848,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/addresses", requireAuth, async (req, res) => {
     try {
+      console.log('📮 [BACKEND] Received address creation request');
+      console.log('📝 [BACKEND] Request body:', JSON.stringify(req.body, null, 2));
+      console.log('🗺️ [BACKEND] Latitude received:', req.body.latitude);
+      console.log('🗺️ [BACKEND] Longitude received:', req.body.longitude);
+      
       const addressData = {
         ...req.body,
         userId: req.user!.id,
       };
+
+      console.log('💾 [BACKEND] Final address data to save:', JSON.stringify(addressData, null, 2));
 
       // Validate pincode for Bangalore area
       if (!req.body.pincode?.match(/^5[0-9]{5}$/)) {
@@ -859,9 +866,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const address = await storage.createCustomerAddress(addressData);
+      console.log('✅ [BACKEND] Address created successfully:', JSON.stringify(address, null, 2));
       res.json({ address });
     } catch (error) {
-      console.error("Create address error:", error);
+      console.error("💥 [BACKEND] Create address error:", error);
       res.status(400).json({ error: "Failed to create address" });
     }
   });
