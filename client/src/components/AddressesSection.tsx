@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/loading-spinner";
 import { MapPin, Edit, Trash2, Star } from "lucide-react";
 
-interface SavedAddress {
+interface CustomerAddress {
   id: string;
   label: string;
   addressLine1: string;
@@ -61,14 +61,14 @@ export default function AddressesSection() {
     );
   }
 
-  const handleEditAddress = (address: SavedAddress) => {
+  const handleEditAddress = (address: CustomerAddress) => {
     toast({
       title: "Edit Address",
       description: `Editing ${address.label} - Feature coming soon`,
     });
   };
 
-  const handleDeleteAddress = (address: SavedAddress) => {
+  const handleDeleteAddress = (address: CustomerAddress) => {
     toast({
       title: "Delete Address",
       description: `Delete ${address.label} - Feature coming soon`,
@@ -76,7 +76,7 @@ export default function AddressesSection() {
     });
   };
 
-  const handleSetDefault = (address: SavedAddress) => {
+  const handleSetDefault = (address: CustomerAddress) => {
     toast({
       title: "Set Default",
       description: `Setting ${address.label} as default - Feature coming soon`,
@@ -85,7 +85,7 @@ export default function AddressesSection() {
 
   return (
     <div className="divide-y divide-gray-100" data-testid="addresses-list">
-      {addresses.map((address: SavedAddress, index: number) => (
+      {addresses.map((address: CustomerAddress, index: number) => (
         <div key={address.id} className="p-4" data-testid={`address-${address.id}`}>
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-2">

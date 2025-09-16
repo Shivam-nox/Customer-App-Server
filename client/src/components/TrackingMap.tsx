@@ -13,6 +13,8 @@ L.Icon.Default.mergeOptions({
 interface TrackingMapProps {
   deliveryAddress: string;
   orderStatus: string;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
 }
 
 interface Location {
@@ -77,12 +79,27 @@ const sourceIcon = createCustomIcon('#2563eb', '⛽');
 const destinationIcon = createCustomIcon('#dc2626', '📍');
 const driverIcon = createCustomIcon('#16a34a', '🚛');
 
-export default function TrackingMap({ deliveryAddress, orderStatus }: TrackingMapProps) {
+export default function TrackingMap({ 
+  deliveryAddress, 
+  orderStatus, 
+  deliveryLatitude, 
+  deliveryLongitude 
+}: TrackingMapProps) {
   const [driverPosition, setDriverPosition] = useState<Location>(IOCL_TERMINAL);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get destination based on delivery address
+  // Get destination based on coordinates or delivery address
   const getDestination = (): Location => {
+    // Use provided coordinates if available
+    if (deliveryLatitude && deliveryLongitude) {
+      return {
+        lat: deliveryLatitude,
+        lng: deliveryLongitude,
+        name: "Customer Location"
+      };
+    }
+    
+    // Fallback to address-based matching
     const addressLower = deliveryAddress.toLowerCase();
     
     // Try to match with known locations

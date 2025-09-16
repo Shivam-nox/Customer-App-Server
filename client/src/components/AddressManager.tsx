@@ -5,31 +5,50 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, MapPin, Edit, Trash2, Star } from "lucide-react";
+import { geocodeAddress, buildAddressString } from "@/lib/geocoding";
+import { Plus, MapPin, Edit, Trash2, Star, Loader2 } from "lucide-react";
 
 const addressSchema = z.object({
   label: z.string().min(1, "Address label is required"),
-  addressLine1: z.string().min(10, "Address line 1 must be at least 10 characters"),
+  addressLine1: z
+    .string()
+    .min(10, "Address line 1 must be at least 10 characters"),
   addressLine2: z.string().optional(),
   landmark: z.string().optional(),
   area: z.string().min(2, "Area is required"),
-  city: z.literal("Bangalore", { errorMap: () => ({ message: "We only serve in Bangalore" }) }),
+  city: z.literal("Bangalore", {
+    errorMap: () => ({ message: "We only serve in Bangalore" }),
+  }),
   state: z.literal("Karnataka"),
-  pincode: z.string().regex(/^5[0-9]{5}$/, "Please enter a valid Bangalore pincode (5xxxxx)"),
+  pincode: z
+    .string()
+    .regex(/^5[0-9]{5}$/, "Please enter a valid Bangalore pincode (5xxxxx)"),
 });
 
 type AddressForm = z.infer<typeof addressSchema>;
 
-interface SavedAddress {
+interface CustomerAddress {
   id: string;
   label: string;
   addressLine1: string;
@@ -45,26 +64,54 @@ interface SavedAddress {
 }
 
 interface AddressManagerProps {
-  onSelectAddress: (address: SavedAddress) => void;
+  onSelectAddress: (address: CustomerAddress) => void;
   selectedAddressId?: string;
 }
 
 // Common Bangalore areas for dropdown
 const BANGALORE_AREAS = [
-  "Koramangala", "Indira Nagar", "Whitefield", "Electronic City", "BTM Layout",
-  "HSR Layout", "Jayanagar", "Malleshwaram", "Basavanagudi", "Rajajinagar",
-  "Banashankari", "JP Nagar", "Marathahalli", "Sarjapur", "Bellandur",
-  "Hebbal", "Yeshwanthpur", "Vijayanagar", "KR Puram", "RT Nagar",
-  "Ulsoor", "Richmond Town", "Frazer Town", "Commercial Street", "MG Road",
-  "Brigade Road", "Cunningham Road", "Vasanth Nagar", "Sadashivanagar"
+  "Koramangala",
+  "Indira Nagar",
+  "Whitefield",
+  "Electronic City",
+  "BTM Layout",
+  "HSR Layout",
+  "Jayanagar",
+  "Malleshwaram",
+  "Basavanagudi",
+  "Rajajinagar",
+  "Banashankari",
+  "JP Nagar",
+  "Marathahalli",
+  "Sarjapur",
+  "Bellandur",
+  "Hebbal",
+  "Yeshwanthpur",
+  "Vijayanagar",
+  "KR Puram",
+  "RT Nagar",
+  "Ulsoor",
+  "Richmond Town",
+  "Frazer Town",
+  "Commercial Street",
+  "MG Road",
+  "Brigade Road",
+  "Cunningham Road",
+  "Vasanth Nagar",
+  "Sadashivanagar",
 ];
 
-export default function AddressManager({ onSelectAddress, selectedAddressId }: AddressManagerProps) {
+export default function AddressManager({
+  onSelectAddress,
+  selectedAddressId,
+}: AddressManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
+  const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(
+    null,
+  );
 
   const form = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
@@ -83,27 +130,41 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
   // Fetch saved addresses
   const { data: addressesData, isLoading } = useQuery({
     queryKey: ["/api/addresses"],
-    queryFn: () => fetch("/api/addresses", {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/addresses", {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
     enabled: !!user,
   });
 
-  // Create address mutation
+  // Create address mutation with geocoding
   const createAddressMutation = useMutation({
     mutationFn: async (data: AddressForm) => {
-      const response = await apiRequest("POST", "/api/addresses", data);
+      // Build complete address string for geocoding
+      const fullAddress = buildAddressString(data);
+      
+      // Attempt to geocode the address
+      const coordinates = await geocodeAddress(fullAddress);
+      
+      // Prepare address data with coordinates (if available)
+      const addressData = {
+        ...data,
+        latitude: coordinates?.latitude.toString() || null,
+        longitude: coordinates?.longitude.toString() || null,
+      };
+      
+      const response = await apiRequest("POST", "/api/addresses", addressData);
       return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/addresses"] });
       toast({
         title: "Address Saved",
-        description: "Your address has been saved successfully",
+        description: "Your address has been saved with location coordinates",
       });
       setIsAddDialogOpen(false);
       form.reset();
-      
+
       // Auto-select the newly created address
       if (data.address) {
         onSelectAddress(data.address);
@@ -121,7 +182,11 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
   // Delete address mutation
   const deleteAddressMutation = useMutation({
     mutationFn: async (addressId: string) => {
-      const response = await apiRequest("DELETE", `/api/addresses/${addressId}`, {});
+      const response = await apiRequest(
+        "DELETE",
+        `/api/addresses/${addressId}`,
+        {},
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -143,7 +208,11 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
   // Set default address mutation
   const setDefaultMutation = useMutation({
     mutationFn: async (addressId: string) => {
-      const response = await apiRequest("PUT", `/api/addresses/${addressId}/default`, {});
+      const response = await apiRequest(
+        "PUT",
+        `/api/addresses/${addressId}/default`,
+        {},
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -159,7 +228,7 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
     createAddressMutation.mutate(data);
   };
 
-  const handleEditAddress = (address: SavedAddress) => {
+  const handleEditAddress = (address: CustomerAddress) => {
     setEditingAddress(address);
     form.reset({
       label: address.label,
@@ -186,16 +255,22 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
         <h3 className="font-bold text-lg">Delivery Address</h3>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" data-testid="add-address-button">
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="add-address-button"
+            >
               <Plus size={16} className="mr-2" />
               Add Address
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingAddress ? "Edit Address" : "Add New Address"}</DialogTitle>
+              <DialogTitle>
+                {editingAddress ? "Edit Address" : "Add New Address"}
+              </DialogTitle>
             </DialogHeader>
-            
+
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Address Label */}
               <div>
@@ -220,7 +295,9 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
                   )}
                 />
                 {form.formState.errors.label && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.label.message}</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    {form.formState.errors.label.message}
+                  </p>
                 )}
               </div>
 
@@ -233,7 +310,9 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
                   data-testid="address-line1-input"
                 />
                 {form.formState.errors.addressLine1 && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.addressLine1.message}</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    {form.formState.errors.addressLine1.message}
+                  </p>
                 )}
               </div>
 
@@ -270,14 +349,18 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
                       </SelectTrigger>
                       <SelectContent>
                         {BANGALORE_AREAS.map((area) => (
-                          <SelectItem key={area} value={area}>{area}</SelectItem>
+                          <SelectItem key={area} value={area}>
+                            {area}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
                 {form.formState.errors.area && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.area.message}</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    {form.formState.errors.area.message}
+                  </p>
                 )}
               </div>
 
@@ -291,7 +374,9 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
                   data-testid="pincode-input"
                 />
                 {form.formState.errors.pincode && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.pincode.message}</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    {form.formState.errors.pincode.message}
+                  </p>
                 )}
               </div>
 
@@ -326,7 +411,14 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
                   className="flex-1"
                   data-testid="save-address-button"
                 >
-                  {createAddressMutation.isPending ? "Saving..." : "Save Address"}
+                  {createAddressMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Getting location...
+                    </>
+                  ) : (
+                    "Save Address"
+                  )}
                 </Button>
               </div>
             </form>
@@ -336,35 +428,46 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
 
       {/* Saved Addresses */}
       {addresses.length > 0 ? (
-        <RadioGroup value={selectedAddressId} onValueChange={(value) => {
-          const address = addresses.find((addr: SavedAddress) => addr.id === value);
-          if (address) onSelectAddress(address);
-        }}>
+        <RadioGroup
+          value={selectedAddressId}
+          onValueChange={(value) => {
+            const address = addresses.find(
+              (addr: CustomerAddress) => addr.id === value,
+            );
+            if (address) onSelectAddress(address);
+          }}
+        >
           <div className="space-y-3">
-            {addresses.map((address: SavedAddress) => (
-              <Card key={address.id} className={`cursor-pointer transition-colors ${
-                selectedAddressId === address.id 
-                  ? "border-primary bg-primary/5" 
-                  : "hover:bg-gray-50"
-              }`}>
+            {addresses.map((address: CustomerAddress) => (
+              <Card
+                key={address.id}
+                className={`cursor-pointer transition-colors ${
+                  selectedAddressId === address.id
+                    ? "border-primary bg-primary/5"
+                    : "hover:bg-gray-50"
+                }`}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start space-x-3">
-                    <RadioGroupItem 
-                      value={address.id} 
+                    <RadioGroupItem
+                      value={address.id}
                       id={address.id}
                       className="mt-1"
                       data-testid={`address-${address.id}`}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Label 
-                          htmlFor={address.id} 
+                        <Label
+                          htmlFor={address.id}
                           className="font-medium cursor-pointer"
                         >
                           {address.label}
                         </Label>
                         {address.isDefault && (
-                          <Star className="text-yellow-500 fill-current" size={16} />
+                          <Star
+                            className="text-yellow-500 fill-current"
+                            size={16}
+                          />
                         )}
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed">
@@ -413,8 +516,12 @@ export default function AddressManager({ onSelectAddress, selectedAddressId }: A
         <Card>
           <CardContent className="p-6 text-center">
             <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No saved addresses</h3>
-            <p className="text-gray-600 mb-4">Add your first delivery address to get started</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No saved addresses
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Add your first delivery address to get started
+            </p>
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus size={16} className="mr-2" />
               Add Address

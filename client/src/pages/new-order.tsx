@@ -34,7 +34,7 @@ const orderSchema = z.object({
 
 type OrderForm = z.infer<typeof orderSchema>;
 
-interface SavedAddress {
+interface CustomerAddress {
   id: string;
   label: string;
   addressLine1: string;
@@ -53,7 +53,7 @@ export default function NewOrderScreen() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(
+  const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(
     null,
   );
 

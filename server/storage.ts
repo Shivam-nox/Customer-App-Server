@@ -3,7 +3,7 @@ import {
   orders,
   payments,
   otpVerifications,
-  savedAddresses,
+  customerAddresses,
   systemSettings,
   notifications,
   type Customer,
@@ -14,8 +14,8 @@ import {
   type InsertPayment,
   type OtpVerification,
   type InsertOtp,
-  type SavedAddress,
-  type InsertSavedAddress,
+  type CustomerAddress,
+  type InsertCustomerAddress,
   type SystemSetting,
   type InsertSystemSetting,
   type Notification,
@@ -67,14 +67,14 @@ export interface IStorage {
 
 
   // Saved Address methods
-  createSavedAddress(address: InsertSavedAddress): Promise<SavedAddress>;
-  getUserSavedAddresses(userId: string): Promise<SavedAddress[]>;
-  getSavedAddress(id: string): Promise<SavedAddress | undefined>;
-  updateSavedAddress(
+  createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress>;
+  getUserCustomerAddresses(userId: string): Promise<CustomerAddress[]>;
+  getCustomerAddress(id: string): Promise<CustomerAddress | undefined>;
+  updateCustomerAddress(
     id: string,
-    updates: Partial<InsertSavedAddress>,
-  ): Promise<SavedAddress>;
-  deleteSavedAddress(id: string): Promise<void>;
+    updates: Partial<InsertCustomerAddress>,
+  ): Promise<CustomerAddress>;
+  deleteCustomerAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
 
   // Notification methods
@@ -308,45 +308,45 @@ export class DatabaseStorage implements IStorage {
 
 
   // Saved Address methods
-  async createSavedAddress(
-    insertAddress: InsertSavedAddress,
-  ): Promise<SavedAddress> {
+  async createCustomerAddress(
+    insertAddress: InsertCustomerAddress,
+  ): Promise<CustomerAddress> {
     const [address] = await db
-      .insert(savedAddresses)
+      .insert(customerAddresses)
       .values(insertAddress)
       .returning();
     return address;
   }
 
-  async getUserSavedAddresses(userId: string): Promise<SavedAddress[]> {
+  async getUserCustomerAddresses(userId: string): Promise<CustomerAddress[]> {
     return await db
       .select()
-      .from(savedAddresses)
+      .from(customerAddresses)
       .where(
         and(
-          eq(savedAddresses.userId, userId),
-          eq(savedAddresses.isActive, true),
+          eq(customerAddresses.userId, userId),
+          eq(customerAddresses.isActive, true),
         ),
       )
-      .orderBy(desc(savedAddresses.isDefault), desc(savedAddresses.createdAt));
+      .orderBy(desc(customerAddresses.isDefault), desc(customerAddresses.createdAt));
   }
 
-  async getSavedAddress(id: string): Promise<SavedAddress | undefined> {
+  async getCustomerAddress(id: string): Promise<CustomerAddress | undefined> {
     const [address] = await db
       .select()
-      .from(savedAddresses)
-      .where(eq(savedAddresses.id, id));
+      .from(customerAddresses)
+      .where(eq(customerAddresses.id, id));
     return address || undefined;
   }
 
-  async updateSavedAddress(
+  async updateCustomerAddress(
     id: string,
-    updates: Partial<InsertSavedAddress>,
-  ): Promise<SavedAddress> {
+    updates: Partial<InsertCustomerAddress>,
+  ): Promise<CustomerAddress> {
     const [address] = await db
-      .update(savedAddresses)
+      .update(customerAddresses)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(savedAddresses.id, id))
+      .where(eq(customerAddresses.id, id))
       .returning();
     return address;
   }
@@ -404,25 +404,25 @@ export class DatabaseStorage implements IStorage {
     return setting;
   }
 
-  async deleteSavedAddress(id: string): Promise<void> {
+  async deleteCustomerAddress(id: string): Promise<void> {
     await db
-      .update(savedAddresses)
+      .update(customerAddresses)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(savedAddresses.id, id));
+      .where(eq(customerAddresses.id, id));
   }
 
   async setDefaultAddress(userId: string, addressId: string): Promise<void> {
     // First, unset all default addresses for the user
     await db
-      .update(savedAddresses)
+      .update(customerAddresses)
       .set({ isDefault: false, updatedAt: new Date() })
-      .where(eq(savedAddresses.userId, userId));
+      .where(eq(customerAddresses.userId, userId));
 
     // Then set the specified address as default
     await db
-      .update(savedAddresses)
+      .update(customerAddresses)
       .set({ isDefault: true, updatedAt: new Date() })
-      .where(eq(savedAddresses.id, addressId));
+      .where(eq(customerAddresses.id, addressId));
   }
 
   // Notification methods

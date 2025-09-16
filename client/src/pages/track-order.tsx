@@ -201,6 +201,8 @@ export default function TrackOrderScreen() {
             <TrackingMap
               deliveryAddress={order.deliveryAddress}
               orderStatus={order.status}
+              deliveryLatitude={order.deliveryLatitude ? parseFloat(order.deliveryLatitude) : undefined}
+              deliveryLongitude={order.deliveryLongitude ? parseFloat(order.deliveryLongitude) : undefined}
             />
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">

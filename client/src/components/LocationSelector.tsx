@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Navigation, Plus } from "lucide-react";
 import { useLocation } from "wouter";
 
-interface SavedAddress {
+interface CustomerAddress {
   id: string;
   label: string;
   addressLine1: string;
@@ -36,7 +36,7 @@ export default function LocationSelector() {
   });
 
   const addresses = (addressesData as any)?.addresses || [];
-  const defaultAddress = addresses.find((addr: SavedAddress) => addr.isDefault);
+  const defaultAddress = addresses.find((addr: CustomerAddress) => addr.isDefault);
 
   useEffect(() => {
     if (defaultAddress && !selectedAddressId) {
@@ -97,7 +97,7 @@ export default function LocationSelector() {
     );
   };
 
-  const selectedAddress = addresses.find((addr: SavedAddress) => addr.id === selectedAddressId);
+  const selectedAddress = addresses.find((addr: CustomerAddress) => addr.id === selectedAddressId);
 
   const handleSelectChange = (value: string) => {
     if (value === "use-current-location") {
@@ -116,7 +116,7 @@ export default function LocationSelector() {
           <SelectValue placeholder="Choose an address" />
         </SelectTrigger>
         <SelectContent>
-          {addresses.map((address: SavedAddress) => (
+          {addresses.map((address: CustomerAddress) => (
             <SelectItem key={address.id} value={address.id}>
               <div className="text-left">
                 <p className="font-medium">{address.label}</p>
