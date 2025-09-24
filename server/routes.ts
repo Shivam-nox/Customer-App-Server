@@ -24,6 +24,7 @@ const signupSchema = z.object({
   industryType: z.string().min(1),
   gstNumber: z.string().min(15).max(15),
   panNumber: z.string().min(10).max(10),
+  cinNumber: z.string().regex(/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/, "Invalid CIN format"),
 });
 
 const loginSchema = z.object({
@@ -91,6 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         industryType: userData.industryType,
         gstNumber: userData.gstNumber,
         panNumber: userData.panNumber,
+        cinNumber: userData.cinNumber,
         role: "customer",
       });
 

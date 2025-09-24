@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Controller } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Eye, EyeOff, User, Mail, Phone, Building, MapPin, CreditCard, FileText } from "lucide-react";
+import { Eye, EyeOff, User, Mail, Phone, Building, MapPin, CreditCard, FileText, Building2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
@@ -27,6 +27,7 @@ const signupSchema = z.object({
   industryType: z.string().min(1, "Industry type is required"),
   gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST number format"),
   panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format"),
+  cinNumber: z.string().regex(/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/, "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -303,6 +304,27 @@ export default function SignupScreen() {
                   {errors.panNumber && (
                     <p className="text-sm text-red-500" data-testid="error-panNumber">{errors.panNumber.message}</p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cinNumber" className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    CIN Number *
+                  </Label>
+                  <Input
+                    id="cinNumber"
+                    {...register("cinNumber")}
+                    placeholder="Enter 21-digit CIN number"
+                    data-testid="input-cinNumber"
+                    style={{ textTransform: 'uppercase' }}
+                    maxLength={21}
+                  />
+                  {errors.cinNumber && (
+                    <p className="text-sm text-red-500" data-testid="error-cinNumber">{errors.cinNumber.message}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Format: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits
+                  </p>
                 </div>
               </div>
             </div>

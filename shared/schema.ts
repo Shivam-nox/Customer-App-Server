@@ -69,6 +69,7 @@ export const customers = pgTable("customers", {
   industryType: text("industry_type"),
   gstNumber: varchar("gst_number", { length: 15 }),
   panNumber: varchar("pan_number", { length: 10 }),
+  cinNumber: varchar("cin_number", { length: 21 }).unique(),
   role: userRoleEnum("role").default("customer").notNull(),
   kycStatus: kycStatusEnum("kyc_status").default("pending").notNull(),
   kycDocuments: jsonb("kyc_documents"),
