@@ -28,14 +28,22 @@ export default function OrderHistoryScreen() {
     enabled: !!user,
   });
 
-  const downloadInvoiceMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}/invoice`, {
+  // Track which orders are currently downloading invoices
+  const [downloadingInvoices, setDownloadingInvoices] = useState<Set<string>>(new Set());
+
+  const downloadInvoice = async (order: any) => {
+    if (downloadingInvoices.has(order.id)) return; // Prevent duplicate downloads
+
+    setDownloadingInvoices(prev => new Set(prev).add(order.id));
+    
+    try {
+      const response = await fetch(`/api/orders/${order.id}/invoice`, {
         headers: { "x-user-id": user?.id || "" },
       });
       
       if (!response.ok) {
-        throw new Error("Failed to download invoice");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download invoice");
       }
       
       const blob = await response.blob();
@@ -43,26 +51,31 @@ export default function OrderHistoryScreen() {
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
-      a.download = `invoice-${orderId}.pdf`;
+      a.download = `invoice-${order.orderNumber}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    },
-    onSuccess: () => {
+
       toast({
         title: "Success",
-        description: "Invoice downloaded successfully",
+        description: `Invoice for order ${order.orderNumber} downloaded successfully`,
       });
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
+      console.error("Invoice download error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to download invoice",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setDownloadingInvoices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(order.id);
+        return newSet;
+      });
+    }
+  };
 
   const reorderMutation = useMutation({
     mutationFn: async (originalOrder: any) => {
@@ -202,12 +215,12 @@ export default function OrderHistoryScreen() {
                     <div className="flex space-x-3">
                       {order.status === "delivered" && (
                         <Button
-                          onClick={() => downloadInvoiceMutation.mutate(order.id)}
-                          disabled={downloadInvoiceMutation.isPending}
+                          onClick={() => downloadInvoice(order)}
+                          disabled={downloadingInvoices.has(order.id)}
                           className="flex-1 bg-primary text-white text-sm font-medium ripple"
                           data-testid={`download-invoice-${order.id}`}
                         >
-                          {downloadInvoiceMutation.isPending ? (
+                          {downloadingInvoices.has(order.id) ? (
                             <LoadingSpinner />
                           ) : (
                             <>

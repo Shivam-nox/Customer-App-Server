@@ -1,6 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
   Truck,
   Star,
   Key,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -84,6 +86,51 @@ export default function TrackOrderScreen() {
       });
     },
   });
+
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+
+  const downloadInvoice = async () => {
+    if (isDownloadingInvoice) return;
+    
+    setIsDownloadingInvoice(true);
+    
+    try {
+      const response = await fetch(`/api/orders/${orderId}/invoice`, {
+        headers: { "x-user-id": user?.id || "" },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download invoice");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `invoice-${order?.orderNumber || orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: `Invoice for order ${order?.orderNumber} downloaded successfully`,
+      });
+    } catch (error: any) {
+      console.error("Invoice download error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download invoice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
+  };
+
 
   if (!user) return null;
 
@@ -245,6 +292,107 @@ export default function TrackOrderScreen() {
               </Badge>
             </div>
 
+            {/* Driver Details Section - Shows when driver is assigned */}
+            {delivery ? (
+              <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg" data-testid="driver-details-section">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-green-800 flex items-center">
+                    <Truck className="mr-2 text-green-600" size={16} />
+                    Your Delivery Partner
+                  </h4>
+                  {delivery.status && (
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      delivery.status === 'on_delivery' 
+                        ? 'bg-orange-100 text-orange-800' 
+                        : delivery.status === 'online'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {delivery.status === 'on_delivery' ? 'On the way' : 
+                       delivery.status === 'online' ? 'Available' : 
+                       delivery.status?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-white border-2 border-green-200 rounded-full flex items-center justify-center shadow-sm">
+                      <span className="text-lg font-bold text-green-700">
+                        {delivery.driverName.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900" data-testid="driver-name">
+                        {delivery.driverName}
+                      </p>
+                      <div className="flex items-center space-x-1 mt-1">
+                        {delivery.driverRating > 0 && (
+                          <>
+                            <Star className="text-yellow-500 fill-current" size={14} />
+                            <span className="text-sm text-gray-600" data-testid="driver-rating">
+                              {delivery.driverRating.toFixed(1)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              • {delivery.totalDeliveries} deliveries
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1" data-testid="driver-phone">
+                        {delivery.driverPhone}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white px-4"
+                      onClick={() => window.open(`tel:${delivery.driverPhone}`)}
+                      data-testid="call-driver-button"
+                    >
+                      <Phone size={14} className="mr-2" />
+                      Call
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-600 border-green-300 hover:bg-green-50 px-4"
+                      onClick={() => window.open(`sms:${delivery.driverPhone}`)}
+                      data-testid="sms-driver-button"
+                    >
+                      💬 Chat
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : order.driverId ? (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg" data-testid="driver-assigning-section">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-yellow-200 rounded-full flex items-center justify-center">
+                    <Truck className="text-yellow-700 animate-pulse" size={16} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-yellow-900">Assigning delivery partner...</p>
+                    <p className="text-sm text-yellow-700">We're finding the best driver for your order</p>
+                  </div>
+                </div>
+              </div>
+            ) : order.status !== 'pending' && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg" data-testid="driver-search-section">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                    <Truck className="text-blue-700 animate-bounce" size={16} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-blue-900">Looking for delivery partner</p>
+                    <p className="text-sm text-blue-700">We're connecting you with a nearby driver</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Progress Timeline */}
             <div className="space-y-4">
               {steps.map((step, index) => (
@@ -291,6 +439,7 @@ export default function TrackOrderScreen() {
             </div>
           </CardContent>
         </Card>
+
 
         {/* OTP Section for In-Transit Orders */}
         {order.status === "in_transit" && (
@@ -343,49 +492,34 @@ export default function TrackOrderScreen() {
           </Card>
         )}
 
-        {/* Driver Info */}
-        {delivery && (
-          <Card data-testid="driver-info-card">
-            <CardContent className="p-4">
-              <h3 className="font-bold text-lg mb-3">Driver Details</h3>
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-medium">
-                    {delivery.driverName.charAt(0)}
-                  </span>
+        {/* Download Invoice Section for Delivered Orders */}
+        {order.status === "delivered" && (
+          <Card className="border-2 border-green-200 bg-green-50" data-testid="download-invoice-section">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                  <CheckCircle size={20} className="text-white" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium" data-testid="driver-name">
-                    {delivery.driverName}
-                  </p>
-                  <p
-                    className="text-sm text-gray-600"
-                    data-testid="driver-vehicle"
-                  >
-                    Vehicle: {delivery.vehicleNumber}
-                  </p>
-                  {delivery.driverRating && (
-                    <div className="flex items-center space-x-1 mt-1">
-                      <Star
-                        className="text-yellow-500 fill-current"
-                        size={16}
-                      />
-                      <span className="text-sm" data-testid="driver-rating">
-                        {delivery.driverRating}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-primary border-primary"
-                  onClick={() => window.open(`tel:${delivery.driverPhone}`)}
-                  data-testid="call-driver-button"
-                >
-                  <Phone size={16} />
-                </Button>
+                <h4 className="font-semibold text-green-800">Order Delivered Successfully!</h4>
               </div>
+              <p className="text-sm text-green-700 mb-4">
+                Your order has been delivered. Download your invoice for your records.
+              </p>
+              <Button
+                onClick={downloadInvoice}
+                disabled={isDownloadingInvoice}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                data-testid="download-invoice-button"
+              >
+                {isDownloadingInvoice ? (
+                  <LoadingSpinner />
+                ) : (
+                  <>
+                    <Download size={16} className="mr-2" />
+                    Download Invoice
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         )}

@@ -93,7 +93,10 @@ export default function AnalysisScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="analysis-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="analysis-screen"
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center">
@@ -127,10 +130,18 @@ export default function AnalysisScreen() {
       <div className="flex-1 p-4">
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="overview" className="text-xs px-2 py-1.5">Overview</TabsTrigger>
-            <TabsTrigger value="consumption" className="text-xs px-2 py-1.5">Consumption</TabsTrigger>
-            <TabsTrigger value="costs" className="text-xs px-1 py-1.5">Costs & Savings</TabsTrigger>
-            <TabsTrigger value="quality" className="text-xs px-2 py-1.5">Quality</TabsTrigger>
+            <TabsTrigger value="overview" className="text-xs px-2 py-1.5">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="consumption" className="text-xs px-2 py-1.5">
+              Consumption
+            </TabsTrigger>
+            <TabsTrigger value="costs" className="text-xs px-1 py-1.5">
+              Costs & Savings
+            </TabsTrigger>
+            <TabsTrigger value="quality" className="text-xs px-2 py-1.5">
+              Quality
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -141,9 +152,12 @@ export default function AnalysisScreen() {
                   <div className="text-gray-400 mb-4">
                     <BarChart3 size={48} className="mx-auto" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No Analysis Data Available</h3>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No Analysis Data Available
+                  </h3>
                   <p className="text-gray-500 mb-4">
-                    You need to have completed orders to view your fuel analysis report.
+                    You need to have completed orders to view your fuel analysis
+                    report.
                   </p>
                   <Button onClick={() => setLocation("/new-order")}>
                     Place Your First Order
@@ -159,7 +173,9 @@ export default function AnalysisScreen() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Total Fuel</p>
-                          <p className="text-2xl font-bold">{data.consumption.totalLiters}L</p>
+                          <p className="text-2xl font-bold">
+                            {data.consumption.totalLiters}L
+                          </p>
                         </div>
                         <Fuel className="text-blue-600" size={24} />
                       </div>
@@ -171,7 +187,9 @@ export default function AnalysisScreen() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Total Savings</p>
-                          <p className="text-2xl font-bold text-green-600">₹{data.costs.totalSavings.toLocaleString()}</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₹{data.costs.totalSavings.toLocaleString()}
+                          </p>
                         </div>
                         <IndianRupee className="text-green-600" size={24} />
                       </div>
@@ -183,7 +201,9 @@ export default function AnalysisScreen() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Quality Score</p>
-                          <p className="text-2xl font-bold text-blue-600">{data.quality.qualityScore}%</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {data.quality.qualityScore}%
+                          </p>
                         </div>
                         <Award className="text-blue-600" size={24} />
                       </div>
@@ -195,7 +215,10 @@ export default function AnalysisScreen() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Orders</p>
-                          <p className="text-2xl font-bold">{data.orders.completedOrders}/{data.orders.totalOrders}</p>
+                          <p className="text-2xl font-bold">
+                            {data.orders.completedOrders}/
+                            {data.orders.totalOrders}
+                          </p>
                         </div>
                         <Target className="text-purple-600" size={24} />
                       </div>
@@ -214,17 +237,29 @@ export default function AnalysisScreen() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-green-700">Market Price per Litre:</span>
-                        <span className="font-semibold">₹{data.costs.marketPrice}</span>
+                        <span className="text-green-700">
+                          Market Price per Litre:
+                        </span>
+                        <span className="font-semibold">
+                          ₹{data.costs.marketPrice}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-green-700">Zapygo Price per Litre:</span>
-                        <span className="font-semibold">₹{data.costs.averagePerLiter}</span>
+                        <span className="text-green-700">
+                          Zapygo Price per Litre:
+                        </span>
+                        <span className="font-semibold">
+                          ₹{data.costs.averagePerLiter}
+                        </span>
                       </div>
                       <div className="border-t border-green-200 pt-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-green-800 font-medium">You Save per Litre:</span>
-                          <span className="text-xl font-bold text-green-600">₹{data.costs.savingsPerLiter}</span>
+                          <span className="text-green-800 font-medium">
+                            You Save per Litre:
+                          </span>
+                          <span className="text-xl font-bold text-green-600">
+                            ₹{data.costs.savingsPerLiter}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -240,8 +275,12 @@ export default function AnalysisScreen() {
               <Card>
                 <CardContent className="p-6 text-center">
                   <Fuel size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No Consumption Data</h3>
-                  <p className="text-gray-500">Complete some orders to see your fuel consumption analysis.</p>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No Consumption Data
+                  </h3>
+                  <p className="text-gray-500">
+                    Complete some orders to see your fuel consumption analysis.
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -256,11 +295,15 @@ export default function AnalysisScreen() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">Total Consumption</p>
-                      <p className="text-3xl font-bold">{data.consumption.totalLiters} L</p>
+                      <p className="text-3xl font-bold">
+                        {data.consumption.totalLiters} L
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">Monthly Average</p>
-                      <p className="text-3xl font-bold">{data.consumption.monthlyAverage} L</p>
+                      <p className="text-3xl font-bold">
+                        {data.consumption.monthlyAverage} L
+                      </p>
                     </div>
                   </div>
 
@@ -271,19 +314,29 @@ export default function AnalysisScreen() {
                       <TrendingDown className="text-green-600" size={20} />
                     )}
                     <span className="text-sm">
-                      {data.consumption.trend === "up" ? "Increased" : "Decreased"} by{" "}
-                      <span className="font-semibold">{data.consumption.trendPercentage}%</span> from last month
+                      {data.consumption.trend === "up"
+                        ? "Increased"
+                        : "Decreased"}{" "}
+                      by{" "}
+                      <span className="font-semibold">
+                        {data.consumption.trendPercentage}%
+                      </span>{" "}
+                      from last month
                     </span>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Average Order Size:</span>
-                      <span className="font-semibold">{data.orders.averageOrderSize} L</span>
+                      <span className="font-semibold">
+                        {data.orders.averageOrderSize} L
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Most Frequent Delivery Time:</span>
-                      <span className="font-semibold">{formatTimeSlot(data.orders.frequentDeliveryTime)}</span>
+                      <span className="font-semibold">
+                        {formatTimeSlot(data.orders.frequentDeliveryTime)}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -296,9 +349,16 @@ export default function AnalysisScreen() {
             {data.orders.completedOrders === 0 ? (
               <Card>
                 <CardContent className="p-6 text-center">
-                  <IndianRupee size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No Cost Data</h3>
-                  <p className="text-gray-500">Complete some orders to see your cost analysis and savings.</p>
+                  <IndianRupee
+                    size={48}
+                    className="mx-auto text-gray-400 mb-4"
+                  />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No Cost Data
+                  </h3>
+                  <p className="text-gray-500">
+                    Complete some orders to see your cost analysis and savings.
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -312,17 +372,25 @@ export default function AnalysisScreen() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Total Amount Spent</p>
-                      <p className="text-3xl font-bold">₹{data.costs.totalSpent.toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">
+                        Total Amount Spent
+                      </p>
+                      <p className="text-3xl font-bold">
+                        ₹{data.costs.totalSpent.toLocaleString()}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">Average per Litre</p>
-                      <p className="text-3xl font-bold">₹{data.costs.averagePerLiter}</p>
+                      <p className="text-3xl font-bold">
+                        ₹{data.costs.averagePerLiter}
+                      </p>
                     </div>
                   </div>
 
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h4 className="font-semibold text-green-800 mb-3">💰 Your Savings Breakdown</h4>
+                    <h4 className="font-semibold text-green-800 mb-3">
+                      💰 Your Savings Breakdown
+                    </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Market Rate:</span>
@@ -339,7 +407,9 @@ export default function AnalysisScreen() {
                         </div>
                         <div className="flex justify-between font-bold text-green-800 text-lg">
                           <span>Total Savings:</span>
-                          <span>₹{data.costs.totalSavings.toLocaleString()}</span>
+                          <span>
+                            ₹{data.costs.totalSavings.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -348,7 +418,15 @@ export default function AnalysisScreen() {
                   {data.costs.totalSavings > 0 && (
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-700">
-                        🎉 You've saved enough to buy <span className="font-bold">{Math.floor(data.costs.totalSavings / (data.costs.averagePerLiter || 1))} litres</span> of free fuel!
+                        🎉 You've saved enough to buy{" "}
+                        <span className="font-bold">
+                          {Math.floor(
+                            data.costs.totalSavings /
+                              (data.costs.averagePerLiter || 1)
+                          )}{" "}
+                          litres
+                        </span>{" "}
+                        of free fuel!
                       </p>
                     </div>
                   )}
@@ -363,8 +441,12 @@ export default function AnalysisScreen() {
               <Card>
                 <CardContent className="p-6 text-center">
                   <Award size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No Quality Data</h3>
-                  <p className="text-gray-500">Complete some orders to see your service quality metrics.</p>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No Quality Data
+                  </h3>
+                  <p className="text-gray-500">
+                    Complete some orders to see your service quality metrics.
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -379,15 +461,22 @@ export default function AnalysisScreen() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                       <p className="text-sm text-gray-600">Overall Rating</p>
-                      <p className="text-3xl font-bold text-blue-600">{data.quality.rating}/5</p>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {data.quality.rating}/5
+                      </p>
                       <div className="flex justify-center mt-1">
                         {"⭐".repeat(Math.floor(data.quality.rating))}
                       </div>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                       <p className="text-sm text-gray-600">Quality Score</p>
-                      <p className="text-3xl font-bold text-green-600">{data.quality.qualityScore}%</p>
-                      <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">
+                      <p className="text-3xl font-bold text-green-600">
+                        {data.quality.qualityScore}%
+                      </p>
+                      <Badge
+                        variant="secondary"
+                        className="mt-1 bg-green-100 text-green-800"
+                      >
                         Excellent
                       </Badge>
                     </div>
@@ -398,12 +487,16 @@ export default function AnalysisScreen() {
                       <span>Delivery Success Rate:</span>
                       <div className="flex items-center gap-2">
                         <div className="w-20 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full" 
-                            style={{ width: `${data.quality.deliverySuccess}%` }}
+                          <div
+                            className="bg-green-500 h-2 rounded-full"
+                            style={{
+                              width: `${data.quality.deliverySuccess}%`,
+                            }}
                           ></div>
                         </div>
-                        <span className="font-semibold">{data.quality.deliverySuccess}%</span>
+                        <span className="font-semibold">
+                          {data.quality.deliverySuccess}%
+                        </span>
                       </div>
                     </div>
 
@@ -411,21 +504,27 @@ export default function AnalysisScreen() {
                       <span>On-Time Delivery:</span>
                       <div className="flex items-center gap-2">
                         <div className="w-20 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-500 h-2 rounded-full" 
+                          <div
+                            className="bg-blue-500 h-2 rounded-full"
                             style={{ width: `${data.quality.onTimeDelivery}%` }}
                           ></div>
                         </div>
-                        <span className="font-semibold">{data.quality.onTimeDelivery}%</span>
+                        <span className="font-semibold">
+                          {data.quality.onTimeDelivery}%
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <h4 className="font-semibold text-yellow-800 mb-2">📊 Performance Summary</h4>
+                    <h4 className="font-semibold text-yellow-800 mb-2">
+                      📊 Performance Summary
+                    </h4>
                     <p className="text-sm text-yellow-700">
-                      Your service experience has been excellent with {data.orders.completedOrders} successful deliveries 
-                      out of {data.orders.totalOrders} orders. Keep up the great partnership with Zapygo!
+                      Your service experience has been excellent with{" "}
+                      {data.orders.completedOrders} successful deliveries out of{" "}
+                      {data.orders.totalOrders} orders. Keep up the great
+                      partnership with Zapygo!
                     </p>
                   </div>
                 </CardContent>

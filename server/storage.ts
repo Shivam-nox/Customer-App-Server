@@ -6,6 +6,7 @@ import {
   customerAddresses,
   systemSettings,
   notifications,
+  drivers,
   type Customer,
   type InsertCustomer,
   type Order,
@@ -20,6 +21,8 @@ import {
   type InsertSystemSetting,
   type Notification,
   type InsertNotification,
+  type Driver,
+  type InsertDriver,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lt, sql } from "drizzle-orm";
@@ -94,6 +97,12 @@ export interface IStorage {
     updatedBy?: string,
   ): Promise<SystemSetting>;
   createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+
+  // Driver methods
+  getDriver(id: string): Promise<Driver | undefined>;
+  getDriverByPhone(phone: string): Promise<Driver | undefined>;
+  createDriver(driver: InsertDriver): Promise<Driver>;
+  updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -233,10 +242,9 @@ export class DatabaseStorage implements IStorage {
     driverId?: string,
   ): Promise<Order> {
     const updates: any = { status: status as any, updatedAt: new Date() };
-    // do not uncomment this line.
-    // if (driverId) {
-    //   updates.driverId = driverId;
-    // }
+    if (driverId) {
+      updates.driverId = driverId;
+    }
 
     // Generate OTP when order goes in_transit
     if (status === "in_transit") {
@@ -423,6 +431,34 @@ export class DatabaseStorage implements IStorage {
       .update(customerAddresses)
       .set({ isDefault: true, updatedAt: new Date() })
       .where(eq(customerAddresses.id, addressId));
+  }
+
+  // Driver methods
+  async getDriver(id: string): Promise<Driver | undefined> {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.id, id));
+    return driver || undefined;
+  }
+
+  async getDriverByPhone(phone: string): Promise<Driver | undefined> {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.phone, phone));
+    return driver || undefined;
+  }
+
+  async createDriver(insertDriver: InsertDriver): Promise<Driver> {
+    const [driver] = await db
+      .insert(drivers)
+      .values(insertDriver)
+      .returning();
+    return driver;
+  }
+
+  async updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver> {
+    const [driver] = await db
+      .update(drivers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(drivers.id, id))
+      .returning();
+    return driver;
   }
 
   // Notification methods
