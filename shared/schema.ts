@@ -534,6 +534,7 @@ export const insertVehiclesKycDocumentsSchema = createInsertSchema(
 // Types
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+export type User = Customer; // Alias for backward compatibility
 
 export type InsertCustomerAddress = z.infer<typeof insertCustomerAddressSchema>;
 export type CustomerAddress = typeof customerAddresses.$inferSelect;

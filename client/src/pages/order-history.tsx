@@ -72,7 +72,7 @@ export default function OrderHistoryScreen() {
         deliveryLatitude: originalOrder.deliveryLatitude,
         deliveryLongitude: originalOrder.deliveryLongitude,
         scheduledDate: new Date().toISOString().split('T')[0],
-        scheduledTime: "10:00",
+        scheduledTime: "09:00",
       });
       return response.json();
     },

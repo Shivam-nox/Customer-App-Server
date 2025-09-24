@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import type { Order, User } from '@shared/schema';
+import { formatTimeSlot } from './utils';
 
 interface InvoiceData {
   order: Order;
@@ -83,7 +84,7 @@ export function generateInvoicePDF(data: InvoiceData): Uint8Array {
   doc.text(deliveryLines, 20, 145);
   
   doc.text(`Scheduled Date: ${new Date(order.scheduledDate).toLocaleDateString('en-IN')}`, 20, 160);
-  doc.text(`Scheduled Time: ${order.scheduledTime}`, 20, 167);
+  doc.text(`Scheduled Time: ${formatTimeSlot(order.scheduledTime)}`, 20, 167);
   
   // Items table
   const tableStartY = 185;

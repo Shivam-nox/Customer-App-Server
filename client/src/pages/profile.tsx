@@ -29,7 +29,8 @@ import {
   XCircle,
   User,
   Plus,
-  MapPin
+  MapPin,
+  BarChart3
 } from "lucide-react";
 
 import { apiRequest } from "@/lib/queryClient";
@@ -165,6 +166,12 @@ export default function ProfileScreen() {
       label: "Notifications",
       action: () => setLocation("/notifications"),
       testId: "notifications-button",
+    },
+    {
+      icon: BarChart3,
+      label: "Fuel Analysis Report",
+      action: () => setLocation("/analysis"),
+      testId: "analysis-button",
     },
     {
       icon: CreditCard,

@@ -84,6 +84,29 @@ async function seedSystemSettings() {
         description: "Customer support email address",
         category: "contact",
         isEditable: true,
+      },
+      {
+        key: "market_price_per_liter",
+        value: "77.50",
+        dataType: "number",
+        description: "Current market price per liter of diesel for savings calculation",
+        category: "pricing",
+        isEditable: true,
+      },
+      {
+        key: "delivery_time_slots",
+        value: JSON.stringify([
+          { value: "09:00", label: "9-11am" },
+          { value: "11:00", label: "11am-1pm" },
+          { value: "13:00", label: "1-3pm" },
+          { value: "15:00", label: "3-5pm" },
+          { value: "17:00", label: "5-7pm" },
+          { value: "19:00", label: "7-9pm" }
+        ]),
+        dataType: "json",
+        description: "Available delivery time slots",
+        category: "delivery",
+        isEditable: true,
       }
     ];
 
