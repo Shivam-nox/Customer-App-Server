@@ -270,65 +270,65 @@ export const drivers = pgTable("drivers", {
 });
 
 // Enhanced Vehicles table with detailed specifications and IoT integration
-export const vehicles = pgTable("vehicles", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  registrationNumber: text("registration_number").notNull().unique(),
-  vehicleType: text("vehicle_type").notNull(), // tanker, mini_tanker, bowser
-  make: text("make").notNull(), // Tata, Mahindra, etc.
-  model: text("model").notNull(),
-  year: integer("year").notNull(),
-  capacity: integer("capacity").notNull(), // Maximum fuel capacity in liters
-  currentFuelLevel: integer("current_fuel_level").notNull().default(0),
-  chassisNumber: text("chassis_number"),
-  engineNumber: text("engine_number"),
+// export const vehicles = pgTable("vehicles", {
+//   id: varchar("id")
+//     .primaryKey()
+//     .default(sql`gen_random_uuid()`),
+//   registrationNumber: text("registration_number").notNull().unique(),
+//   vehicleType: text("vehicle_type").notNull(), // tanker, mini_tanker, bowser
+//   make: text("make").notNull(), // Tata, Mahindra, etc.
+//   model: text("model").notNull(),
+//   year: integer("year").notNull(),
+//   capacity: integer("capacity").notNull(), // Maximum fuel capacity in liters
+//   currentFuelLevel: integer("current_fuel_level").notNull().default(0),
+//   chassisNumber: text("chassis_number"),
+//   engineNumber: text("engine_number"),
 
-  // Legal compliance documents
-  registrationCertificate: text("registration_certificate_url"),
-  registrationExpiry: timestamp("registration_expiry"),
-  pesoLicense: text("peso_license_url"),
-  pesoExpiry: timestamp("peso_expiry"),
-  calibrationCertificate: text("calibration_certificate_url"),
-  calibrationExpiry: timestamp("calibration_expiry"),
-  insuranceNumber: text("insurance_number"),
-  insuranceExpiry: timestamp("insurance_expiry"),
-  pucCertificate: text("puc_certificate_url"),
-  pucExpiry: timestamp("puc_expiry"),
-  fireExtinguisherCertificate: text("fire_extinguisher_certificate_url"),
-  fireExtinguisherExpiry: timestamp("fire_extinguisher_expiry"),
+//   // Legal compliance documents
+//   registrationCertificate: text("registration_certificate_url"),
+//   registrationExpiry: timestamp("registration_expiry"),
+//   pesoLicense: text("peso_license_url"),
+//   pesoExpiry: timestamp("peso_expiry"),
+//   calibrationCertificate: text("calibration_certificate_url"),
+//   calibrationExpiry: timestamp("calibration_expiry"),
+//   insuranceNumber: text("insurance_number"),
+//   insuranceExpiry: timestamp("insurance_expiry"),
+//   pucCertificate: text("puc_certificate_url"),
+//   pucExpiry: timestamp("puc_expiry"),
+//   fireExtinguisherCertificate: text("fire_extinguisher_certificate_url"),
+//   fireExtinguisherExpiry: timestamp("fire_extinguisher_expiry"),
 
-  // Maintenance tracking
-  lastMaintenanceDate: timestamp("last_maintenance_date"),
-  nextMaintenanceDate: timestamp("next_maintenance_date"),
-  maintenanceKms: integer("maintenance_kms"), // Kms at last maintenance
-  currentKms: integer("current_kms").notNull().default(0),
-  maintenanceLogs: jsonb("maintenance_logs"), // [{date, type, description, cost, vendor, kms}]
+//   // Maintenance tracking
+//   lastMaintenanceDate: timestamp("last_maintenance_date"),
+//   nextMaintenanceDate: timestamp("next_maintenance_date"),
+//   maintenanceKms: integer("maintenance_kms"), // Kms at last maintenance
+//   currentKms: integer("current_kms").notNull().default(0),
+//   maintenanceLogs: jsonb("maintenance_logs"), // [{date, type, description, cost, vendor, kms}]
 
-  // IoT and tracking
-  iotDeviceId: text("iot_device_id"),
-  iotStatus: jsonb("iot_status"), // {gps: boolean, fuelSensor: boolean, lockSystem: boolean, dispenser: boolean, temperature: boolean}
-  gpsTrackerId: text("gps_tracker_id"),
-  currentLocation: jsonb("current_location"), // {lat, lng, timestamp, address, speed}
+//   // IoT and tracking
+//   iotDeviceId: text("iot_device_id"),
+//   iotStatus: jsonb("iot_status"), // {gps: boolean, fuelSensor: boolean, lockSystem: boolean, dispenser: boolean, temperature: boolean}
+//   gpsTrackerId: text("gps_tracker_id"),
+//   currentLocation: jsonb("current_location"), // {lat, lng, timestamp, address, speed}
 
-  // Health and status
-  health: text("health"), // healthy, warning, critical, maintenance_due
-  healthChecks: jsonb("health_checks"), // {engine: "good", tyres: "warning", fuel_system: "good"}
-  lastHealthCheckDate: timestamp("last_health_check_date"),
+//   // Health and status
+//   health: text("health"), // healthy, warning, critical, maintenance_due
+//   healthChecks: jsonb("health_checks"), // {engine: "good", tyres: "warning", fuel_system: "good"}
+//   lastHealthCheckDate: timestamp("last_health_check_date"),
 
-  // Operational status
-  isActive: boolean("is_active").notNull().default(true),
-  isOnRoute: boolean("is_on_route").notNull().default(false),
-  purchaseDate: timestamp("purchase_date"),
-  purchasePrice: decimal("purchase_price", { precision: 12, scale: 2 }),
+//   // Operational status
+//   isActive: boolean("is_active").notNull().default(true),
+//   isOnRoute: boolean("is_on_route").notNull().default(false),
+//   purchaseDate: timestamp("purchase_date"),
+//   purchasePrice: decimal("purchase_price", { precision: 12, scale: 2 }),
 
-  createdAt: timestamp("created_at")
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at")
-    .notNull()
-    .default(sql`now()`),
-});
+//   createdAt: timestamp("created_at")
+//     .notNull()
+//     .default(sql`now()`),
+//   updatedAt: timestamp("updated_at")
+//     .notNull()
+//     .default(sql`now()`),
+// });
 
 // Driver-Vehicle assignment tracking
 export const driverVehicleAssignments = pgTable("driver_vehicle_assignments", {
@@ -340,7 +340,7 @@ export const driverVehicleAssignments = pgTable("driver_vehicle_assignments", {
     .references(() => drivers.id),
   vehicleId: varchar("vehicle_id")
     .notNull()
-    .references(() => vehicles.id),
+    .references(() => vehiclesKycDocuments.id),
   assignedDate: timestamp("assigned_date")
     .notNull()
     .default(sql`now()`),
@@ -364,7 +364,7 @@ export const routeChecks = pgTable("route_checks", {
     .references(() => drivers.id),
   vehicleId: varchar("vehicle_id")
     .notNull()
-    .references(() => vehicles.id),
+    .references(() => vehiclesKycDocuments.id),
   orderId: varchar("order_id").references(() => orders.id),
 
   // Check details
@@ -493,13 +493,13 @@ export const insertDriverSchema = createInsertSchema(drivers).omit({
   updatedAt: true,
 });
 
-export const insertVehicleSchema = createInsertSchema(vehicles).omit({
-  id: true,
-  currentFuelLevel: true,
-  currentKms: true,
-  createdAt: true,
-  updatedAt: true,
-});
+// export const insertVehicleSchema = createInsertSchema(vehicles).omit({
+//   id: true,
+//   currentFuelLevel: true,
+//   currentKms: true,
+//   createdAt: true,
+//   updatedAt: true,
+// });
 
 export const insertDriverVehicleAssignmentSchema = createInsertSchema(
   driverVehicleAssignments,
@@ -553,8 +553,8 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type Driver = typeof drivers.$inferSelect;
 export type InsertDriver = z.infer<typeof insertDriverSchema>;
 
-export type Vehicle = typeof vehicles.$inferSelect;
-export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+// export type Vehicle = typeof vehicles.$inferSelect;
+// export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
 
 export type DriverVehicleAssignment =
   typeof driverVehicleAssignments.$inferSelect;

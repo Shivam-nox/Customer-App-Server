@@ -107,6 +107,7 @@ export function buildAddressString(addressData: {
   state: string;
   pincode: string;
 }): string {
+  console.log('Entering Build Address String Function')
   const parts = [
     addressData.addressLine1,
     addressData.addressLine2,

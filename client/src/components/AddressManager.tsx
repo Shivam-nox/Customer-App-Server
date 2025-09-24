@@ -140,16 +140,11 @@ export default function AddressManager({
   // Create address mutation with geocoding
   const createAddressMutation = useMutation({
     mutationFn: async (data: AddressForm) => {
-      console.log('📍 [ADDRESS MANAGER] Starting address creation with data:', data);
-      
       // Build complete address string for geocoding
       const fullAddress = buildAddressString(data);
-      console.log('🏠 [ADDRESS MANAGER] Built full address string:', fullAddress);
 
       // Attempt to geocode the address
-      console.log('🗺️ [ADDRESS MANAGER] Starting geocoding process...');
       const coordinates = await geocodeAddress(fullAddress);
-      console.log('📍 [ADDRESS MANAGER] Geocoding result:', coordinates);
 
       // Prepare address data with coordinates (if available)
       const addressData = {
@@ -157,8 +152,6 @@ export default function AddressManager({
         latitude: coordinates?.latitude.toString() || null,
         longitude: coordinates?.longitude.toString() || null,
       };
-      
-      console.log('💾 [ADDRESS MANAGER] Final address data to save:', addressData);
 
       const response = await apiRequest("POST", "/api/addresses", addressData);
       return response.json();
