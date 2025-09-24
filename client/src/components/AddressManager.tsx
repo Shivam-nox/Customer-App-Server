@@ -44,6 +44,10 @@ const addressSchema = z.object({
   pincode: z
     .string()
     .regex(/^5[0-9]{5}$/, "Please enter a valid Bangalore pincode (5xxxxx)"),
+  pocName: z.string().min(1, "Point of Contact name is required"),
+  pocPhone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number"),
 });
 
 type AddressForm = z.infer<typeof addressSchema>;
@@ -61,6 +65,8 @@ interface CustomerAddress {
   latitude?: string;
   longitude?: string;
   isDefault: boolean;
+  pocName?: string;
+  pocPhone?: string;
 }
 
 interface AddressManagerProps {
@@ -110,7 +116,7 @@ export default function AddressManager({
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(
-    null,
+    null
   );
 
   const form = useForm<AddressForm>({
@@ -124,6 +130,8 @@ export default function AddressManager({
       city: "Bangalore",
       state: "Karnataka",
       pincode: "",
+      pocName: "",
+      pocPhone: "",
     },
   });
 
@@ -185,7 +193,7 @@ export default function AddressManager({
       const response = await apiRequest(
         "DELETE",
         `/api/addresses/${addressId}`,
-        {},
+        {}
       );
       return response.json();
     },
@@ -211,7 +219,7 @@ export default function AddressManager({
       const response = await apiRequest(
         "PUT",
         `/api/addresses/${addressId}/default`,
-        {},
+        {}
       );
       return response.json();
     },
@@ -239,6 +247,8 @@ export default function AddressManager({
       city: address.city as "Bangalore",
       state: address.state as "Karnataka",
       pincode: address.pincode,
+      pocName: address.pocName || "",
+      pocPhone: address.pocPhone || "",
     });
     setIsAddDialogOpen(true);
   };
@@ -397,6 +407,44 @@ export default function AddressManager({
                 </div>
               </div>
 
+              {/* Point of Contact Details */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-sm mb-3 text-gray-700">
+                  Point of Contact for this Address
+                </h4>
+
+                {/* POC Name */}
+                <div className="mb-3">
+                  <Label htmlFor="pocName">Contact Person Name *</Label>
+                  <Input
+                    {...form.register("pocName")}
+                    placeholder="Name of person at this location"
+                    data-testid="poc-name-input"
+                  />
+                  {form.formState.errors.pocName && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {form.formState.errors.pocName.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* POC Phone */}
+                <div>
+                  <Label htmlFor="pocPhone">Contact Person Phone *</Label>
+                  <Input
+                    {...form.register("pocPhone")}
+                    placeholder="10-digit mobile number"
+                    maxLength={10}
+                    data-testid="poc-phone-input"
+                  />
+                  {form.formState.errors.pocPhone && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {form.formState.errors.pocPhone.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-4">
                 <Button
                   type="button"
@@ -437,7 +485,7 @@ export default function AddressManager({
           value={selectedAddressId}
           onValueChange={(value) => {
             const address = addresses.find(
-              (addr: CustomerAddress) => addr.id === value,
+              (addr: CustomerAddress) => addr.id === value
             );
             if (address) onSelectAddress(address);
           }}
@@ -482,6 +530,11 @@ export default function AddressManager({
                         <br />
                         {address.area}, Bangalore, Karnataka - {address.pincode}
                       </p>
+                      {address.pocName && (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">
+                          📞 Contact: {address.pocName} - {address.pocPhone}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1">
                       <Button

@@ -98,6 +98,8 @@ export const customerAddresses = pgTable("customer_addresses", {
   pincode: varchar("pincode", { length: 6 }).notNull(),
   latitude: decimal("latitude", { precision: 10, scale: 8 }),
   longitude: decimal("longitude", { precision: 11, scale: 8 }),
+  pocName: text("poc_name"), // Point of Contact name for this address
+  pocPhone: varchar("poc_phone", { length: 15 }), // Point of Contact phone for this address
   isDefault: boolean("is_default").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at")
