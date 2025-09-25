@@ -37,6 +37,7 @@ import {
   Plus,
   MapPin,
   BarChart3,
+  Award,
 } from "lucide-react";
 
 import { apiRequest } from "@/lib/queryClient";
@@ -215,31 +216,34 @@ export default function ProfileScreen() {
 
   const supportMenuItems = [
     {
-      icon: HelpCircle,
-      label: "Help Center",
-      action: () =>
-        toast({ title: "Help Center", description: "Opening help center..." }),
-      testId: "help-center-button",
-    },
-    {
       icon: MessageSquare,
-      label: "Contact Support",
-      action: () =>
-        toast({
-          title: "Contact Support",
-          description: "Redirecting to support...",
-        }),
-      testId: "contact-support-button",
+      label: "Contact Us",
+      action: () => setLocation("/contact-us"),
+      testId: "contact-us-button",
     },
     {
       icon: FileText,
-      label: "Terms & Privacy",
-      action: () =>
-        toast({
-          title: "Terms & Privacy",
-          description: "Opening terms and privacy policy...",
-        }),
-      testId: "terms-privacy-button",
+      label: "Terms & Conditions",
+      action: () => setLocation("/terms-conditions"),
+      testId: "terms-conditions-button",
+    },
+    {
+      icon: Shield,
+      label: "Privacy Policy",
+      action: () => setLocation("/privacy-policy"),
+      testId: "privacy-policy-button",
+    },
+    {
+      icon: HelpCircle,
+      label: "Cancellation & Refunds",
+      action: () => setLocation("/cancellation-refunds"),
+      testId: "cancellation-refunds-button",
+    },
+    {
+      icon: Award,
+      label: "Delivery Policy",
+      action: () => setLocation("/shipping-policy"),
+      testId: "shipping-policy-button",
     },
   ];
 
