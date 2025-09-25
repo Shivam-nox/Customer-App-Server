@@ -84,6 +84,11 @@ export default function NewOrderScreen() {
     enabled: !!user,
   });
 
+  const { data: deliverySettings } = useQuery({
+    queryKey: ["/api/settings/category/delivery"],
+    enabled: !!user,
+  });
+
   // Calculate pricing with dynamic values
   const ratePerLiter = parseFloat(
     (pricingSettings as any)?.settings?.find(
@@ -113,6 +118,22 @@ export default function NewOrderScreen() {
     (orderSettings as any)?.settings?.find((s: any) => s.key === "order_step")
       ?.value || "50",
   );
+
+  // Get time slots from settings with fallback to default
+  const timeSlotsSetting = (deliverySettings as any)?.settings?.find(
+    (s: any) => s.key === "delivery_time_slots"
+  )?.value;
+  
+  const timeSlots = timeSlotsSetting 
+    ? JSON.parse(timeSlotsSetting)
+    : [
+        { value: "09:00", label: "9-11am" },
+        { value: "11:00", label: "11am-1pm" },
+        { value: "13:00", label: "1-3pm" },
+        { value: "15:00", label: "3-5pm" },
+        { value: "17:00", label: "5-7pm" },
+        { value: "19:00", label: "7-9pm" }
+      ];
 
   const subtotal = quantity * ratePerLiter;
   const gst = deliveryCharges * gstRate;
@@ -308,24 +329,15 @@ export default function NewOrderScreen() {
                         <SelectValue placeholder="Select Time" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="09:00" data-testid="time-09-00">
-                          9:00 AM
-                        </SelectItem>
-                        <SelectItem value="10:00" data-testid="time-10-00">
-                          10:00 AM
-                        </SelectItem>
-                        <SelectItem value="11:00" data-testid="time-11-00">
-                          11:00 AM
-                        </SelectItem>
-                        <SelectItem value="14:00" data-testid="time-14-00">
-                          2:00 PM
-                        </SelectItem>
-                        <SelectItem value="15:00" data-testid="time-15-00">
-                          3:00 PM
-                        </SelectItem>
-                        <SelectItem value="16:00" data-testid="time-16-00">
-                          4:00 PM
-                        </SelectItem>
+                        {timeSlots.map((slot: any) => (
+                          <SelectItem 
+                            key={slot.value} 
+                            value={slot.value} 
+                            data-testid={`time-${slot.value.replace(':', '-')}`}
+                          >
+                            {slot.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}

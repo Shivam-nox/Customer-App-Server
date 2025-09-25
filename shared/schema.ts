@@ -69,6 +69,7 @@ export const customers = pgTable("customers", {
   industryType: text("industry_type"),
   gstNumber: varchar("gst_number", { length: 15 }),
   panNumber: varchar("pan_number", { length: 10 }),
+  cinNumber: varchar("cin_number", { length: 21 }).unique(),
   role: userRoleEnum("role").default("customer").notNull(),
   kycStatus: kycStatusEnum("kyc_status").default("pending").notNull(),
   kycDocuments: jsonb("kyc_documents"),
@@ -97,6 +98,8 @@ export const customerAddresses = pgTable("customer_addresses", {
   pincode: varchar("pincode", { length: 6 }).notNull(),
   latitude: decimal("latitude", { precision: 10, scale: 8 }),
   longitude: decimal("longitude", { precision: 11, scale: 8 }),
+  pocName: text("poc_name"), // Point of Contact name for this address
+  pocPhone: varchar("poc_phone", { length: 15 }), // Point of Contact phone for this address
   isDefault: boolean("is_default").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at")
@@ -531,6 +534,7 @@ export const insertVehiclesKycDocumentsSchema = createInsertSchema(
 // Types
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+export type User = Customer; // Alias for backward compatibility
 
 export type InsertCustomerAddress = z.infer<typeof insertCustomerAddressSchema>;
 export type CustomerAddress = typeof customerAddresses.$inferSelect;
