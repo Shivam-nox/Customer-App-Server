@@ -193,7 +193,8 @@ export default function PrivacyPolicyScreen() {
                     <ul className="text-blue-800 space-y-1">
                       <li><strong>Email:</strong> team@zapygo.com</li>
                       <li><strong>Phone:</strong> +91 8800908227</li>
-                      <li><strong>Address:</strong> #666, 2nd Floor, 25th Cross, 9th Main, 7th Sector HSR Layout, Bengaluru, Karnataka 560102</li>
+                      
+                      <li><strong>Address:</strong> Om Chambers, 648/A, 4th Floor, Binnamangala 1st Stage, Indiranagar, Bangalore  560038 </li>
                       <li><strong>Data Protection Officer:</strong> Available during business hours</li>
                     </ul>
                   </div>

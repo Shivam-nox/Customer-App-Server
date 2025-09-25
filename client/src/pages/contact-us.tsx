@@ -110,10 +110,9 @@ export default function ContactUsScreen() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 mb-2">Office Address</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    #666, 2nd Floor, 25th Cross, 9th Main<br />
+                  <p className="text-gray-600 leading-relaxed"> Om Chambers, 648/A, 4th Floor, Binnamangala<br />
                     7th Sector HSR Layout<br />
-                    Bengaluru, Karnataka 560102<br />
+                    1st Stage, Indiranagar, Bangalore  560038 <br />
                     India
                   </p>
                   <Button

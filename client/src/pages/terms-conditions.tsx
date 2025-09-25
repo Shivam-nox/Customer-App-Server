@@ -136,7 +136,7 @@ export default function TermsConditionsScreen() {
                     <ul className="text-blue-800 space-y-1">
                       <li>Email: team@zapygo.com</li>
                       <li>Phone: +91 8800908227</li>
-                      <li>Address: #666, 2nd Floor, 25th Cross, 9th Main, 7th Sector HSR Layout, Bengaluru, Karnataka 560102</li>
+                      <li>Om Chambers, 648/A, 4th Floor, Binnamangala 1st Stage, Indiranagar, Bangalore 560038 </li>
                     </ul>
                   </div>
                 </section>
