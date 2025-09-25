@@ -8,21 +8,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
-import { 
-  ArrowLeft, 
-  Edit, 
-  Shield, 
-  CreditCard, 
-  Bell, 
-  HelpCircle, 
-  MessageSquare, 
-  FileText, 
+import {
+  ArrowLeft,
+  Edit,
+  Shield,
+  CreditCard,
+  Bell,
+  HelpCircle,
+  MessageSquare,
+  FileText,
   LogOut,
   CheckCircle,
   Clock,
@@ -30,13 +36,22 @@ import {
   User,
   Plus,
   MapPin,
-  BarChart3
+  BarChart3,
 } from "lucide-react";
 
 import { apiRequest } from "@/lib/queryClient";
 
 const profileSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  email: z.string().email("Please enter a valid email address"),
+  phone: z
+    .string()
+    .min(10, "Phone number must be at least 10 digits")
+    .max(15, "Phone number cannot exceed 15 characters")
+    .regex(
+      /^[+]?[0-9\s\-()]+$/,
+      "Phone number can only contain numbers, spaces, hyphens, parentheses, and + sign"
+    ),
   businessName: z.string().optional(),
   businessAddress: z.string().optional(),
 });
@@ -53,6 +68,8 @@ export default function ProfileScreen() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
       businessName: user?.businessName || "",
       businessAddress: user?.businessAddress || "",
     },
@@ -82,9 +99,10 @@ export default function ProfileScreen() {
 
   const { data: notificationsData } = useQuery({
     queryKey: ["/api/notifications"],
-    queryFn: () => fetch("/api/notifications", {
-      headers: { "x-user-id": user?.id || "" },
-    }).then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/notifications", {
+        headers: { "x-user-id": user?.id || "" },
+      }).then((res) => res.json()),
     enabled: !!user,
   });
 
@@ -146,7 +164,17 @@ export default function ProfileScreen() {
     {
       icon: Edit,
       label: "Edit Profile",
-      action: () => setIsEditDialogOpen(true),
+      action: () => {
+        // Reset form with current user data when opening dialog
+        form.reset({
+          name: user?.name || "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          businessName: user?.businessName || "",
+          businessAddress: user?.businessAddress || "",
+        });
+        setIsEditDialogOpen(true);
+      },
       testId: "edit-profile-button",
     },
     {
@@ -176,7 +204,11 @@ export default function ProfileScreen() {
     {
       icon: CreditCard,
       label: "Payment Methods",
-      action: () => toast({ title: "Coming Soon", description: "Payment methods management will be available soon" }),
+      action: () =>
+        toast({
+          title: "Coming Soon",
+          description: "Payment methods management will be available soon",
+        }),
       testId: "payment-methods-button",
     },
   ];
@@ -185,19 +217,28 @@ export default function ProfileScreen() {
     {
       icon: HelpCircle,
       label: "Help Center",
-      action: () => toast({ title: "Help Center", description: "Opening help center..." }),
+      action: () =>
+        toast({ title: "Help Center", description: "Opening help center..." }),
       testId: "help-center-button",
     },
     {
       icon: MessageSquare,
       label: "Contact Support",
-      action: () => toast({ title: "Contact Support", description: "Redirecting to support..." }),
+      action: () =>
+        toast({
+          title: "Contact Support",
+          description: "Redirecting to support...",
+        }),
       testId: "contact-support-button",
     },
     {
       icon: FileText,
       label: "Terms & Privacy",
-      action: () => toast({ title: "Terms & Privacy", description: "Opening terms and privacy policy..." }),
+      action: () =>
+        toast({
+          title: "Terms & Privacy",
+          description: "Opening terms and privacy policy...",
+        }),
       testId: "terms-privacy-button",
     },
   ];
@@ -205,7 +246,10 @@ export default function ProfileScreen() {
   const unreadCount = notificationsData?.unreadCount || 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="profile-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="profile-screen"
+    >
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
@@ -216,7 +260,9 @@ export default function ProfileScreen() {
         >
           <ArrowLeft size={20} />
         </Button>
-        <h2 className="text-lg font-medium" data-testid="page-title">Profile</h2>
+        <h2 className="text-lg font-medium" data-testid="page-title">
+          Profile
+        </h2>
       </div>
 
       <div className="flex-1 pb-20">
@@ -229,13 +275,30 @@ export default function ProfileScreen() {
                   <User size={32} className="text-gray-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-lg" data-testid="user-name">{user.name}</h3>
+                  <h3 className="font-bold text-lg" data-testid="user-name">
+                    {user.name}
+                  </h3>
                   <p className="text-gray-600" data-testid="business-name">
                     {user.businessName || "Business Name Not Set"}
                   </p>
-                  <p className="text-sm text-gray-500" data-testid="user-contact">
-                    {user.phone || user.email}
-                  </p>
+                  <div className="space-y-1">
+                    {user.email && (
+                      <p
+                        className="text-sm text-gray-500"
+                        data-testid="user-email"
+                      >
+                        📧 {user.email}
+                      </p>
+                    )}
+                    {user.phone && (
+                      <p
+                        className="text-sm text-gray-500"
+                        data-testid="user-phone"
+                      >
+                        📱 {user.phone}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -249,16 +312,25 @@ export default function ProfileScreen() {
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center space-x-2">
                       <Shield size={20} />
-                      <span className="font-medium">Complete KYC Verification</span>
+                      <span className="font-medium">
+                        Complete KYC Verification
+                      </span>
                     </div>
                     <ArrowLeft className="rotate-180" size={16} />
                   </div>
                 </Button>
               ) : (
-                <div className={`flex items-center justify-between p-3 border rounded-lg ${getKycStatusColor(user.kycStatus)}`} data-testid="kyc-status">
+                <div
+                  className={`flex items-center justify-between p-3 border rounded-lg ${getKycStatusColor(
+                    user.kycStatus
+                  )}`}
+                  data-testid="kyc-status"
+                >
                   <div className="flex items-center space-x-2">
                     {getKycStatusIcon(user.kycStatus)}
-                    <span className="font-medium">{getKycStatusText(user.kycStatus)}</span>
+                    <span className="font-medium">
+                      {getKycStatusText(user.kycStatus)}
+                    </span>
                   </div>
                   {user.kycStatus === "verified" && (
                     <span className="text-xs" data-testid="kyc-verified-date">
@@ -281,7 +353,9 @@ export default function ProfileScreen() {
                     variant="ghost"
                     onClick={item.action}
                     className={`w-full flex items-center justify-between p-4 h-auto ${
-                      index < profileMenuItems.length - 1 ? "border-b border-gray-100" : ""
+                      index < profileMenuItems.length - 1
+                        ? "border-b border-gray-100"
+                        : ""
                     }`}
                     data-testid={item.testId}
                   >
@@ -295,8 +369,6 @@ export default function ProfileScreen() {
               })}
             </CardContent>
           </Card>
-
-
 
           {/* Support & Help */}
           <Card data-testid="support-options">
@@ -312,7 +384,9 @@ export default function ProfileScreen() {
                     variant="ghost"
                     onClick={item.action}
                     className={`w-full flex items-center justify-between p-4 h-auto ${
-                      index < supportMenuItems.length - 1 ? "border-b border-gray-100" : ""
+                      index < supportMenuItems.length - 1
+                        ? "border-b border-gray-100"
+                        : ""
                     }`}
                     data-testid={item.testId}
                   >
@@ -330,8 +404,12 @@ export default function ProfileScreen() {
           {/* App Info */}
           <Card className="bg-gray-100" data-testid="app-info">
             <CardContent className="p-4 text-center">
-              <p className="text-gray-600 text-sm" data-testid="app-version">App Version: 1.0.0</p>
-              <p className="text-gray-500 text-xs mt-1" data-testid="copyright">© 2024 Zapygo. All rights reserved.</p>
+              <p className="text-gray-600 text-sm" data-testid="app-version">
+                App Version: 1.0.0
+              </p>
+              <p className="text-gray-500 text-xs mt-1" data-testid="copyright">
+                © 2024 Zapygo. All rights reserved.
+              </p>
             </CardContent>
           </Card>
 
@@ -375,6 +453,50 @@ export default function ProfileScreen() {
 
             <div className="floating-label">
               <Input
+                {...form.register("email")}
+                type="email"
+                placeholder=" "
+                className="peer"
+                data-testid="edit-email-input"
+                autoComplete="email"
+              />
+              <Label className="peer-focus:text-primary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">
+                Email Address
+              </Label>
+            </div>
+
+            {form.formState.errors.email && (
+              <p className="text-sm text-destructive" data-testid="email-error">
+                {form.formState.errors.email.message}
+              </p>
+            )}
+
+            <div className="floating-label">
+              <Input
+                {...form.register("phone")}
+                type="tel"
+                placeholder=" "
+                className="peer"
+                data-testid="edit-phone-input"
+                autoComplete="tel"
+              />
+              <Label className="peer-focus:text-primary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">
+                Phone Number
+              </Label>
+            </div>
+
+            {form.formState.errors.phone && (
+              <p className="text-sm text-destructive" data-testid="phone-error">
+                {form.formState.errors.phone.message}
+              </p>
+            )}
+
+            <div className="text-xs text-gray-500 mt-1">
+              <p>💡 Phone format: +91-9876543210 or 9876543210</p>
+            </div>
+
+            <div className="floating-label">
+              <Input
                 {...form.register("businessName")}
                 placeholder=" "
                 className="peer"
@@ -413,7 +535,11 @@ export default function ProfileScreen() {
                 className="flex-1"
                 data-testid="save-profile-button"
               >
-                {updateProfileMutation.isPending ? <LoadingSpinner /> : "Save Changes"}
+                {updateProfileMutation.isPending ? (
+                  <LoadingSpinner />
+                ) : (
+                  "Save Changes"
+                )}
               </Button>
             </div>
           </form>
