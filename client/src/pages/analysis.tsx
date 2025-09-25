@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { formatTimeSlot } from "@/lib/utils";
 import LoadingSpinner from "@/components/loading-spinner";
+import BottomNav from "@/components/bottom-nav";
 import {
   ArrowLeft,
   TrendingUp,
@@ -94,7 +95,7 @@ export default function AnalysisScreen() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-gray-50"
+      className="min-h-screen bg-gray-50"
       data-testid="analysis-screen"
     >
       {/* Header */}
@@ -127,7 +128,7 @@ export default function AnalysisScreen() {
         </div>
       </div>
 
-      <div className="flex-1 p-4">
+      <div className="p-4 pb-20">
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="overview" className="text-xs px-2 py-1.5">
@@ -533,6 +534,8 @@ export default function AnalysisScreen() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <BottomNav activeTab="analytics" />
     </div>
   );
 }

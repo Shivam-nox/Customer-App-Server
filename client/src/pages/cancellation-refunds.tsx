@@ -7,7 +7,7 @@ export default function CancellationRefundsScreen() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
@@ -20,7 +20,7 @@ export default function CancellationRefundsScreen() {
         <h2 className="text-lg font-medium">Cancellation & Refunds</h2>
       </div>
 
-      <div className="flex-1 p-4">
+      <div className="p-4 pb-6">
         <Card>
           <CardContent className="p-6">
             <div className="prose max-w-none">
