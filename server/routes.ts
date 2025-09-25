@@ -24,7 +24,12 @@ const signupSchema = z.object({
   industryType: z.string().min(1),
   gstNumber: z.string().min(15).max(15),
   panNumber: z.string().min(10).max(10),
-  cinNumber: z.string().regex(/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/, "Invalid CIN format"),
+  cinNumber: z
+    .string()
+    .regex(
+      /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/,
+      "Invalid CIN format"
+    ),
 });
 
 const loginSchema = z.object({
@@ -38,7 +43,12 @@ const createOrderSchema = z.object({
   deliveryLatitude: z.number().optional(),
   deliveryLongitude: z.number().optional(),
   scheduledDate: z.string(),
-  scheduledTime: z.string().regex(/^(09|11|13|15|17|19):00$/, "Invalid time slot. Must be one of: 09:00, 11:00, 13:00, 15:00, 17:00, 19:00"),
+  scheduledTime: z
+    .string()
+    .regex(
+      /^(09|11|13|15|17|19):00$/,
+      "Invalid time slot. Must be one of: 09:00, 11:00, 13:00, 15:00, 17:00, 19:00"
+    ),
 });
 
 const processPaymentSchema = z.object({
@@ -98,26 +108,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Notify admin dashboard about new customer registration
       console.log(
-        `🚀 New customer registered: ${newUser.name} (${newUser.username || newUser.email})`,
+        `🚀 New customer registered: ${newUser.name} (${
+          newUser.username || newUser.email
+        })`
       );
       console.log(
-        `📧 Attempting to notify admin dashboard about customer registration...`,
+        `📧 Attempting to notify admin dashboard about customer registration...`
       );
 
       const adminNotificationSuccess =
         await adminService.notifyCustomerRegistration(newUser);
 
       console.log(
-        `📊 Admin dashboard notification result: ${adminNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+        `📊 Admin dashboard notification result: ${
+          adminNotificationSuccess ? "SUCCESS" : "FAILED"
+        }`
       );
 
       if (adminNotificationSuccess) {
         console.log(
-          `✅ Admin dashboard successfully notified about new customer: ${newUser.name}`,
+          `✅ Admin dashboard successfully notified about new customer: ${newUser.name}`
         );
       } else {
         console.log(
-          `⚠️  Admin dashboard notification failed for customer: ${newUser.name} - user registration completed but admin was not notified`,
+          `⚠️  Admin dashboard notification failed for customer: ${newUser.name} - user registration completed but admin was not notified`
         );
       }
 
@@ -178,6 +192,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/user/profile", requireAuth, async (req, res) => {
     try {
       const updates = req.body;
+
+      // Validate email format if provided
+      if (updates.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(updates.email)) {
+          return res
+            .status(400)
+            .json({ error: "Please enter a valid email address" });
+        }
+
+        // Check if email is already taken by another user
+        const existingUser = await storage.getUserByEmail(updates.email);
+        if (existingUser && existingUser.id !== req.user!.id) {
+          return res
+            .status(400)
+            .json({ error: "Email address is already registered" });
+        }
+      }
+
+      // Validate phone format if provided
+      if (updates.phone) {
+        const phoneRegex = /^[+]?[0-9\s\-()]{10,15}$/;
+        if (!phoneRegex.test(updates.phone)) {
+          return res
+            .status(400)
+            .json({ error: "Please enter a valid phone number" });
+        }
+
+        // Check if phone is already taken by another user
+        const existingUser = await storage.getUserByPhone(updates.phone);
+        if (existingUser && existingUser.id !== req.user!.id) {
+          return res
+            .status(400)
+            .json({ error: "Phone number is already registered" });
+        }
+      }
+
       const user = await storage.updateUser(req.user!.id, updates);
       res.json({ user });
     } catch (error) {
@@ -228,16 +279,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderData = createOrderSchema.parse(req.body);
 
       // Fetch dynamic pricing from system settings
-      const ratePerLiterSetting =
-        await storage.getSystemSetting("rate_per_liter");
-      const deliveryChargesSetting =
-        await storage.getSystemSetting("delivery_charges");
+      const ratePerLiterSetting = await storage.getSystemSetting(
+        "rate_per_liter"
+      );
+      const deliveryChargesSetting = await storage.getSystemSetting(
+        "delivery_charges"
+      );
       const gstRateSetting = await storage.getSystemSetting("gst_rate");
 
       // Use dynamic values from system_settings, with fallbacks
       const ratePerLiter = parseFloat(ratePerLiterSetting?.value || "70.5");
       const deliveryCharges = parseFloat(
-        deliveryChargesSetting?.value || "300",
+        deliveryChargesSetting?.value || "300"
       );
       const gstRate = parseFloat(gstRateSetting?.value || "0.18");
 
@@ -248,19 +301,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`💰 Order pricing calculation using dynamic settings:`);
       console.log(
-        `   • Rate per liter: ₹${ratePerLiter} (from system_settings)`,
+        `   • Rate per liter: ₹${ratePerLiter} (from system_settings)`
       );
       console.log(
-        `   • Delivery charges: ₹${deliveryCharges} (from system_settings)`,
+        `   • Delivery charges: ₹${deliveryCharges} (from system_settings)`
       );
       console.log(
-        `   • GST rate: ${(gstRate * 100).toFixed(1)}% (from system_settings)`,
+        `   • GST rate: ${(gstRate * 100).toFixed(1)}% (from system_settings)`
       );
       console.log(`   • Quantity: ${orderData.quantity} liters`);
       console.log(`   • Subtotal: ₹${subtotal.toFixed(2)}`);
       console.log(`   • GST: ₹${gst.toFixed(2)}`);
       console.log(`   • Total: ₹${totalAmount.toFixed(2)}`);
-      console.log(`📅 Delivery scheduled for: ${orderData.scheduledDate} at ${orderData.scheduledTime}`);
+      console.log(
+        `📅 Delivery scheduled for: ${orderData.scheduledDate} at ${orderData.scheduledTime}`
+      );
 
       const order = await storage.createOrder({
         customerId: req.user!.id,
@@ -290,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Notify driver app about the new order
       const notificationSuccess = await driverService.notifyNewOrder(
         order,
-        req.user!,
+        req.user!
       );
 
       res.json({
@@ -340,8 +395,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               phone: driver.emergencyContactPhone,
             },
             totalDeliveries: driver.totalDeliveries,
-            currentLatitude: driver.currentLocation ? JSON.parse(driver.currentLocation as string)?.lat : null,
-            currentLongitude: driver.currentLocation ? JSON.parse(driver.currentLocation as string)?.lng : null,
+            currentLatitude: driver.currentLocation
+              ? JSON.parse(driver.currentLocation as string)?.lat
+              : null,
+            currentLongitude: driver.currentLocation
+              ? JSON.parse(driver.currentLocation as string)?.lng
+              : null,
             status: driver.status,
             proofOfDelivery: null,
             deliveredAt: null,
@@ -360,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/notifications", requireAuth, async (req, res) => {
     console.log(
-      `🔥 OTP GENERATION REQUEST - Order ID: 123456, User ID: ${req.user?.id}`,
+      `🔥 OTP GENERATION REQUEST - Order ID: 123456, User ID: ${req.user?.id}`
     );
 
     try {
@@ -381,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (order.status !== "in_transit") {
         console.log(
-          `❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`,
+          `❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`
         );
         return res.status(400).json({
           error:
@@ -395,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedOrder = await storage.updateOrderStatus(
         order.id,
-        "in_transit",
+        "in_transit"
       );
 
       // Manually update the OTP since the status didn't change
@@ -406,17 +465,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`💾 OTP saved to database for order ${order.orderNumber}`);
 
       console.log(
-        `🔐 Generated delivery OTP for order ${order.orderNumber}: ${otp}`,
+        `🔐 Generated delivery OTP for order ${order.orderNumber}: ${otp}`
       );
 
       // Send OTP to driver app via webhook
       console.log(`📤 Attempting to send OTP to driver app...`);
       const otpNotificationSuccess = await driverService.sendOtpToDriver(
         order.orderNumber,
-        otp,
+        otp
       );
       console.log(
-        `📱 Driver notification result: ${otpNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+        `📱 Driver notification result: ${
+          otpNotificationSuccess ? "SUCCESS" : "FAILED"
+        }`
       );
 
       res.json({
@@ -484,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updatePaymentStatus(
               payment.id,
               "completed",
-              transactionId,
+              transactionId
             );
             await storage.updateOrderStatus(orderId, "confirmed");
 
@@ -530,8 +591,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
   // Invoice generation - Enhanced with proper formatting and validation
   app.get("/api/orders/:id/invoice", requireAuth, async (req, res) => {
     try {
@@ -540,13 +599,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      console.log(`📄 Generating invoice for order ${order.orderNumber}, status: ${order.status}`);
+      console.log(
+        `📄 Generating invoice for order ${order.orderNumber}, status: ${order.status}`
+      );
 
       // Allow invoice download for delivered orders or completed payments
-      if (order.status !== "delivered" && order.status !== "confirmed" && order.status !== "in_transit") {
-        console.log(`❌ Invoice not available - order status is ${order.status}`);
-        return res.status(400).json({ 
-          error: `Invoice is only available for delivered, confirmed, or in-transit orders. Current status: ${order.status}` 
+      if (
+        order.status !== "delivered" &&
+        order.status !== "confirmed" &&
+        order.status !== "in_transit"
+      ) {
+        console.log(
+          `❌ Invoice not available - order status is ${order.status}`
+        );
+        return res.status(400).json({
+          error: `Invoice is only available for delivered, confirmed, or in-transit orders. Current status: ${order.status}`,
         });
       }
 
@@ -579,150 +646,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`✅ jsPDF instance created successfully`);
       } catch (pdfError) {
         console.error(`❌ Failed to create jsPDF instance:`, pdfError);
-        throw new Error(`PDF creation failed: ${pdfError.message}`);
+        const errorMessage =
+          pdfError instanceof Error ? pdfError.message : "Unknown error";
+        throw new Error(`PDF creation failed: ${errorMessage}`);
       }
-      
+
       // Set font
-      doc.setFont('helvetica');
-      
+      doc.setFont("helvetica");
+
       // Header with company branding
       doc.setFillColor(25, 118, 210); // Primary blue color
-      doc.rect(0, 0, 210, 30, 'F');
-      
+      doc.rect(0, 0, 210, 30, "F");
+
       // Company logo area and name
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ZAPYGO', 20, 20);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("ZAPYGO", 20, 20);
+
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Doorstep Diesel Delivery', 20, 26);
-      
+      doc.setFont("helvetica", "normal");
+      doc.text("Doorstep Diesel Delivery", 20, 26);
+
       // Invoice title and details
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('INVOICE', 150, 45);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("INVOICE", 150, 45);
+
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("helvetica", "normal");
       doc.text(`Invoice #: ${order.orderNumber}`, 150, 52);
-      doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString('en-IN')}`, 150, 58);
-      
+      doc.text(
+        `Date: ${new Date(order.createdAt).toLocaleDateString("en-IN")}`,
+        150,
+        58
+      );
+
       if (payment.transactionId) {
         doc.text(`Transaction ID: ${payment.transactionId}`, 150, 64);
       }
-      
+
       // Customer details section
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Bill To:', 20, 75);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("Bill To:", 20, 75);
+
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const customerName = req.user!.businessName || req.user!.name || 'N/A';
+      doc.setFont("helvetica", "normal");
+      const customerName = req.user!.businessName || req.user!.name || "N/A";
       console.log(`👤 Customer name for invoice: ${customerName}`);
       doc.text(customerName, 20, 83);
-      
+
       if (req.user!.phone) {
         doc.text(`Phone: ${req.user!.phone}`, 20, 90);
       }
-      
+
       if (req.user!.email) {
         doc.text(`Email: ${req.user!.email}`, 20, 97);
       }
-      
+
       if (req.user!.businessAddress) {
         doc.text(`Business Address:`, 20, 104);
         // Handle long addresses by wrapping text
         try {
-          const addressLines = doc.splitTextToSize(req.user!.businessAddress, 80);
+          const addressLines = doc.splitTextToSize(
+            req.user!.businessAddress,
+            80
+          );
           doc.text(addressLines, 20, 111);
         } catch (addressError) {
           console.error(`❌ Error processing business address:`, addressError);
-          doc.text(req.user!.businessAddress.substring(0, 50) + '...', 20, 111);
+          doc.text(req.user!.businessAddress.substring(0, 50) + "...", 20, 111);
         }
       }
-      
+
       // Delivery details
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Delivery Details:', 20, 130);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("Delivery Details:", 20, 130);
+
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Delivery Address:', 20, 138);
+      doc.setFont("helvetica", "normal");
+      doc.text("Delivery Address:", 20, 138);
       try {
         const deliveryLines = doc.splitTextToSize(order.deliveryAddress, 80);
         doc.text(deliveryLines, 20, 145);
       } catch (deliveryError) {
         console.error(`❌ Error processing delivery address:`, deliveryError);
-        doc.text(order.deliveryAddress.substring(0, 50) + '...', 20, 145);
+        doc.text(order.deliveryAddress.substring(0, 50) + "...", 20, 145);
       }
-      
-      doc.text(`Scheduled Date: ${new Date(order.scheduledDate).toLocaleDateString('en-IN')}`, 20, 160);
+
+      doc.text(
+        `Scheduled Date: ${new Date(order.scheduledDate).toLocaleDateString(
+          "en-IN"
+        )}`,
+        20,
+        160
+      );
       doc.text(`Scheduled Time: ${order.scheduledTime}`, 20, 167);
-      
+
       // Items table
       const tableStartY = 185;
-      
+
       // Table headers
       doc.setFillColor(240, 240, 240);
-      doc.rect(20, tableStartY, 170, 10, 'F');
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text('Description', 25, tableStartY + 7);
-      doc.text('Qty', 90, tableStartY + 7);
-      doc.text('Rate', 110, tableStartY + 7);
-      doc.text('Amount', 150, tableStartY + 7);
-      
+      doc.rect(20, tableStartY, 170, 10, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Description", 25, tableStartY + 7);
+      doc.text("Qty", 90, tableStartY + 7);
+      doc.text("Rate", 110, tableStartY + 7);
+      doc.text("Amount", 150, tableStartY + 7);
+
       // Table border
       doc.setDrawColor(200, 200, 200);
       doc.rect(20, tableStartY, 170, 10);
-      
+
       // Items
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("helvetica", "normal");
       let currentY = tableStartY + 20;
-      
+
       // Diesel fuel line item
-      doc.text('Diesel Fuel', 25, currentY);
+      doc.text("Diesel Fuel", 25, currentY);
       doc.text(`${order.quantity}L`, 90, currentY);
-      doc.text(`Rs.${parseFloat(order.ratePerLiter).toFixed(2)}`, 110, currentY);
-      doc.text(`Rs.${parseFloat(order.subtotal).toLocaleString('en-IN')}`, 150, currentY);
-      
+      doc.text(
+        `Rs.${parseFloat(order.ratePerLiter).toFixed(2)}`,
+        110,
+        currentY
+      );
+      doc.text(
+        `Rs.${parseFloat(order.subtotal).toLocaleString("en-IN")}`,
+        150,
+        currentY
+      );
+
       currentY += 10;
-      
+
       // Delivery charges
-      doc.text('Delivery Charges', 25, currentY);
-      doc.text('1', 90, currentY);
-      doc.text(`Rs.${parseFloat(order.deliveryCharges).toFixed(2)}`, 110, currentY);
-      doc.text(`Rs.${parseFloat(order.deliveryCharges).toFixed(2)}`, 150, currentY);
-      
+      doc.text("Delivery Charges", 25, currentY);
+      doc.text("1", 90, currentY);
+      doc.text(
+        `Rs.${parseFloat(order.deliveryCharges).toFixed(2)}`,
+        110,
+        currentY
+      );
+      doc.text(
+        `Rs.${parseFloat(order.deliveryCharges).toFixed(2)}`,
+        150,
+        currentY
+      );
+
       currentY += 10;
-      
+
       // GST
-      doc.text('GST (18%)', 25, currentY);
-      doc.text('-', 90, currentY);
-      doc.text('-', 110, currentY);
-      doc.text(`Rs.${parseFloat(order.gst).toLocaleString('en-IN')}`, 150, currentY);
-      
+      doc.text("GST (18%)", 25, currentY);
+      doc.text("-", 90, currentY);
+      doc.text("-", 110, currentY);
+      doc.text(
+        `Rs.${parseFloat(order.gst).toLocaleString("en-IN")}`,
+        150,
+        currentY
+      );
+
       currentY += 15;
-      
+
       // Total line
       doc.setDrawColor(0, 0, 0);
       doc.line(20, currentY - 5, 190, currentY - 5);
-      
-      doc.setFont('helvetica', 'bold');
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text('Total Amount:', 110, currentY);
-      doc.text(`Rs.${parseFloat(order.totalAmount).toLocaleString('en-IN')}`, 150, currentY);
-      
+      doc.text("Total Amount:", 110, currentY);
+      doc.text(
+        `Rs.${parseFloat(order.totalAmount).toLocaleString("en-IN")}`,
+        150,
+        currentY
+      );
+
       // Payment information
       currentY += 20;
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Payment Information:', 20, currentY);
+      doc.setFont("helvetica", "normal");
+      doc.text("Payment Information:", 20, currentY);
       doc.text(`Method: ${payment.method.toUpperCase()}`, 20, currentY + 8);
       doc.text(`Status: ${payment.status.toUpperCase()}`, 20, currentY + 16);
       if (payment.transactionId) {
@@ -731,17 +837,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         currentY += 24; // Standard space without transaction ID
       }
-      
+
       // Footer with proper spacing
       const footerY = Math.max(currentY + 20, 250); // Ensure footer doesn't overlap with content
       doc.setDrawColor(200, 200, 200);
       doc.line(20, footerY, 190, footerY);
-      
+
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text('Thank you for choosing Zapygo!', 20, footerY + 12);
-      doc.text('For support, contact: support@zapygo.com | +91 1800-123-4567', 20, footerY + 20);
-      doc.text('This is a computer-generated invoice and does not require a signature.', 20, footerY + 28);
+      doc.text("Thank you for choosing Zapygo!", 20, footerY + 12);
+      doc.text(
+        "For support, contact: support@zapygo.com | +91 1800-123-4567",
+        20,
+        footerY + 20
+      );
+      doc.text(
+        "This is a computer-generated invoice and does not require a signature.",
+        20,
+        footerY + 28
+      );
 
       console.log(`📦 Converting PDF to buffer for order ${order.orderNumber}`);
       let pdfBuffer;
@@ -750,17 +864,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`📊 PDF buffer size: ${pdfBuffer.length} bytes`);
       } catch (bufferError) {
         console.error(`❌ Failed to create PDF buffer:`, bufferError);
-        throw new Error(`PDF buffer creation failed: ${bufferError.message}`);
+        const errorMessage =
+          bufferError instanceof Error ? bufferError.message : "Unknown error";
+        throw new Error(`PDF buffer creation failed: ${errorMessage}`);
       }
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename=invoice-${order.orderNumber}.pdf`,
+        `attachment; filename=invoice-${order.orderNumber}.pdf`
       );
       res.send(pdfBuffer);
-      
-      console.log(`✅ Invoice generated and sent for order ${order.orderNumber}`);
+
+      console.log(
+        `✅ Invoice generated and sent for order ${order.orderNumber}`
+      );
     } catch (error) {
       console.error("Generate invoice error:", error);
       res.status(500).json({ error: "Failed to generate invoice" });
@@ -770,50 +888,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analysis routes
   app.get("/api/analysis", requireAuth, async (req, res) => {
     try {
-      const period = req.query.period as string || "3months";
+      const period = (req.query.period as string) || "3months";
       const customerId = req.user!.id;
 
       // Get customer orders for analysis
       const allOrders = await storage.getUserOrders(customerId, 100);
-      const completedOrders = allOrders.filter(order => order.status === "delivered");
+      const completedOrders = allOrders.filter(
+        (order) => order.status === "delivered"
+      );
 
       // Filter orders based on selected period
       const now = new Date();
       let periodStartDate = new Date(now);
       let periodMonths = 3;
-      
+
       switch (period) {
-        case "1month": 
-          periodMonths = 1; 
+        case "1month":
+          periodMonths = 1;
           periodStartDate.setMonth(periodStartDate.getMonth() - 1);
           break;
-        case "3months": 
-          periodMonths = 3; 
+        case "3months":
+          periodMonths = 3;
           periodStartDate.setMonth(periodStartDate.getMonth() - 3);
           break;
-        case "6months": 
-          periodMonths = 6; 
+        case "6months":
+          periodMonths = 6;
           periodStartDate.setMonth(periodStartDate.getMonth() - 6);
           break;
-        case "1year": 
-          periodMonths = 12; 
+        case "1year":
+          periodMonths = 12;
           periodStartDate.setFullYear(periodStartDate.getFullYear() - 1);
           break;
       }
 
       // Filter orders for the selected period
-      const periodOrders = allOrders.filter(order => 
-        new Date(order.createdAt) >= periodStartDate
+      const periodOrders = allOrders.filter(
+        (order) => new Date(order.createdAt) >= periodStartDate
       );
-      const periodCompletedOrders = completedOrders.filter(order => 
-        new Date(order.createdAt) >= periodStartDate
+      const periodCompletedOrders = completedOrders.filter(
+        (order) => new Date(order.createdAt) >= periodStartDate
       );
 
       if (periodCompletedOrders.length === 0) {
         // Get market price from system settings for empty state
-        const marketPriceSetting = await storage.getSystemSetting("market_price_per_liter");
+        const marketPriceSetting = await storage.getSystemSetting(
+          "market_price_per_liter"
+        );
         const marketPrice = parseFloat(marketPriceSetting?.value || "77.5");
-        
+
         return res.json({
           consumption: {
             totalLiters: 0,
@@ -846,12 +968,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate consumption metrics using period-filtered data
-      const totalLiters = periodCompletedOrders.reduce((sum, order) => sum + order.quantity, 0);
-      const totalSpent = periodCompletedOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount), 0);
+      const totalLiters = periodCompletedOrders.reduce(
+        (sum, order) => sum + order.quantity,
+        0
+      );
+      const totalSpent = periodCompletedOrders.reduce(
+        (sum, order) => sum + parseFloat(order.totalAmount),
+        0
+      );
       const averagePerLiter = totalSpent / totalLiters;
 
       // Get market price from system settings
-      const marketPriceSetting = await storage.getSystemSetting("market_price_per_liter");
+      const marketPriceSetting = await storage.getSystemSetting(
+        "market_price_per_liter"
+      );
       const marketPrice = parseFloat(marketPriceSetting?.value || "77.5");
       const savingsPerLiter = Math.max(0, marketPrice - averagePerLiter);
       const totalSavings = savingsPerLiter * totalLiters;
@@ -861,43 +991,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get last month data (orders from last 30 days)
       const lastMonthDate = new Date();
       lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-      
-      const lastMonthOrders = periodCompletedOrders.filter(order => 
-        new Date(order.createdAt) >= lastMonthDate
+
+      const lastMonthOrders = periodCompletedOrders.filter(
+        (order) => new Date(order.createdAt) >= lastMonthDate
       );
-      const lastMonthLiters = lastMonthOrders.reduce((sum, order) => sum + order.quantity, 0);
-      const lastMonthSpent = lastMonthOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount), 0);
+      const lastMonthLiters = lastMonthOrders.reduce(
+        (sum, order) => sum + order.quantity,
+        0
+      );
+      const lastMonthSpent = lastMonthOrders.reduce(
+        (sum, order) => sum + parseFloat(order.totalAmount),
+        0
+      );
 
       // Calculate trend - compare last month to monthly average
       let trend: "up" | "down" | "stable" = "stable";
       let trendPercentage = 0;
-      
+
       if (monthlyAverage > 0) {
         if (lastMonthLiters > monthlyAverage * 1.1) {
           trend = "up";
-          trendPercentage = Math.round(((lastMonthLiters - monthlyAverage) / monthlyAverage) * 100 * 10) / 10;
+          trendPercentage =
+            Math.round(
+              ((lastMonthLiters - monthlyAverage) / monthlyAverage) * 100 * 10
+            ) / 10;
         } else if (lastMonthLiters < monthlyAverage * 0.9) {
           trend = "down";
-          trendPercentage = Math.round(((monthlyAverage - lastMonthLiters) / monthlyAverage) * 100 * 10) / 10;
+          trendPercentage =
+            Math.round(
+              ((monthlyAverage - lastMonthLiters) / monthlyAverage) * 100 * 10
+            ) / 10;
         }
       }
 
       // Calculate delivery success rate for the period
-      const deliverySuccessRate = periodOrders.length > 0 ? (periodCompletedOrders.length / periodOrders.length) * 100 : 0;
+      const deliverySuccessRate =
+        periodOrders.length > 0
+          ? (periodCompletedOrders.length / periodOrders.length) * 100
+          : 0;
 
       // Calculate most frequent delivery time for the period
-      const deliveryTimes = periodCompletedOrders.map(order => order.scheduledTime);
+      const deliveryTimes = periodCompletedOrders.map(
+        (order) => order.scheduledTime
+      );
       const timeFrequency: { [key: string]: number } = {};
-      deliveryTimes.forEach(time => {
+      deliveryTimes.forEach((time) => {
         timeFrequency[time] = (timeFrequency[time] || 0) + 1;
       });
-      const frequentDeliveryTime = Object.keys(timeFrequency).length > 0 
-        ? Object.keys(timeFrequency).reduce((a, b) => timeFrequency[a] > timeFrequency[b] ? a : b)
-        : "Not available";
+      const frequentDeliveryTime =
+        Object.keys(timeFrequency).length > 0
+          ? Object.keys(timeFrequency).reduce((a, b) =>
+              timeFrequency[a] > timeFrequency[b] ? a : b
+            )
+          : "Not available";
 
       // Calculate quality metrics based on real data
       const onTimeDeliveryRate = 95; // This would need tracking of actual delivery times vs scheduled
-      const qualityScore = Math.round((deliverySuccessRate + onTimeDeliveryRate) / 2);
+      const qualityScore = Math.round(
+        (deliverySuccessRate + onTimeDeliveryRate) / 2
+      );
       const overallRating = Math.round((qualityScore / 100) * 5 * 10) / 10;
 
       const analysisData = {
@@ -925,7 +1077,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orders: {
           totalOrders: periodOrders.length,
           completedOrders: periodCompletedOrders.length,
-          averageOrderSize: periodCompletedOrders.length > 0 ? Math.round(totalLiters / periodCompletedOrders.length) : 0,
+          averageOrderSize:
+            periodCompletedOrders.length > 0
+              ? Math.round(totalLiters / periodCompletedOrders.length)
+              : 0,
           frequentDeliveryTime,
         },
       };
@@ -1137,13 +1292,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-
   // Serve KYC documents
   app.get("/api/kyc-documents/:filePath(*)", requireAuth, async (req, res) => {
     try {
       const objectStorageService = new ObjectStorageService();
       const objectFile = await objectStorageService.getObjectEntityFile(
-        `/objects/${req.params.filePath}`,
+        `/objects/${req.params.filePath}`
       );
 
       // Check if user owns this document (basic security)
@@ -1169,17 +1323,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/addresses", requireAuth, async (req, res) => {
     try {
-      console.log('📮 [BACKEND] Received address creation request');
-      console.log('📝 [BACKEND] Request body:', JSON.stringify(req.body, null, 2));
-      console.log('🗺️ [BACKEND] Latitude received:', req.body.latitude);
-      console.log('🗺️ [BACKEND] Longitude received:', req.body.longitude);
-      
+      console.log("📮 [BACKEND] Received address creation request");
+      console.log(
+        "📝 [BACKEND] Request body:",
+        JSON.stringify(req.body, null, 2)
+      );
+      console.log("🗺️ [BACKEND] Latitude received:", req.body.latitude);
+      console.log("🗺️ [BACKEND] Longitude received:", req.body.longitude);
+
       const addressData = {
         ...req.body,
         userId: req.user!.id,
       };
 
-      console.log('💾 [BACKEND] Final address data to save:', JSON.stringify(addressData, null, 2));
+      console.log(
+        "💾 [BACKEND] Final address data to save:",
+        JSON.stringify(addressData, null, 2)
+      );
 
       // Validate pincode for Bangalore area
       if (!req.body.pincode?.match(/^5[0-9]{5}$/)) {
@@ -1187,7 +1347,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const address = await storage.createCustomerAddress(addressData);
-      console.log('✅ [BACKEND] Address created successfully:', JSON.stringify(address, null, 2));
+      console.log(
+        "✅ [BACKEND] Address created successfully:",
+        JSON.stringify(address, null, 2)
+      );
       res.json({ address });
     } catch (error) {
       console.error("💥 [BACKEND] Create address error:", error);
@@ -1204,7 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedAddress = await storage.updateCustomerAddress(
         req.params.id,
-        req.body,
+        req.body
       );
       res.json({ address: updatedAddress });
     } catch (error) {
@@ -1243,8 +1406,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
   // System Settings routes (Admin only)
   const requireAdmin = async (req: any, res: any, next: any) => {
     const userId = req.headers["x-user-id"];
@@ -1272,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/settings/category/:category", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSystemSettingsByCategory(
-        req.params.category,
+        req.params.category
       );
       res.json({ settings });
     } catch (error) {
@@ -1305,8 +1466,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Assign the driver to the order and update status
       await storage.updateOrderStatus(order.id, "confirmed", driver.id);
-      
-      console.log(`✅ Driver ${driver.name} assigned to order ${order.orderNumber}`);
+
+      console.log(
+        `✅ Driver ${driver.name} assigned to order ${order.orderNumber}`
+      );
 
       // Create notification for customer
       await storage.createNotification({
@@ -1317,15 +1480,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orderId: order.id,
       });
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: "Driver assigned successfully",
         driver: {
           id: driver.id,
           name: driver.name,
           phone: driver.phone,
-          rating: driver.rating
-        }
+          rating: driver.rating,
+        },
       });
     } catch (error) {
       console.error("Assign driver error:", error);
@@ -1356,7 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const setting = await storage.updateSystemSetting(
         req.params.key,
         value,
-        req.user!.id,
+        req.user!.id
       );
       res.json({ setting });
     } catch (error) {
@@ -1413,36 +1576,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(
           `📦 Received delivery status update from driver app:`,
-          statusUpdate,
+          statusUpdate
         );
 
         // Update order status in database
         const updatedOrder = await storage.updateOrderStatus(
           statusUpdate.orderId,
           statusUpdate.status,
-          statusUpdate.driverId,
+          statusUpdate.driverId
         );
 
         console.log(
-          `✅ Order ${statusUpdate.orderId} status updated to: ${statusUpdate.status}`,
+          `✅ Order ${statusUpdate.orderId} status updated to: ${statusUpdate.status}`
         );
 
         // If order is now in_transit and has OTP, send it to driver app
         if (statusUpdate.status === "in_transit" && updatedOrder.deliveryOtp) {
           console.log(
-            `📤 Order transitioned to in_transit - sending OTP to driver app`,
+            `📤 Order transitioned to in_transit - sending OTP to driver app`
           );
           console.log(
-            `🔐 Auto-generated OTP: ${updatedOrder.deliveryOtp} for order: ${updatedOrder.orderNumber}`,
+            `🔐 Auto-generated OTP: ${updatedOrder.deliveryOtp} for order: ${updatedOrder.orderNumber}`
           );
 
           const otpNotificationSuccess = await driverService.sendOtpToDriver(
             updatedOrder.orderNumber,
-            updatedOrder.deliveryOtp,
+            updatedOrder.deliveryOtp
           );
 
           console.log(
-            `📱 Driver OTP notification result: ${otpNotificationSuccess ? "SUCCESS" : "FAILED"}`,
+            `📱 Driver OTP notification result: ${
+              otpNotificationSuccess ? "SUCCESS" : "FAILED"
+            }`
           );
         }
 
@@ -1470,7 +1635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         res.status(500).json({ error: "Failed to update delivery status" });
       }
-    },
+    }
   );
 
   // Test endpoint for driver app to verify webhook connectivity

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -77,33 +77,13 @@ export default function OrderHistoryScreen() {
     }
   };
 
-  const reorderMutation = useMutation({
-    mutationFn: async (originalOrder: any) => {
-      const response = await apiRequest("POST", "/api/orders", {
-        quantity: originalOrder.quantity,
-        deliveryAddress: originalOrder.deliveryAddress,
-        deliveryLatitude: originalOrder.deliveryLatitude,
-        deliveryLongitude: originalOrder.deliveryLongitude,
-        scheduledDate: new Date().toISOString().split('T')[0],
-        scheduledTime: "09:00",
-      });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Order Created",
-        description: `New order ${data.order.orderNumber} created successfully`,
-      });
-      setLocation(`/payment/${data.order.id}`);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to reorder",
-        variant: "destructive",
-      });
-    },
-  });
+  const handleReorder = () => {
+    setLocation("/new-order");
+    toast({
+      title: "Redirecting to New Order",
+      description: "You can place a new order with your preferred details",
+    });
+  };
 
   if (!user) return null;
 
@@ -242,20 +222,13 @@ export default function OrderHistoryScreen() {
                         </Button>
                       )}
                       <Button
-                        onClick={() => reorderMutation.mutate(order)}
-                        disabled={reorderMutation.isPending}
+                        onClick={handleReorder}
                         variant="outline"
                         className="flex-1 border-primary text-primary text-sm font-medium ripple"
                         data-testid={`reorder-${order.id}`}
                       >
-                        {reorderMutation.isPending ? (
-                          <LoadingSpinner />
-                        ) : (
-                          <>
-                            <RefreshCw size={16} className="mr-1" />
-                            Reorder
-                          </>
-                        )}
+                        <RefreshCw size={16} className="mr-1" />
+                        Reorder
                       </Button>
                     </div>
                   </CardContent>

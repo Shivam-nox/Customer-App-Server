@@ -20,6 +20,11 @@ import NotificationsScreen from "@/pages/notifications";
 import AddressesScreen from "@/pages/addresses";
 import AnalysisScreen from "@/pages/analysis";
 import AdminSettingsScreen from "@/pages/admin-settings";
+import CancellationRefundsScreen from "@/pages/cancellation-refunds";
+import TermsConditionsScreen from "@/pages/terms-conditions";
+import ShippingPolicyScreen from "@/pages/shipping-policy";
+import PrivacyPolicyScreen from "@/pages/privacy-policy";
+import ContactUsScreen from "@/pages/contact-us";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,7 +39,7 @@ function Router() {
       <Route path="/splash" component={SplashScreen} />
       <Route path="/login" component={LoginScreen} />
       <Route path="/signup" component={SignupScreen} />
-      
+
       {user ? (
         <>
           <Route path="/kyc-upload" component={KycUploadScreen} />
@@ -48,6 +53,17 @@ function Router() {
           <Route path="/addresses" component={AddressesScreen} />
           <Route path="/analysis" component={AnalysisScreen} />
           <Route path="/admin/settings" component={AdminSettingsScreen} />
+
+          {/* Policy Pages */}
+          <Route
+            path="/cancellation-refunds"
+            component={CancellationRefundsScreen}
+          />
+          <Route path="/terms-conditions" component={TermsConditionsScreen} />
+          <Route path="/shipping-policy" component={ShippingPolicyScreen} />
+          <Route path="/privacy-policy" component={PrivacyPolicyScreen} />
+          <Route path="/contact-us" component={ContactUsScreen} />
+
           <Route path="/">
             <Redirect to="/home" />
           </Route>
@@ -59,7 +75,7 @@ function Router() {
           </Route>
         </>
       )}
-      
+
       <Route component={NotFound} />
     </Switch>
   );
