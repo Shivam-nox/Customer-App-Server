@@ -131,11 +131,8 @@ export default function ContactUsScreen() {
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
                     {" "}
-                    Om Chambers, 648/A, 4th Floor, Binnamangala
-                    <br />
-                    7th Sector HSR Layout
-                    <br />
-                    1st Stage, Indiranagar, Bangalore 560038 <br />
+                    Om Chambers, 648/A, 4th Floor, Binnamangala 1st Stage,
+                    Indiranagar, Bangalore 560038 <br />
                     India
                   </p>
                   <Button
@@ -144,7 +141,7 @@ export default function ContactUsScreen() {
                     className="mt-3"
                     onClick={() =>
                       window.open(
-                        "https://maps.google.com/?q=HSR+Layout+Bengaluru+Karnataka+560102"
+                        "https://www.google.com/maps/place/Om+Chambers/@12.9829835,77.6403575,17z/data=!3m1!4b1!4m6!3m5!1s0x3bae1745d457345b:0xb966b074f9f8ef2a!8m2!3d12.9829835!4d77.6403575!16s%2Fg%2F11gjn91jw6?entry=ttu&g_ep=EgoyMDI1MDkyMy4wIKXMDSoASAFQAw%3D%3D"
                       )
                     }
                   >

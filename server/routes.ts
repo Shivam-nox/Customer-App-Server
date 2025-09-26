@@ -513,22 +513,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "pending", // COD payments remain pending until delivery
         });
 
-        // Immediately confirm the order for COD
-        await storage.updateOrderStatus(orderId, "confirmed");
+        // Keep order as pending - will be confirmed when driver accepts
+        // COD orders follow the same flow: pending -> confirmed (driver accepts) -> in_transit -> delivered
 
         // Create notifications for COD
         await storage.createNotification({
           userId: req.user!.id,
-          title: "Order Confirmed (COD)",
-          message: `Your order #${order.orderNumber} has been confirmed. Pay ₹${order.totalAmount} when delivered.`,
+          title: "Order Placed (COD)",
+          message: `Your order #${order.orderNumber} has been placed. We're finding a driver for you. Pay ₹${order.totalAmount} when delivered.`,
           type: "order_update",
           orderId,
         });
 
         res.json({
           payment,
-          message: "Order confirmed with Cash on Delivery",
-          orderStatus: "confirmed",
+          message: "Order placed with Cash on Delivery",
+          orderStatus: "pending", // Order remains pending until driver accepts
         });
       } else {
         const payment = await storage.createPayment({
@@ -728,8 +728,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      // Update order status to confirmed
-      await storage.updateOrderStatus(orderId, "confirmed");
+      // Keep order status as pending - it will be confirmed when driver accepts
+      // Order status should only change to "confirmed" when driver accepts the order
 
       // Create notifications
       await storage.createNotification({
@@ -742,8 +742,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.createNotification({
         userId: req.user!.id,
-        title: "Order Confirmed",
-        message: `Your order #${order.orderNumber} has been confirmed and will be processed shortly.`,
+        title: "Payment Successful - Order Placed",
+        message: `Payment completed for order #${order.orderNumber}. We're finding a driver for you.`,
         type: "order_update",
         orderId: order.id,
       });
@@ -758,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         payment,
-        order: { ...order, status: "confirmed" },
+        order: { ...order, status: "pending" }, // Order remains pending until driver accepts
         message: "Payment verified successfully",
       });
     } catch (error) {

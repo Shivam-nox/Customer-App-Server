@@ -635,70 +635,11 @@ export default function PaymentScreen() {
         </Card>
 
         {/* Test Razorpay Button - Remove in production */}
-        <Button
-          onClick={async () => {
-            try {
-              // Test 1: Check if Razorpay SDK is loaded
-              // @ts-ignore
-              const sdkLoaded = typeof window.Razorpay !== 'undefined';
-              console.log('🔍 Razorpay SDK loaded:', sdkLoaded);
-              
-              if (!sdkLoaded) {
-                toast({
-                  title: "Razorpay SDK Not Loaded",
-                  description: "The Razorpay script failed to load. Check console for details.",
-                  variant: "destructive",
-                });
-                return;
-              }
-              
-              // Test 2: Check backend connection
-              console.log('🔗 Testing backend connection...');
-              const response = await fetch("/api/payments/razorpay/test", {
-                headers: { 
-                  "x-user-id": user?.id || "",
-                  "Content-Type": "application/json"
-                },
-              });
-              
-              console.log('📡 Response status:', response.status);
-              console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-              
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-              }
-              
-              const contentType = response.headers.get('content-type');
-              if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
-                console.error('❌ Expected JSON but got:', contentType, text.substring(0, 200));
-                throw new Error(`Server returned ${contentType} instead of JSON. Is the server running?`);
-              }
-              
-              const result = await response.json();
-              console.log('🧪 Backend test result:', result);
-              
-              toast({
-                title: result.success ? "✅ All Tests Passed" : "❌ Backend Test Failed",
-                description: result.success 
-                  ? "Razorpay SDK loaded & backend configured correctly" 
-                  : result.error,
-                variant: result.success ? "default" : "destructive",
-              });
-            } catch (error) {
-              console.error('❌ Test error:', error);
-              toast({
-                title: "Test Failed",
-                description: "Unable to test Razorpay connection",
-                variant: "destructive",
-              });
-            }
-          }}
-          variant="outline"
-          className="w-full mb-2"
-        >
-          🧪 Test Razorpay (SDK + Backend)
-        </Button>
+        <div className="space-y-2 mb-2">
+         
+          
+          
+        </div>
 
         <Button
           onClick={handlePayment}
