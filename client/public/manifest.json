@@ -7,18 +7,7 @@
   "orientation": "portrait",
   "theme_color": "#1976D2",
   "background_color": "#FFFFFF",
-  "icons": [
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMzIiIGZpbGw9IiMxOTc2RDIiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KPHN0eWxlPi5zdDB7ZmlsbDojZmZmZmZmO308L3N0eWxlPgo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNNSA0aDE0bDEgOGMwIDEuMy0yLjEgNS00LjcgMy4yLS4zLjEtLjYuMi0xIC40LS4yLjItLjUuNC0xLjEuM0wxMiAxNWMtLjYuMS0uOS0uMS0xLjEtLjNDOS41IDEzLjEgOCAxMi40IDcuMiAxM0w2IDE1Yy0uNi4xLS45LS4xLTEuMS0uM2MtLjQtLjItLjctLjMtMS0uNEM2LjEgMTcgNSAxNCA1IDEyLjVWNFoiLz4KPHN0eWxlPi5zdDF7ZmlsbDojMTk3NkQyO308L3N0eWxlPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNyA2aDEwdjJIN1Y2eiIvPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNyA5aDEwdjJIN1Y5eiIvPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNOSAxMmg2djJIOXYtMnoiLz4KPC9zdmc+Cg==",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
-    },
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iODQiIGZpbGw9IiMxOTc2RDIiLz4KPHN2ZyB4PSIxMjgiIHk9IjEyOCIgd2lkdGg9IjI1NiIgaGVpZ2h0PSIyNTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CjxzdHlsZT4uc3Qwe2ZpbGw6I2ZmZmZmZjt9PC9zdHlsZT4KPHN0eWxlPi5zdDF7ZmlsbDojMTk3NkQyO308L3N0eWxlPgo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNNSA0aDE0bDEgOGMwIDEuMy0yLjEgNS00LjcgMy4yLS4zLjEtLjYuMi0xIC40LS4yLjItLjUuNC0xLjEuM0wxMiAxNWMtLjYuMS0uOS0uMS0xLjEtLjNDOS41IDEzLjEgOCAxMi40IDcuMiAxM0w2IDE1Yy0uNi4xLS45LS4xLTEuMS0uM2MtLjQtLjItLjctLjMtMS0uNEM2LjEgMTcgNSAxNCA1IDEyLjVWNFoiLz4KPHN0eWxlPi5zdDF7ZmlsbDojMTk3NkQyO308L3N0eWxlPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNyA2aDEwdjJIN1Y2eiIvPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNyA5aDEwdjJIN1Y5eiIvPgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNOSAxMmg2djJIOXYtMnoiLz4KPC9zdmc+Cg==",
-      "sizes": "512x512",
-      "type": "image/svg+xml"
-    }
-  ],
+  "icons": [],
   "categories": ["business", "logistics", "fuel"],
   "lang": "en",
   "dir": "ltr"

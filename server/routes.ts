@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { driverService } from "./driverService";
 import { adminService } from "./adminService";
+import { razorpayService } from "./razorpayService";
 import { db } from "./db";
 import { orders } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -512,22 +513,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "pending", // COD payments remain pending until delivery
         });
 
-        // Immediately confirm the order for COD
-        await storage.updateOrderStatus(orderId, "confirmed");
+        // Keep order as pending - will be confirmed when driver accepts
+        // COD orders follow the same flow: pending -> confirmed (driver accepts) -> in_transit -> delivered
 
         // Create notifications for COD
         await storage.createNotification({
           userId: req.user!.id,
-          title: "Order Confirmed (COD)",
-          message: `Your order #${order.orderNumber} has been confirmed. Pay ₹${order.totalAmount} when delivered.`,
+          title: "Order Placed (COD)",
+          message: `Your order #${order.orderNumber} has been placed. We're finding a driver for you. Pay ₹${order.totalAmount} when delivered.`,
           type: "order_update",
           orderId,
         });
 
         res.json({
           payment,
-          message: "Order confirmed with Cash on Delivery",
-          orderStatus: "confirmed",
+          message: "Order placed with Cash on Delivery",
+          orderStatus: "pending", // Order remains pending until driver accepts
         });
       } else {
         const payment = await storage.createPayment({
@@ -588,6 +589,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get payment error:", error);
       res.status(500).json({ error: "Failed to get payment" });
+    }
+  });
+
+  // Razorpay test endpoint
+  app.get("/api/payments/razorpay/test", requireAuth, async (req, res) => {
+    try {
+      console.log("🧪 Testing Razorpay configuration...");
+
+      // Test creating a small order
+      const testOrder = await razorpayService.createOrder(
+        1,
+        "INR",
+        "test_order"
+      );
+
+      res.json({
+        success: true,
+        message: "Razorpay is configured correctly",
+        testOrderId: testOrder.id,
+        keyId: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (error) {
+      console.error("❌ Razorpay test failed:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Razorpay test failed",
+      });
+    }
+  });
+
+  // Razorpay payment routes
+  app.post(
+    "/api/payments/razorpay/create-order",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { orderId } = req.body;
+
+        if (!orderId) {
+          return res.status(400).json({ error: "Order ID is required" });
+        }
+
+        const order = await storage.getOrder(orderId);
+        if (!order || order.customerId !== req.user!.id) {
+          return res.status(404).json({ error: "Order not found" });
+        }
+
+        // Create Razorpay order
+        const razorpayOrder = await razorpayService.createOrder(
+          parseFloat(order.totalAmount),
+          "INR",
+          `order_${order.orderNumber}`
+        );
+
+        console.log(`💳 Razorpay order created:`, {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          amount: order.totalAmount,
+          razorpayOrderId: razorpayOrder.id,
+        });
+
+        res.json({
+          razorpayOrderId: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          keyId: process.env.RAZORPAY_KEY_ID,
+          orderDetails: {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+          },
+        });
+      } catch (error) {
+        console.error("Razorpay order creation error:", error);
+        res.status(500).json({ error: "Failed to create payment order" });
+      }
+    }
+  );
+
+  app.post("/api/payments/razorpay/verify", requireAuth, async (req, res) => {
+    try {
+      const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } =
+        req.body;
+
+      if (
+        !razorpayOrderId ||
+        !razorpayPaymentId ||
+        !razorpaySignature ||
+        !orderId
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Missing required payment verification data" });
+      }
+
+      // Verify signature
+      const isValidSignature = razorpayService.verifyPaymentSignature(
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature
+      );
+
+      if (!isValidSignature) {
+        console.error(`❌ Invalid Razorpay signature for order ${orderId}`);
+        return res.status(400).json({ error: "Invalid payment signature" });
+      }
+
+      // Get order details
+      const order = await storage.getOrder(orderId);
+      if (!order || order.customerId !== req.user!.id) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Get payment details from Razorpay
+      const paymentDetails = await razorpayService.getPaymentDetails(
+        razorpayPaymentId
+      );
+
+      // Create payment record in database
+      const payment = await storage.createPayment({
+        orderId: order.id,
+        customerId: req.user!.id,
+        amount: order.totalAmount,
+        method: (paymentDetails.method === "upi" || 
+                paymentDetails.method === "cards" || 
+                paymentDetails.method === "netbanking" || 
+                paymentDetails.method === "wallet") 
+                ? paymentDetails.method 
+                : "cards", // Default fallback
+        status: "completed",
+        transactionId: razorpayPaymentId,
+        gatewayResponse: {
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          paymentDetails,
+        },
+      });
+
+      // Keep order status as pending - it will be confirmed when driver accepts
+      // Order status should only change to "confirmed" when driver accepts the order
+
+      // Create notifications
+      await storage.createNotification({
+        userId: req.user!.id,
+        title: "Payment Successful",
+        message: `Payment of ₹${order.totalAmount} completed successfully for order #${order.orderNumber}`,
+        type: "payment",
+        orderId: order.id,
+      });
+
+      await storage.createNotification({
+        userId: req.user!.id,
+        title: "Payment Successful - Order Placed",
+        message: `Payment completed for order #${order.orderNumber}. We're finding a driver for you.`,
+        type: "order_update",
+        orderId: order.id,
+      });
+
+      console.log(`✅ Payment verified and order confirmed:`, {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paymentId: razorpayPaymentId,
+        amount: order.totalAmount,
+      });
+
+      res.json({
+        success: true,
+        payment,
+        order: { ...order, status: "pending" }, // Order remains pending until driver accepts
+        message: "Payment verified successfully",
+      });
+    } catch (error) {
+      console.error("Razorpay payment verification error:", error);
+      res.status(500).json({ error: "Payment verification failed" });
     }
   });
 
