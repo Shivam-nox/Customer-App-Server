@@ -146,7 +146,7 @@ export default function KycUploadScreen() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-gray-50"
+      className="min-h-screen bg-gray-50"
       data-testid="kyc-upload-screen"
     >
       <div className="flex items-center p-4 border-b bg-white">
@@ -164,7 +164,7 @@ export default function KycUploadScreen() {
         </h2>
       </div>
 
-      <div className="flex-1 p-4 pb-6">
+      <div className="p-4 pb-6">
         {/* Hero Section */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">

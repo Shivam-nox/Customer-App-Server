@@ -251,7 +251,7 @@ export default function ProfileScreen() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-gray-50"
+      className="min-h-screen bg-gray-50"
       data-testid="profile-screen"
     >
       <div className="flex items-center p-4 border-b bg-white">
@@ -269,7 +269,7 @@ export default function ProfileScreen() {
         </h2>
       </div>
 
-      <div className="flex-1 pb-20">
+      <div className="pb-20">
         <div className="p-4 space-y-4">
           {/* User Info */}
           <Card data-testid="user-info-card">

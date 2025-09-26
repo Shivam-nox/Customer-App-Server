@@ -44,21 +44,83 @@ export default function HomeScreen() {
   const recentOrders = orders.slice(0, 3);
   const unreadCount = notificationsData?.unreadCount || 0;
 
+  // Debug: Log the actual orders data
+  console.log("🏠 [HOME] Orders data:", {
+    totalOrders: orders.length,
+    orders: orders.slice(0, 3).map((order: any) => ({
+      id: order.id,
+      quantity: order.quantity,
+      status: order.status,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt,
+    })),
+  });
+
   // Calculate stats
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
+
+  // Filter orders for current month
   const monthlyOrders = orders.filter((order: any) => {
     const orderDate = new Date(order.createdAt);
-    return (
+    const isCurrentMonth =
       orderDate.getMonth() === currentMonth &&
-      orderDate.getFullYear() === currentYear
-    );
+      orderDate.getFullYear() === currentYear;
+    const isCompleted =
+      order.status === "delivered" 
+      // order.status === "confirmed" ||
+      // order.status === "in_transit" ||
+      // (order.status !== "cancelled" && order.status !== "pending");
+    return isCurrentMonth && isCompleted;
   });
-  const monthlyLiters = monthlyOrders.reduce(
-    (sum: number, order: any) => sum + order.quantity,
-    0,
+
+  // Calculate monthly liters from delivered orders
+  const monthlyLiters = monthlyOrders.reduce((sum: number, order: any) => {
+    const quantity = parseInt(order.quantity) || 0;
+    return sum + quantity;
+  }, 0);
+
+  // Calculate total savings for all delivered orders (₹7 per liter)
+  // Try delivered first, then fall back to any completed orders
+  let completedOrders = orders.filter(
+    (order: any) => order.status === "delivered"
   );
-  const totalSaved = monthlyOrders.length * 500; // Estimated savings
+  if (completedOrders?.length === 0) {
+    // Fallback to other completed statuses if no "delivered" orders
+    completedOrders = orders.filter(
+      (order: any) =>
+        order.status === "confirmed" ||
+        order.status === "in_transit" ||
+        (order.status !== "cancelled" && order.status !== "pending")
+    );
+  }
+
+  const totalLitersDelivered = completedOrders.reduce(
+    (sum: number, order: any) => {
+      const quantity = parseInt(order.quantity) || 0;
+      return sum + quantity;
+    },
+    0
+  );
+  const totalSaved = totalLitersDelivered * 7; // ₹7 savings per liter
+
+  // Debug: Log the calculations
+  console.log("🏠 [HOME] Calculations:", {
+    allOrdersCount: orders.length,
+    completedOrdersCount: completedOrders.length,
+    monthlyOrdersCount: monthlyOrders.length,
+    monthlyLiters,
+    totalLitersDelivered,
+    totalSaved,
+    completedOrders: completedOrders.map((order: any) => ({
+      id: order.id,
+      quantity: order.quantity,
+      quantityParsed: parseInt(order.quantity),
+      status: order.status,
+      totalAmount: order.totalAmount,
+    })),
+    orderStatuses: Array.from(new Set(orders.map((order:any) => order.status))),
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -89,10 +151,7 @@ export default function HomeScreen() {
   if (!user) return null;
 
   return (
-    <div
-      className="min-h-screen flex flex-col bg-gray-50"
-      data-testid="home-screen"
-    >
+    <div className="min-h-screen bg-gray-50" data-testid="home-screen">
       {/* Header */}
       <div className="zapygo-gradient text-white p-4">
         <div className="flex items-center justify-between mb-4">
@@ -146,7 +205,7 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      <div className="flex-1 pb-20">
+      <div className="pb-20">
         {/* Location Selection at top */}
         <div className="p-4 pb-0">
           <LocationSelector />
@@ -236,7 +295,9 @@ export default function HomeScreen() {
               {recentOrders.map((order: any) => (
                 <Card
                   key={order.id}
-                  className={`shadow-sm border-l-4 ${getStatusBorder(order.status)}`}
+                  className={`shadow-sm border-l-4 ${getStatusBorder(
+                    order.status
+                  )}`}
                   data-testid={`order-${order.id}`}
                 >
                   <CardContent className="p-4">

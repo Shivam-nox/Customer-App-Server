@@ -86,7 +86,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <div className="max-w-sm mx-auto bg-surface shadow-xl min-h-screen mobile-container relative overflow-hidden">
+          <div className="max-w-sm mx-auto bg-surface shadow-xl min-h-screen mobile-container relative overflow-y-auto">
             <Toaster />
             <Router />
           </div>
