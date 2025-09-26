@@ -71,6 +71,7 @@ export default function AnalysisScreen() {
   });
 
   const data = analysisData;
+  const zapygoPrice=data?.costs?.marketPrice-7;
 
   if (!user) return null;
 
@@ -189,7 +190,7 @@ export default function AnalysisScreen() {
                         <div>
                           <p className="text-sm text-gray-600">Total Savings</p>
                           <p className="text-2xl font-bold text-green-600">
-                            ₹{data.costs.totalSavings.toLocaleString()}
+                            ₹{data.consumption.totalLiters*7}
                           </p>
                         </div>
                         <IndianRupee className="text-green-600" size={24} />
@@ -250,7 +251,7 @@ export default function AnalysisScreen() {
                           Zapygo Price per Litre:
                         </span>
                         <span className="font-semibold">
-                          ₹{data.costs.averagePerLiter}
+                          ₹{zapygoPrice}
                         </span>
                       </div>
                       <div className="border-t border-green-200 pt-2">
@@ -259,7 +260,7 @@ export default function AnalysisScreen() {
                             You Save per Litre:
                           </span>
                           <span className="text-xl font-bold text-green-600">
-                            ₹{data.costs.savingsPerLiter}
+                            ₹{data.costs.marketPrice-zapygoPrice}
                           </span>
                         </div>
                       </div>
@@ -399,17 +400,17 @@ export default function AnalysisScreen() {
                       </div>
                       <div className="flex justify-between">
                         <span>Zapygo Rate:</span>
-                        <span>₹{data.costs.averagePerLiter}/L</span>
+                        <span>₹{zapygoPrice}/L</span>
                       </div>
                       <div className="border-t border-green-300 pt-2">
                         <div className="flex justify-between font-semibold text-green-700">
                           <span>Savings per Litre:</span>
-                          <span>₹{data.costs.savingsPerLiter}</span>
+                          <span>₹{data.costs.marketPrice-zapygoPrice}</span>
                         </div>
                         <div className="flex justify-between font-bold text-green-800 text-lg">
                           <span>Total Savings:</span>
                           <span>
-                            ₹{data.costs.totalSavings.toLocaleString()}
+                            ₹{data.consumption.totalLiters*7}
                           </span>
                         </div>
                       </div>

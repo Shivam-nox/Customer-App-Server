@@ -67,10 +67,10 @@ export default function HomeScreen() {
       orderDate.getMonth() === currentMonth &&
       orderDate.getFullYear() === currentYear;
     const isCompleted =
-      order.status === "delivered" ||
-      order.status === "confirmed" ||
-      order.status === "in_transit" ||
-      (order.status !== "cancelled" && order.status !== "pending");
+      order.status === "delivered" 
+      // order.status === "confirmed" ||
+      // order.status === "in_transit" ||
+      // (order.status !== "cancelled" && order.status !== "pending");
     return isCurrentMonth && isCompleted;
   });
 
@@ -85,7 +85,7 @@ export default function HomeScreen() {
   let completedOrders = orders.filter(
     (order: any) => order.status === "delivered"
   );
-  if (completedOrders.length === 0) {
+  if (completedOrders?.length === 0) {
     // Fallback to other completed statuses if no "delivered" orders
     completedOrders = orders.filter(
       (order: any) =>
