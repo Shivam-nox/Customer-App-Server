@@ -130,6 +130,156 @@ export default function PaymentScreen() {
     },
   });
 
+  // Razorpay payment processing
+  const processRazorpayPayment = async (finalOrderId: string) => {
+    try {
+      console.log('🔄 Starting Razorpay payment for order:', finalOrderId);
+      
+      // Check if Razorpay is loaded
+      // @ts-ignore
+      if (typeof window.Razorpay === 'undefined') {
+        console.error('❌ Razorpay SDK not found on window object');
+        console.log('Available on window:', Object.keys(window).filter(key => key.toLowerCase().includes('razor')));
+        
+        // Try to load Razorpay dynamically
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+        
+        // Wait a bit for the script to initialize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // @ts-ignore
+        if (typeof window.Razorpay === 'undefined') {
+          throw new Error('Failed to load Razorpay SDK dynamically');
+        }
+      }
+      
+      // Create Razorpay order
+      console.log('📤 Creating Razorpay order...');
+      const response = await apiRequest("POST", "/api/payments/razorpay/create-order", {
+        orderId: finalOrderId,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create payment order');
+      }
+      
+      const { razorpayOrderId, amount, currency, keyId, orderDetails } = await response.json();
+      console.log('✅ Razorpay order created:', { razorpayOrderId, amount, currency });
+
+      // Initialize Razorpay checkout
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: "Zapygo",
+        description: `Fuel Order #${orderDetails.orderNumber}`,
+        order_id: razorpayOrderId,
+        prefill: {
+          name: user?.name || "",
+          email: user?.email || "",
+          contact: user?.phone || "",
+        },
+        theme: {
+          color: "#1976D2",
+        },
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true,
+        },
+        config: {
+          display: {
+            blocks: {
+              utib: { // Axis Bank
+                name: "Pay using Axis Bank",
+                instruments: [
+                  { method: "card" },
+                  { method: "netbanking" }
+                ]
+              },
+              other: { // Other payment methods
+                name: "Other Payment Methods",
+                instruments: [
+                  { method: "card" },
+                  { method: "netbanking" },
+                  { method: "upi" },
+                  { method: "wallet" }
+                ]
+              }
+            },
+            hide: [
+              { method: "emi" }
+            ],
+            sequence: ["block.utib", "block.other"],
+            preferences: {
+              show_default_blocks: true
+            }
+          }
+        },
+        handler: async function (response: any) {
+          try {
+            // Verify payment on backend
+            const verifyResponse = await apiRequest("POST", "/api/payments/razorpay/verify", {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              orderId: finalOrderId,
+            });
+
+            const result = await verifyResponse.json();
+            
+            if (result.success) {
+              toast({
+                title: "Payment Successful",
+                description: "Your order has been confirmed and will be processed shortly",
+              });
+              setLocation(`/track-order/${finalOrderId}`);
+            } else {
+              throw new Error("Payment verification failed");
+            }
+          } catch (error) {
+            console.error("Payment verification error:", error);
+            toast({
+              title: "Payment Verification Failed",
+              description: "Please contact support if amount was deducted",
+              variant: "destructive",
+            });
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            toast({
+              title: "Payment Cancelled",
+              description: "You can retry payment anytime from order details",
+              variant: "destructive",
+            });
+          },
+        },
+      };
+
+      console.log('🚀 Opening Razorpay checkout with options:', options);
+      
+      // @ts-ignore - Razorpay is loaded via script tag
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("❌ Razorpay payment error:", error);
+      toast({
+        title: "Payment Failed",
+        description: error instanceof Error ? error.message : "Unable to process payment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handlePayment = () => {
     if (!selectedMethod) {
       toast({
@@ -145,12 +295,53 @@ export default function PaymentScreen() {
       createOrderAndPaymentMutation.mutate({
         method: selectedMethod,
       });
+    } else if (selectedMethod === "upi" || selectedMethod === "cards" || selectedMethod === "netbanking" || selectedMethod === "wallet") {
+      // For Razorpay payment methods, first create the order then process payment
+      if (isNewOrder && pendingOrderData) {
+        // Create order first, then process Razorpay payment
+        const createOrderMutation = async () => {
+          try {
+            const fullAddress = `${pendingOrderData.address.addressLine1}${pendingOrderData.address.addressLine2 ? ", " + pendingOrderData.address.addressLine2 : ""}${pendingOrderData.address.landmark ? ", Near " + pendingOrderData.address.landmark : ""}, ${pendingOrderData.address.area}, ${pendingOrderData.address.city}, ${pendingOrderData.address.state} - ${pendingOrderData.address.pincode}`;
+
+            const orderResponse = await apiRequest("POST", "/api/orders", {
+              quantity: pendingOrderData.quantity,
+              deliveryAddress: fullAddress,
+              deliveryAddressId: pendingOrderData.address.id,
+              scheduledDate: pendingOrderData.deliveryDate,
+              scheduledTime: pendingOrderData.deliveryTime,
+              deliveryLatitude: pendingOrderData.address.latitude
+                ? parseFloat(pendingOrderData.address.latitude)
+                : undefined,
+              deliveryLongitude: pendingOrderData.address.longitude
+                ? parseFloat(pendingOrderData.address.longitude)
+                : undefined,
+            });
+            const orderResult = await orderResponse.json();
+            
+            // Clear pending order data
+            localStorage.removeItem("pendingOrderData");
+            
+            // Process Razorpay payment
+            await processRazorpayPayment(orderResult.order.id);
+          } catch (error) {
+            console.error("Order creation error:", error);
+            toast({
+              title: "Order Creation Failed",
+              description: "Unable to create order. Please try again.",
+              variant: "destructive",
+            });
+          }
+        };
+        
+        createOrderMutation();
+      } else {
+        // For existing orders, directly process Razorpay payment
+        processRazorpayPayment(orderId);
+      }
     } else {
-      // Show popup for other payment methods
       toast({
         title: "Payment Method Not Available",
-        description:
-          "This payment method is not supported yet. Please select Cash on Delivery.",
+        description: "This payment method is not supported yet.",
         variant: "destructive",
       });
     }
@@ -251,45 +442,46 @@ export default function PaymentScreen() {
       description: "Pay when your order is delivered",
       icon: HandCoins,
       color: "text-green-600",
-      preferred: true,
+      preferred: false,
     },
     {
       id: "upi",
       name: "UPI Payment",
-      description: "Pay using any UPI app (Coming Soon)",
+      description: "Pay using any UPI app",
       icon: Smartphone,
-      color: "text-purple-400",
-      disabled: true,
+      color: "text-purple-600",
+      disabled: false,
+      preferred: true,
     },
     {
       id: "cards",
       name: "Credit/Debit Cards",
-      description: "Visa, MasterCard, RuPay (Coming Soon)",
+      description: "Visa, MasterCard, RuPay",
       icon: CreditCard,
-      color: "text-blue-400",
-      disabled: true,
+      color: "text-blue-600",
+      disabled: false,
     },
     {
       id: "netbanking",
       name: "Net Banking",
-      description: "All major banks supported (Coming Soon)",
+      description: "All major banks supported",
       icon: Building2,
-      color: "text-gray-400",
-      disabled: true,
+      color: "text-gray-600",
+      disabled: false,
     },
     {
       id: "wallet",
       name: "Mobile Wallets",
-      description: "Paytm, PhonePe, Mobikwik (Coming Soon)",
+      description: "Paytm, PhonePe, Mobikwik",
       icon: Wallet,
-      color: "text-orange-400",
-      disabled: true,
+      color: "text-orange-600",
+      disabled: false,
     },
   ];
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-gray-50"
+      className="min-h-screen bg-gray-50"
       data-testid="payment-screen"
     >
       <div className="flex items-center p-4 border-b bg-white">
@@ -306,7 +498,7 @@ export default function PaymentScreen() {
           Payment
         </h2>
       </div>
-      <div className="flex-1 p-4 space-y-4">
+      <div className="p-4 pb-6 space-y-4">
         {/* Order Summary */}
         <Card data-testid="order-summary">
           <CardContent className="p-4">
@@ -441,6 +633,72 @@ export default function PaymentScreen() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Test Razorpay Button - Remove in production */}
+        <Button
+          onClick={async () => {
+            try {
+              // Test 1: Check if Razorpay SDK is loaded
+              // @ts-ignore
+              const sdkLoaded = typeof window.Razorpay !== 'undefined';
+              console.log('🔍 Razorpay SDK loaded:', sdkLoaded);
+              
+              if (!sdkLoaded) {
+                toast({
+                  title: "Razorpay SDK Not Loaded",
+                  description: "The Razorpay script failed to load. Check console for details.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
+              // Test 2: Check backend connection
+              console.log('🔗 Testing backend connection...');
+              const response = await fetch("/api/payments/razorpay/test", {
+                headers: { 
+                  "x-user-id": user?.id || "",
+                  "Content-Type": "application/json"
+                },
+              });
+              
+              console.log('📡 Response status:', response.status);
+              console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              const contentType = response.headers.get('content-type');
+              if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('❌ Expected JSON but got:', contentType, text.substring(0, 200));
+                throw new Error(`Server returned ${contentType} instead of JSON. Is the server running?`);
+              }
+              
+              const result = await response.json();
+              console.log('🧪 Backend test result:', result);
+              
+              toast({
+                title: result.success ? "✅ All Tests Passed" : "❌ Backend Test Failed",
+                description: result.success 
+                  ? "Razorpay SDK loaded & backend configured correctly" 
+                  : result.error,
+                variant: result.success ? "default" : "destructive",
+              });
+            } catch (error) {
+              console.error('❌ Test error:', error);
+              toast({
+                title: "Test Failed",
+                description: "Unable to test Razorpay connection",
+                variant: "destructive",
+              });
+            }
+          }}
+          variant="outline"
+          className="w-full mb-2"
+        >
+          🧪 Test Razorpay (SDK + Backend)
+        </Button>
 
         <Button
           onClick={handlePayment}
