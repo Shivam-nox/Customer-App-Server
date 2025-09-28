@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -14,44 +14,29 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  PieChart,
-  Calendar,
   Fuel,
   IndianRupee,
   Award,
   Target,
-  Zap,
 } from "lucide-react";
 
-interface AnalysisData {
-  consumption: {
-    totalLiters: number;
-    monthlyAverage: number;
-    lastMonthLiters: number;
-    trend: "up" | "down" | "stable";
-    trendPercentage: number;
-  };
-  costs: {
-    totalSpent: number;
-    averagePerLiter: number;
-    lastMonthSpent: number;
-    marketPrice: number;
-    savingsPerLiter: number;
-    totalSavings: number;
-  };
-  quality: {
-    rating: number;
-    deliverySuccess: number;
-    onTimeDelivery: number;
-    qualityScore: number;
-  };
-  orders: {
-    totalOrders: number;
-    completedOrders: number;
-    averageOrderSize: number;
-    frequentDeliveryTime: string;
-  };
-}
+/**
+ * Analysis Page - All data is dynamic and comes from backend API
+ *
+ * Data Sources:
+ * - consumption.totalLiters: Sum of all delivered orders' quantities
+ * - consumption.monthlyAverage: totalLiters divided by selected period months
+ * - consumption.trend: Compares last month to monthly average (±10% threshold)
+ * - costs.totalSpent: Sum of all delivered orders' total amounts
+ * - costs.averagePerLiter: totalSpent divided by totalLiters
+ * - quality.deliverySuccess: (completed orders / total orders) * 100
+ * - quality.qualityScore: Average of delivery success and on-time delivery rates
+ * - orders.averageOrderSize: totalLiters divided by number of completed orders
+ * - orders.frequentDeliveryTime: Most common scheduled time from completed orders
+ *
+ * All calculations are done server-side in /api/analysis endpoint
+ * Only delivered orders are counted for meaningful analysis
+ */
 
 export default function AnalysisScreen() {
   const [, setLocation] = useLocation();
@@ -71,7 +56,6 @@ export default function AnalysisScreen() {
   });
 
   const data = analysisData;
-  const zapygoPrice=data?.costs?.marketPrice-7;
 
   if (!user) return null;
 
@@ -95,10 +79,7 @@ export default function AnalysisScreen() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50"
-      data-testid="analysis-screen"
-    >
+    <div className="min-h-screen bg-gray-50" data-testid="analysis-screen">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center">
@@ -188,12 +169,12 @@ export default function AnalysisScreen() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600">Total Savings</p>
-                          <p className="text-2xl font-bold text-green-600">
-                            ₹{data.consumption.totalLiters*7}
+                          <p className="text-sm text-gray-600">Total Spent</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            ₹{data.costs.totalSpent.toLocaleString()}
                           </p>
                         </div>
-                        <IndianRupee className="text-green-600" size={24} />
+                        <IndianRupee className="text-blue-600" size={24} />
                       </div>
                     </CardContent>
                   </Card>
@@ -228,41 +209,39 @@ export default function AnalysisScreen() {
                   </Card>
                 </div>
 
-                {/* Savings Highlight */}
-                <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                {/* Summary Card */}
+                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-green-800">
-                      <Zap className="text-green-600" size={20} />
-                      Your Savings with Zapygo
+                    <CardTitle className="flex items-center gap-2 text-blue-800">
+                      <BarChart3 className="text-blue-600" size={20} />
+                      Your Fuel Journey Summary
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-green-700">
-                          Market Price per Litre:
+                        <span className="text-blue-700">
+                          Average Order Size:
                         </span>
                         <span className="font-semibold">
-                          ₹{data.costs.marketPrice}
+                          {data.orders.averageOrderSize}L
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-green-700">
-                          Zapygo Price per Litre:
+                        <span className="text-blue-700">
+                          Monthly Average Consumption:
                         </span>
                         <span className="font-semibold">
-                          ₹{zapygoPrice}
+                          {data.consumption.monthlyAverage}L
                         </span>
                       </div>
-                      <div className="border-t border-green-200 pt-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-green-800 font-medium">
-                            You Save per Litre:
-                          </span>
-                          <span className="text-xl font-bold text-green-600">
-                            ₹{data.costs.marketPrice-zapygoPrice}
-                          </span>
-                        </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-700">
+                          Preferred Delivery Time:
+                        </span>
+                        <span className="font-semibold">
+                          {formatTimeSlot(data.orders.frequentDeliveryTime)}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -304,40 +283,64 @@ export default function AnalysisScreen() {
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">Monthly Average</p>
                       <p className="text-3xl font-bold">
-                        {data.consumption.monthlyAverage} L
+                        {data.consumption.monthlyAverage || 0} L
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Based on {selectedPeriod.replace(/(\d+)/, "$1 ")} of
+                        data
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
-                    {data.consumption.trend === "up" ? (
-                      <TrendingUp className="text-blue-600" size={20} />
-                    ) : (
-                      <TrendingDown className="text-green-600" size={20} />
-                    )}
-                    <span className="text-sm">
-                      {data.consumption.trend === "up"
-                        ? "Increased"
-                        : "Decreased"}{" "}
-                      by{" "}
-                      <span className="font-semibold">
-                        {data.consumption.trendPercentage}%
-                      </span>{" "}
-                      from last month
-                    </span>
-                  </div>
+                  {data.consumption.trend !== "stable" && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                      {data.consumption.trend === "up" ? (
+                        <TrendingUp className="text-blue-600" size={20} />
+                      ) : (
+                        <TrendingDown className="text-green-600" size={20} />
+                      )}
+                      <span className="text-sm">
+                        Consumption{" "}
+                        {data.consumption.trend === "up"
+                          ? "increased"
+                          : "decreased"}{" "}
+                        by{" "}
+                        <span className="font-semibold">
+                          {data.consumption.trendPercentage}%
+                        </span>{" "}
+                        compared to monthly average
+                      </span>
+                    </div>
+                  )}
+
+                  {data.consumption.trend === "stable" && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                      <BarChart3 className="text-gray-600" size={20} />
+                      <span className="text-sm text-gray-600">
+                        Your consumption pattern is stable and consistent
+                      </span>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Average Order Size:</span>
                       <span className="font-semibold">
-                        {data.orders.averageOrderSize} L
+                        {data.orders.averageOrderSize || 0} L
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Most Frequent Delivery Time:</span>
                       <span className="font-semibold">
-                        {formatTimeSlot(data.orders.frequentDeliveryTime)}
+                        {data.orders.frequentDeliveryTime === "Not available"
+                          ? "Not available"
+                          : formatTimeSlot(data.orders.frequentDeliveryTime)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Last Month Consumption:</span>
+                      <span className="font-semibold">
+                        {data.consumption.lastMonthLiters || 0} L
                       </span>
                     </div>
                   </div>
@@ -389,49 +392,31 @@ export default function AnalysisScreen() {
                     </div>
                   </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h4 className="font-semibold text-green-800 mb-3">
-                      💰 Your Savings Breakdown
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-blue-800 mb-3">
+                      💰 Your Spending Pattern
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span>Market Rate:</span>
-                        <span>₹{data.costs.marketPrice}/L</span>
+                        <span>Average Cost per Litre:</span>
+                        <span className="font-semibold">
+                          ₹{data.costs.averagePerLiter}
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Zapygo Rate:</span>
-                        <span>₹{zapygoPrice}/L</span>
+                        <span>Last Month Spending:</span>
+                        <span className="font-semibold">
+                          ₹{data.costs.lastMonthSpent.toLocaleString()}
+                        </span>
                       </div>
-                      <div className="border-t border-green-300 pt-2">
-                        <div className="flex justify-between font-semibold text-green-700">
-                          <span>Savings per Litre:</span>
-                          <span>₹{data.costs.marketPrice-zapygoPrice}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-green-800 text-lg">
-                          <span>Total Savings:</span>
-                          <span>
-                            ₹{data.consumption.totalLiters*7}
-                          </span>
+                      <div className="border-t border-blue-300 pt-2">
+                        <div className="flex justify-between font-bold text-blue-800 text-lg">
+                          <span>Total Investment:</span>
+                          <span>₹{data.costs.totalSpent.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  {data.costs.totalSavings > 0 && (
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-700">
-                        🎉 You've saved enough to buy{" "}
-                        <span className="font-bold">
-                          {Math.floor(
-                            data.costs.totalSavings /
-                              (data.costs.averagePerLiter || 1)
-                          )}{" "}
-                          litres
-                        </span>{" "}
-                        of free fuel!
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             )}
@@ -518,15 +503,19 @@ export default function AnalysisScreen() {
                     </div>
                   </div>
 
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <h4 className="font-semibold text-yellow-800 mb-2">
-                      📊 Performance Summary
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-blue-800 mb-2">
+                      📊 Service Performance Summary
                     </h4>
-                    <p className="text-sm text-yellow-700">
-                      Your service experience has been excellent with{" "}
-                      {data.orders.completedOrders} successful deliveries out of{" "}
-                      {data.orders.totalOrders} orders. Keep up the great
-                      partnership with Zapygo!
+                    <p className="text-sm text-blue-700">
+                      {data.orders.completedOrders === data.orders.totalOrders
+                        ? `Perfect record! All ${data.orders.totalOrders} orders delivered successfully.`
+                        : `${data.orders.completedOrders} successful deliveries out of ${data.orders.totalOrders} orders placed.`}
+                      {data.quality.deliverySuccess >= 95
+                        ? " Excellent service reliability!"
+                        : data.quality.deliverySuccess >= 80
+                        ? " Good service performance."
+                        : " We're working to improve our service quality."}
                     </p>
                   </div>
                 </CardContent>
@@ -535,7 +524,7 @@ export default function AnalysisScreen() {
           </TabsContent>
         </Tabs>
       </div>
-      
+
       <BottomNav activeTab="analytics" />
     </div>
   );

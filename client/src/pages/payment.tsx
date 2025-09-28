@@ -197,30 +197,9 @@ export default function PaymentScreen() {
         },
         config: {
           display: {
-            blocks: {
-              utib: { // Axis Bank
-                name: "Pay using Axis Bank",
-                instruments: [
-                  { method: "card" },
-                  { method: "netbanking" }
-                ]
-              },
-              other: { // Other payment methods
-                name: "Other Payment Methods",
-                instruments: [
-                  { method: "card" },
-                  { method: "netbanking" },
-                  { method: "upi" },
-                  { method: "wallet" }
-                ]
-              }
-            },
-            hide: [
-              { method: "emi" }
-            ],
-            sequence: ["block.utib", "block.other"],
+            sequence: ['block.upi', 'block.card', 'block.netbanking', 'block.wallet'],
             preferences: {
-              show_default_blocks: true
+              show_default_blocks: true,
             }
           }
         },
@@ -255,6 +234,7 @@ export default function PaymentScreen() {
           }
         },
         modal: {
+          confirm_close: true,
           ondismiss: function () {
             toast({
               title: "Payment Cancelled",
@@ -269,6 +249,18 @@ export default function PaymentScreen() {
       
       // @ts-ignore - Razorpay is loaded via script tag
       const rzp = new window.Razorpay(options);
+      
+      // Add event listeners to debug what methods are available
+      rzp.on('payment.success', function (response: any) {
+        console.log('✅ Payment successful:', response);
+      });
+      
+      rzp.on('payment.error', function (response: any) {
+        console.log('❌ Payment error:', response);
+      });
+      
+      // Log available payment methods (if accessible)
+      console.log('💳 Razorpay instance created, opening checkout...');
       rzp.open();
     } catch (error) {
       console.error("❌ Razorpay payment error:", error);
@@ -636,9 +628,79 @@ export default function PaymentScreen() {
 
         {/* Test Razorpay Button - Remove in production */}
         <div className="space-y-2 mb-2">
-         
+          <Button
+            onClick={async () => {
+              try {
+                // Test 1: Check if Razorpay SDK is loaded
+                // @ts-ignore
+                const sdkLoaded = typeof window.Razorpay !== 'undefined';
+                console.log('🔍 Razorpay SDK loaded:', sdkLoaded);
+                
+                if (!sdkLoaded) {
+                  toast({
+                    title: "Razorpay SDK Not Loaded",
+                    description: "The Razorpay script failed to load. Check console for details.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                // Test 2: Check backend connection
+                console.log('🔗 Testing backend connection...');
+                const response = await fetch("/api/payments/razorpay/test", {
+                  headers: { 
+                    "x-user-id": user?.id || "",
+                    "Content-Type": "application/json"
+                  },
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('🧪 Backend test result:', result);
+                
+                toast({
+                  title: result.success ? "✅ All Tests Passed" : "❌ Backend Test Failed",
+                  description: result.success 
+                    ? "Razorpay SDK loaded & backend configured correctly" 
+                    : result.error,
+                  variant: result.success ? "default" : "destructive",
+                });
+              } catch (error) {
+                console.error('❌ Test error:', error);
+                toast({
+                  title: "Test Failed",
+                  description: "Unable to test Razorpay connection",
+                  variant: "destructive",
+                });
+              }
+            }}
+            variant="outline"
+            className="w-full"
+          >
+            🧪 Test Razorpay (SDK + Backend)
+          </Button>
           
-          
+          <Button
+            onClick={() => {
+              console.log('🔍 UPI Test Mode Info:');
+              console.log('• Test mode has limited UPI simulation');
+              console.log('• UPI will definitely work in production with live keys');
+              console.log('• Current environment:', process.env.NODE_ENV);
+              console.log('• Razorpay key type:', process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_') ? 'TEST' : 'LIVE');
+              
+              toast({
+                title: "UPI in Test Mode",
+                description: "UPI has limited availability in test mode. It will work fully in production with live keys. Check console for details.",
+              });
+            }}
+            variant="outline"
+            className="w-full"
+          >
+            🔍 Why No UPI in Test Mode?
+          </Button>
         </div>
 
         <Button
