@@ -27,7 +27,24 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { geocodeAddress, buildAddressString } from "@/lib/geocoding";
-import { Plus, MapPin, Edit, Trash2, Star, Loader2 } from "lucide-react";
+import {
+  getCurrentLocation,
+  reverseGeocode,
+  isWithinBangalore,
+  getLocationErrorMessage,
+  type LocationError,
+} from "@/lib/location";
+import {
+  Plus,
+  MapPin,
+  Edit,
+  Trash2,
+  Star,
+  Loader2,
+  Navigation,
+  AlertCircle,
+} from "lucide-react";
+import LocationPermissionHelper from "./LocationPermissionHelper";
 
 const addressSchema = z.object({
   label: z.string().min(1, "Address label is required"),
@@ -118,6 +135,8 @@ export default function AddressManager({
   const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(
     null
   );
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [showLocationHelper, setShowLocationHelper] = useState(false);
 
   const form = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
@@ -236,6 +255,61 @@ export default function AddressManager({
     createAddressMutation.mutate(data);
   };
 
+  // Location detection handler
+  const handleDetectLocation = async () => {
+    setIsDetectingLocation(true);
+
+    try {
+      // Get current location
+      const coordinates = await getCurrentLocation();
+
+      // Check if location is within Bangalore
+      if (!isWithinBangalore(coordinates)) {
+        toast({
+          title: "Location Outside Service Area",
+          description:
+            "We currently only serve in Bangalore. Please enter address manually.",
+          variant: "destructive",
+        });
+        setIsDetectingLocation(false);
+        return;
+      }
+
+      // Reverse geocode to get address
+      const addressComponents = await reverseGeocode(coordinates);
+
+      // Fill form with detected address
+      form.setValue("addressLine1", addressComponents.addressLine1);
+      form.setValue("addressLine2", addressComponents.addressLine2);
+      form.setValue("landmark", addressComponents.landmark);
+      form.setValue("area", addressComponents.area);
+      form.setValue("city", "Bangalore");
+      form.setValue("state", "Karnataka");
+      form.setValue("pincode", addressComponents.pincode || "");
+
+      toast({
+        title: "Location Detected Successfully! 📍",
+        description:
+          "Address fields have been filled. Please review and edit if needed.",
+      });
+    } catch (error) {
+      const locationError = error as LocationError;
+
+      // Show permission helper for permission denied errors
+      if (locationError.type === "PERMISSION_DENIED") {
+        setShowLocationHelper(true);
+      } else {
+        toast({
+          title: "Location Detection Failed",
+          description: getLocationErrorMessage(locationError),
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
   const handleEditAddress = (address: CustomerAddress) => {
     setEditingAddress(address);
     form.reset({
@@ -282,6 +356,63 @@ export default function AddressManager({
             </DialogHeader>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Location Permission Helper */}
+              {showLocationHelper && (
+                <LocationPermissionHelper
+                  onPermissionGranted={() => {
+                    setShowLocationHelper(false);
+                    handleDetectLocation();
+                  }}
+                />
+              )}
+
+              {/* Location Detection Button */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="text-blue-600" size={20} />
+                    <span className="font-medium text-blue-800">
+                      Quick Fill
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDetectLocation}
+                    disabled={isDetectingLocation}
+                    className="bg-white hover:bg-blue-50"
+                  >
+                    {isDetectingLocation ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Detecting...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-4 h-4 mr-2" />
+                        Use My Location
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-sm text-blue-700">
+                  Click "Use My Location" to automatically fill address details
+                  using GPS
+                  {isDetectingLocation && (
+                    <span className="block mt-1 text-blue-600 font-medium">
+                      🔍 Detecting your location and fetching address details...
+                    </span>
+                  )}
+                </p>
+                {navigator.permissions && (
+                  <div className="mt-2 text-xs text-blue-600">
+                    💡 Make sure location permissions are enabled for accurate
+                    detection
+                  </div>
+                )}
+              </div>
+
               {/* Address Label */}
               <div>
                 <Label htmlFor="label">Address Label *</Label>
@@ -314,11 +445,16 @@ export default function AddressManager({
               {/* Address Line 1 */}
               <div>
                 <Label htmlFor="addressLine1">Address Line 1 *</Label>
-                <Input
-                  {...form.register("addressLine1")}
-                  placeholder="Building name, floor, etc."
-                  data-testid="address-line1-input"
-                />
+                <div className="relative">
+                  <Input
+                    {...form.register("addressLine1")}
+                    placeholder="Building name, floor, etc."
+                    data-testid="address-line1-input"
+                  />
+                  {form.watch("addressLine1") && (
+                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
+                  )}
+                </div>
                 {form.formState.errors.addressLine1 && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.addressLine1.message}
@@ -349,29 +485,25 @@ export default function AddressManager({
               {/* Area */}
               <div>
                 <Label htmlFor="area">Area *</Label>
-                <Input
-                  {...form.register("area")}
-                  placeholder="Area in Bangalore."
-                  data-testid="area-select"
-                />
-                {/* <Controller
-                  name="area"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger data-testid="area-select">
-                        <SelectValue placeholder="Select area in Bangalore" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BANGALORE_AREAS.map((area) => (
-                          <SelectItem key={area} value={area}>
-                            {area}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="relative">
+                  <Input
+                    {...form.register("area")}
+                    placeholder="Area in Bangalore (e.g., Koramangala, HSR Layout)"
+                    data-testid="area-input"
+                    list="bangalore-areas"
+                  />
+                  <datalist id="bangalore-areas">
+                    {BANGALORE_AREAS.map((area) => (
+                      <option key={area} value={area} />
+                    ))}
+                  </datalist>
+                  {form.watch("area") && (
+                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
                   )}
-                /> */}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Start typing to see suggestions or use location detection
+                </p>
                 {form.formState.errors.area && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.area.message}
@@ -382,12 +514,17 @@ export default function AddressManager({
               {/* Pincode */}
               <div>
                 <Label htmlFor="pincode">Pincode *</Label>
-                <Input
-                  {...form.register("pincode")}
-                  placeholder="560001"
-                  maxLength={6}
-                  data-testid="pincode-input"
-                />
+                <div className="relative">
+                  <Input
+                    {...form.register("pincode")}
+                    placeholder="560001"
+                    maxLength={6}
+                    data-testid="pincode-input"
+                  />
+                  {form.watch("pincode") && (
+                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
+                  )}
+                </div>
                 {form.formState.errors.pincode && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.pincode.message}
