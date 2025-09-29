@@ -31,9 +31,11 @@ import {
   getCurrentLocation,
   reverseGeocode,
   isWithinBangalore,
+  isValidBangalorePincode,
   getLocationErrorMessage,
   type LocationError,
 } from "@/lib/location";
+import { formatCoordinates, getAccuracyDescription } from "@/lib/coordinates";
 import {
   Plus,
   MapPin,
@@ -137,6 +139,11 @@ export default function AddressManager({
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [showLocationHelper, setShowLocationHelper] = useState(false);
+  const [detectedCoordinates, setDetectedCoordinates] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  } | null>(null);
 
   const form = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
@@ -173,11 +180,17 @@ export default function AddressManager({
       // Attempt to geocode the address
       const coordinates = await geocodeAddress(fullAddress);
 
-      // Prepare address data with coordinates (if available)
+      // Prepare address data with coordinates (from detection or geocoding)
       const addressData = {
         ...data,
-        latitude: coordinates?.latitude.toString() || null,
-        longitude: coordinates?.longitude.toString() || null,
+        latitude:
+          detectedCoordinates?.latitude.toString() ||
+          coordinates?.latitude.toString() ||
+          null,
+        longitude:
+          detectedCoordinates?.longitude.toString() ||
+          coordinates?.longitude.toString() ||
+          null,
       };
 
       const response = await apiRequest("POST", "/api/addresses", addressData);
@@ -190,6 +203,7 @@ export default function AddressManager({
         description: "Your address has been saved with location coordinates",
       });
       setIsAddDialogOpen(false);
+      setDetectedCoordinates(null);
       form.reset();
 
       // Auto-select the newly created address
@@ -263,8 +277,9 @@ export default function AddressManager({
       // Get current location
       const coordinates = await getCurrentLocation();
 
-      // Check if location is within Bangalore
-      if (!isWithinBangalore(coordinates)) {
+      // Check if location is within Bangalore (now async)
+      const isInBangalore = await isWithinBangalore(coordinates);
+      if (!isInBangalore) {
         toast({
           title: "Location Outside Service Area",
           description:
@@ -278,6 +293,13 @@ export default function AddressManager({
       // Reverse geocode to get address
       const addressComponents = await reverseGeocode(coordinates);
 
+      // Store detected coordinates for later use
+      setDetectedCoordinates({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        accuracy: coordinates.accuracy,
+      });
+
       // Fill form with detected address
       form.setValue("addressLine1", addressComponents.addressLine1);
       form.setValue("addressLine2", addressComponents.addressLine2);
@@ -289,8 +311,9 @@ export default function AddressManager({
 
       toast({
         title: "Location Detected Successfully! 📍",
-        description:
-          "Address fields have been filled. Please review and edit if needed.",
+        description: `Address filled with GPS coordinates. ${getAccuracyDescription(
+          coordinates.accuracy
+        )}`,
       });
     } catch (error) {
       const locationError = error as LocationError;
@@ -405,10 +428,23 @@ export default function AddressManager({
                     </span>
                   )}
                 </p>
-                {navigator.permissions && (
+                {navigator.permissions && !detectedCoordinates && (
                   <div className="mt-2 text-xs text-blue-600">
                     💡 Make sure location permissions are enabled for accurate
                     detection
+                  </div>
+                )}
+                {detectedCoordinates && (
+                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-xs text-green-800">
+                    📍 GPS coordinates detected:{" "}
+                    {formatCoordinates(
+                      detectedCoordinates.latitude,
+                      detectedCoordinates.longitude
+                    )}
+                    <br />
+                    🎯 {getAccuracyDescription(detectedCoordinates.accuracy)}
+                    <br />✅ This address will be saved with precise location
+                    data for delivery optimization
                   </div>
                 )}
               </div>
@@ -589,6 +625,7 @@ export default function AddressManager({
                   onClick={() => {
                     setIsAddDialogOpen(false);
                     setEditingAddress(null);
+                    setDetectedCoordinates(null);
                     form.reset();
                   }}
                   className="flex-1"

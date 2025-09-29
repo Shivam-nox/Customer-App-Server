@@ -190,24 +190,140 @@ const fallbackGeocode = async (coordinates: LocationCoordinates): Promise<Addres
 };
 
 /**
- * Check if coordinates are within Bangalore bounds
+ * Bangalore pincode ranges for accurate service area validation
+ * Based on official India Post pincode allocation
  */
-export const isWithinBangalore = (coordinates: LocationCoordinates): boolean => {
+const BANGALORE_PINCODE_RANGES = [
+  { start: 560001, end: 560099 }, // Central Bangalore
+  { start: 560100, end: 560129 }, // Extended areas
+  { start: 562001, end: 562130 }, // Bangalore Rural (some areas)
+];
+
+/**
+ * Check if coordinates are within Bangalore using multiple methods
+ * Method 1: Reverse geocoding to check city name (most accurate)
+ * Method 2: Pincode validation (very reliable)
+ * Method 3: Distance from city center (fallback)
+ * Method 4: Rough bounding box (last resort)
+ */
+export const isWithinBangalore = async (coordinates: LocationCoordinates): Promise<boolean> => {
   const { latitude, longitude } = coordinates;
   
-  // Approximate bounds for Bangalore
-  const bangaloreBounds = {
-    north: 13.1986,
-    south: 12.7343,
-    east: 77.8867,
-    west: 77.3115
-  };
+  try {
+    // Method 1: Use reverse geocoding to check if city is Bangalore
+    const addressComponents = await reverseGeocode(coordinates);
+    const city = addressComponents.city.toLowerCase();
+    const pincode = addressComponents.pincode;
+    
+    // Check for various Bangalore name variations
+    const bangaloreNames = [
+      'bangalore', 'bengaluru', 'bangaluru', 'bengalore',
+      'bangalore urban', 'bengaluru urban', 'bbmp'
+    ];
+    
+    const isBangaloreByName = bangaloreNames.some(name => 
+      city.includes(name) || name.includes(city)
+    );
+    
+    // Method 2: Validate pincode if available
+    let isBangaloreByPincode = false;
+    if (pincode && pincode.length === 6) {
+      const pincodeNum = parseInt(pincode);
+      isBangaloreByPincode = BANGALORE_PINCODE_RANGES.some(range => 
+        pincodeNum >= range.start && pincodeNum <= range.end
+      );
+    }
+    
+    if (isBangaloreByName || isBangaloreByPincode) {
+      console.log('✅ Location confirmed as Bangalore:', {
+        city,
+        pincode,
+        byName: isBangaloreByName,
+        byPincode: isBangaloreByPincode
+      });
+      return true;
+    }
+    
+    // Method 3: Check distance from Bangalore city center (Vidhana Soudha)
+    const bangaloreCenterLat = 12.9716;
+    const bangaloreCenterLng = 77.5946;
+    const distanceKm = calculateDistance(
+      latitude, longitude, 
+      bangaloreCenterLat, bangaloreCenterLng
+    );
+    
+    // If within 40km of city center, likely Bangalore metro area
+    if (distanceKm <= 40) {
+      console.log('✅ Location within 40km of Bangalore center:', distanceKm.toFixed(2), 'km');
+      return true;
+    }
+    
+    console.log('❌ Location outside Bangalore area:', {
+      city,
+      pincode,
+      distanceKm: distanceKm.toFixed(2)
+    });
+    return false;
+    
+  } catch (error) {
+    console.warn('Geocoding failed, using fallback bounding box method');
+    
+    // Method 4: Fallback to rough bounding box (more conservative)
+    const bangaloreBounds = {
+      north: 13.20,   // Includes Devanahalli area
+      south: 12.70,   // Includes Bannerghatta
+      east: 77.90,    // Includes Whitefield
+      west: 77.30     // Includes Peenya/Rajajinagar
+    };
 
-  return (
-    latitude >= bangaloreBounds.south &&
-    latitude <= bangaloreBounds.north &&
-    longitude >= bangaloreBounds.west &&
-    longitude <= bangaloreBounds.east
+    const withinBounds = (
+      latitude >= bangaloreBounds.south &&
+      latitude <= bangaloreBounds.north &&
+      longitude >= bangaloreBounds.west &&
+      longitude <= bangaloreBounds.east
+    );
+    
+    console.log('Using fallback bounding box method:', withinBounds);
+    return withinBounds;
+  }
+};
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ */
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const toRadians = (degrees: number): number => {
+  return degrees * (Math.PI / 180);
+};
+
+/**
+ * Validate if a pincode belongs to Bangalore
+ */
+export const isValidBangalorePincode = (pincode: string): boolean => {
+  if (!pincode || pincode.length !== 6) {
+    return false;
+  }
+  
+  const pincodeNum = parseInt(pincode);
+  if (isNaN(pincodeNum)) {
+    return false;
+  }
+  
+  return BANGALORE_PINCODE_RANGES.some(range => 
+    pincodeNum >= range.start && pincodeNum <= range.end
   );
 };
 

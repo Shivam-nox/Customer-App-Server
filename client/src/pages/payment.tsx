@@ -628,7 +628,7 @@ export default function PaymentScreen() {
 
         {/* Test Razorpay Button - Remove in production */}
         <div className="space-y-2 mb-2">
-          <Button
+          {/* <Button
             onClick={async () => {
               try {
                 // Test 1: Check if Razorpay SDK is loaded
@@ -681,9 +681,9 @@ export default function PaymentScreen() {
             className="w-full"
           >
             🧪 Test Razorpay (SDK + Backend)
-          </Button>
+          </Button> */}
           
-          <Button
+          {/* <Button
             onClick={() => {
               console.log('🔍 UPI Test Mode Info:');
               console.log('• Test mode has limited UPI simulation');
@@ -700,7 +700,7 @@ export default function PaymentScreen() {
             className="w-full"
           >
             🔍 Why No UPI in Test Mode?
-          </Button>
+          </Button> */}
         </div>
 
         <Button
