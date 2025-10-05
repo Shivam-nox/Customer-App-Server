@@ -143,6 +143,8 @@ export default function TrackOrderScreen() {
   }
 
   if (error || !data?.order) {
+    console.error("Error fetching order:", error);
+    console.log("Data:", data);
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <div className="flex items-center p-4 border-b bg-white">
