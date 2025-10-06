@@ -6,18 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
-import {
-  Bell,
-  Fuel,
-  MapPin,
-  Plus,
-  TrendingUp,
-  Eye,
-  Shield,
-  ArrowLeft,
-} from "lucide-react";
+import { Bell, Fuel, MapPin, Plus, Eye, Shield, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
-import LocationSelector from "@/components/LocationSelector";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
 export default function HomeScreen() {
@@ -66,11 +56,10 @@ export default function HomeScreen() {
     const isCurrentMonth =
       orderDate.getMonth() === currentMonth &&
       orderDate.getFullYear() === currentYear;
-    const isCompleted =
-      order.status === "delivered" 
-      // order.status === "confirmed" ||
-      // order.status === "in_transit" ||
-      // (order.status !== "cancelled" && order.status !== "pending");
+    const isCompleted = order.status === "delivered";
+    // order.status === "confirmed" ||
+    // order.status === "in_transit" ||
+    // (order.status !== "cancelled" && order.status !== "pending");
     return isCurrentMonth && isCompleted;
   });
 
@@ -119,7 +108,9 @@ export default function HomeScreen() {
       status: order.status,
       totalAmount: order.totalAmount,
     })),
-    orderStatuses: Array.from(new Set(orders.map((order:any) => order.status))),
+    orderStatuses: Array.from(
+      new Set(orders.map((order: any) => order.status))
+    ),
   });
 
   const getStatusColor = (status: string) => {
@@ -206,10 +197,6 @@ export default function HomeScreen() {
       </div>
 
       <div className="pb-20">
-        {/* Location Selection at top */}
-        <div className="p-4 pb-0">
-          <LocationSelector />
-        </div>
         {/* KYC CTA Banner */}
         {user.kycStatus === "pending" && (
           <div className="p-4">

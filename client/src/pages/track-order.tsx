@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import LoadingSpinner from "@/components/loading-spinner";
-import TrackingMap from "@/components/TrackingMap";
+import GoogleTrackingMap from "@/components/GoogleTrackingMap";
 import {
   ArrowLeft,
   MapPin,
@@ -24,18 +24,76 @@ import {
 import { format } from "date-fns";
 
 export default function TrackOrderScreen() {
-  const { orderId } = useParams<{ orderId: string }>();
+  const { orderId } = useParams<{ orderId?: string }>();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // If no orderId is provided, redirect to orders page
+  if (!orderId) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <div className="flex items-center p-4 border-b bg-white">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/orders")}
+            className="mr-3"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h1 className="text-lg font-semibold">Track Order</h1>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Truck className="h-8 w-8 text-orange-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">No Order Selected</h2>
+              <p className="text-gray-600 mb-4">
+                Please select an order to track from your order history.
+              </p>
+              <Button 
+                onClick={() => setLocation("/orders")}
+                className="w-full"
+              >
+                View Order History
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/orders", orderId],
-    queryFn: () =>
-      fetch(`/api/orders/${orderId}`, {
+    queryFn: async () => {
+      if (!orderId) {
+        throw new Error("Order ID is required");
+      }
+      
+      const response = await fetch(`/api/orders/${orderId}`, {
         headers: { "x-user-id": user?.id || "" },
-      }).then((res) => res.json()),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch order: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Order fetch result:", result);
+      
+      if (!result || !result.order) {
+        throw new Error("Order not found");
+      }
+      
+      return result;
+    },
     enabled: !!orderId && !!user,
+    retry: false, // Don't retry on error
   });
 
   const updateLocationMutation = useMutation({
@@ -143,15 +201,21 @@ export default function TrackOrderScreen() {
   }
 
   if (error || !data?.order) {
-    console.error("Error fetching order:", error);
-    console.log("Data:", data);
+    // Only log actual errors, not missing data
+    if (error) {
+      console.error("Error fetching order:", error);
+    }
+    
+    const errorMessage = error?.message || "Order not found";
+    const isNotFound = errorMessage.includes("not found") || errorMessage.includes("404");
+    
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <div className="flex items-center p-4 border-b bg-white">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/home")}
+            onClick={() => setLocation("/orders")}
             className="mr-3"
           >
             <ArrowLeft size={20} />
@@ -159,12 +223,32 @@ export default function TrackOrderScreen() {
           <h2 className="text-lg font-medium">Track Order</h2>
         </div>
         <div className="flex-1 flex items-center justify-center p-6">
-          <Card>
+          <Card className="w-full max-w-md">
             <CardContent className="p-6 text-center">
-              <p className="text-gray-600">Order not found or access denied</p>
-              <Button onClick={() => setLocation("/orders")} className="mt-4">
-                View All Orders
-              </Button>
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Truck className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {isNotFound ? "Order Not Found" : "Unable to Load Order"}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {isNotFound 
+                  ? "The order you're looking for doesn't exist or you don't have permission to view it."
+                  : "There was a problem loading the order details. Please try again."
+                }
+              </p>
+              <div className="space-y-2">
+                <Button onClick={() => setLocation("/orders")} className="w-full">
+                  View Order History
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()} 
+                  className="w-full"
+                >
+                  Try Again
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -247,7 +331,7 @@ export default function TrackOrderScreen() {
               </div>
             </div>
 
-            <TrackingMap
+            <GoogleTrackingMap
               deliveryAddress={order.deliveryAddress}
               orderStatus={order.status}
               deliveryLatitude={order.deliveryLatitude ? parseFloat(order.deliveryLatitude) : undefined}

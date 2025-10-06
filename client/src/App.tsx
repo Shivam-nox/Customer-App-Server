@@ -1,4 +1,3 @@
-import { FC } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,7 +13,7 @@ import HomeScreen from "@/pages/home";
 import NewOrderScreen from "@/pages/new-order";
 import TrackOrderScreen from "@/pages/track-order";
 import PaymentScreen from "@/pages/payment";
-import OrderHistoryScreen from "@/pages/order-history";
+import OrderHistoryScreen from "./pages/order-history";
 import ProfileScreen from "@/pages/profile";
 import NotificationsScreen from "@/pages/notifications";
 import AddressesScreen from "@/pages/addresses";
@@ -26,6 +25,7 @@ import ShippingPolicyScreen from "@/pages/shipping-policy";
 import PrivacyPolicyScreen from "@/pages/privacy-policy";
 import ContactUsScreen from "@/pages/contact-us";
 import NotFound from "@/pages/not-found";
+import { LocationPickerPage } from "@/components/LocationPicker";
 
 function Router() {
   const { user, isLoading } = useAuth();
@@ -51,6 +51,7 @@ function Router() {
           <Route path="/profile" component={ProfileScreen} />
           <Route path="/notifications" component={NotificationsScreen} />
           <Route path="/addresses" component={AddressesScreen} />
+          <Route path="/location-picker" component={LocationPickerPage} />
           <Route path="/analysis" component={AnalysisScreen} />
           <Route path="/admin/settings" component={AdminSettingsScreen} />
 
