@@ -106,6 +106,14 @@ export default function GoogleTrackingMap({
   deliveryLatitude,
   deliveryLongitude,
 }: GoogleTrackingMapProps) {
+  console.log("🎨 GoogleTrackingMap RENDERED");
+  console.log("📦 Props:", {
+    deliveryAddress,
+    orderStatus,
+    deliveryLatitude,
+    deliveryLongitude,
+  });
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const sourceMarkerRef = useRef<any>(null);
@@ -118,32 +126,48 @@ export default function GoogleTrackingMap({
   const [mapError, setMapError] = useState<string | null>(null);
   const [driverPosition, setDriverPosition] = useState<Location>(IOCL_TERMINAL);
 
+  // Phase 1: Only show customer location until driver is assigned
+  const showDriverTracking =
+    orderStatus === "in_transit" || orderStatus === "delivered";
+  console.log("🚛 Show driver tracking:", showDriverTracking);
+
   // Get destination based on coordinates or delivery address
   const getDestination = useCallback((): Location => {
+    console.log("📍 getDestination called");
+    console.log("   - deliveryLatitude:", deliveryLatitude);
+    console.log("   - deliveryLongitude:", deliveryLongitude);
+    console.log("   - deliveryAddress:", deliveryAddress);
+
     // Use provided coordinates if available
     if (deliveryLatitude && deliveryLongitude) {
-      return {
+      const location = {
         lat: deliveryLatitude,
         lng: deliveryLongitude,
         name: "Customer Location",
       };
+      console.log("✅ Using GPS coordinates:", location);
+      return location;
     }
 
     // Fallback to address-based matching
     const addressLower = deliveryAddress.toLowerCase();
+    console.log("🔍 Trying address matching for:", addressLower);
 
     // Try to match with known locations
     for (const [key, location] of Object.entries(DELIVERY_LOCATIONS)) {
       if (addressLower.includes(key)) {
+        console.log("✅ Matched location:", key, location);
         return location;
       }
     }
 
     // Default to Koramangala for unknown addresses
+    console.log("⚠️ No match found, using default Koramangala");
     return DELIVERY_LOCATIONS["koramangala"];
   }, [deliveryAddress, deliveryLatitude, deliveryLongitude]);
 
   const destination = getDestination();
+  console.log("🎯 Final destination:", destination);
 
   // Calculate route path (simplified straight line with some curve)
   const getRoutePath = useCallback((): any[] => {
@@ -167,182 +191,6 @@ export default function GoogleTrackingMap({
 
     return path;
   }, [destination]);
-
-  // Initialize Google Maps
-  const initializeMap = useCallback(async () => {
-    try {
-      setMapError(null);
-      await loadGoogleMaps();
-
-      if (!mapRef.current) return;
-
-      // Create map
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: {
-          lat: (IOCL_TERMINAL.lat + destination.lat) / 2,
-          lng: (IOCL_TERMINAL.lng + destination.lng) / 2,
-        },
-        zoom: 11,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        zoomControl: true,
-        styles: [
-          {
-            featureType: "poi",
-            elementType: "labels",
-            stylers: [{ visibility: "off" }],
-          },
-        ],
-      });
-
-      mapInstanceRef.current = map;
-
-      // Create custom markers
-      const sourceMarker = new window.google.maps.Marker({
-        position: { lat: IOCL_TERMINAL.lat, lng: IOCL_TERMINAL.lng },
-        map: map,
-        title: "Fuel Terminal",
-        icon: {
-          url:
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="white" stroke-width="3"/>
-              <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">⛽</text>
-            </svg>
-          `),
-          scaledSize: new window.google.maps.Size(32, 32),
-          anchor: new window.google.maps.Point(16, 16),
-        },
-      });
-
-      const destinationMarker = new window.google.maps.Marker({
-        position: { lat: destination.lat, lng: destination.lng },
-        map: map,
-        title: "Delivery Location",
-        icon: {
-          url:
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" fill="#dc2626" stroke="white" stroke-width="3"/>
-              <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">📍</text>
-            </svg>
-          `),
-          scaledSize: new window.google.maps.Size(32, 32),
-          anchor: new window.google.maps.Point(16, 16),
-        },
-      });
-
-      sourceMarkerRef.current = sourceMarker;
-      destinationMarkerRef.current = destinationMarker;
-
-      // Create info windows
-      const sourceInfoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div style="text-align: center; padding: 8px;">
-            <h3 style="margin: 0; font-weight: bold;">Fuel Terminal</h3>
-            <p style="margin: 4px 0; font-size: 14px;">${IOCL_TERMINAL.name}</p>
-            <p style="margin: 0; font-size: 12px; color: #666;">Source Location</p>
-          </div>
-        `,
-      });
-
-      const destinationInfoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div style="text-align: center; padding: 8px;">
-            <h3 style="margin: 0; font-weight: bold;">Delivery Location</h3>
-            <p style="margin: 4px 0; font-size: 14px;">${destination.name}</p>
-            <p style="margin: 0; font-size: 12px; color: #666;">${deliveryAddress}</p>
-          </div>
-        `,
-      });
-
-      sourceMarker.addListener("click", () => {
-        sourceInfoWindow.open(map, sourceMarker);
-      });
-
-      destinationMarker.addListener("click", () => {
-        destinationInfoWindow.open(map, destinationMarker);
-      });
-
-      // Create driver marker if needed
-      if (orderStatus !== "pending" && orderStatus !== "confirmed") {
-        const driverMarker = new window.google.maps.Marker({
-          position: { lat: driverPosition.lat, lng: driverPosition.lng },
-          map: map,
-          title: "Driver Location",
-          icon: {
-            url:
-              "data:image/svg+xml;charset=UTF-8," +
-              encodeURIComponent(`
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="14" fill="#16a34a" stroke="white" stroke-width="3"/>
-                <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🚛</text>
-              </svg>
-            `),
-            scaledSize: new window.google.maps.Size(32, 32),
-            anchor: new window.google.maps.Point(16, 16),
-          },
-        });
-
-        driverMarkerRef.current = driverMarker;
-
-        const driverInfoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div style="text-align: center; padding: 8px;">
-              <h3 style="margin: 0; font-weight: bold;">Driver Location</h3>
-              <p style="margin: 4px 0; font-size: 14px;">
-                ${
-                  orderStatus === "delivered"
-                    ? "Delivered!"
-                    : "En route to destination"
-                }
-              </p>
-              <p style="margin: 0; font-size: 12px; color: #666;">
-                Status: ${orderStatus.replace("_", " ")}
-              </p>
-            </div>
-          `,
-        });
-
-        driverMarker.addListener("click", () => {
-          driverInfoWindow.open(map, driverMarker);
-        });
-
-        // Create route polyline
-        const routePath = getRoutePath();
-        const routePolyline = new window.google.maps.Polyline({
-          path: routePath,
-          geodesic: true,
-          strokeColor: "#2563eb",
-          strokeOpacity: 0.7,
-          strokeWeight: 4,
-        });
-
-        routePolyline.setMap(map);
-        routePolylineRef.current = routePolyline;
-      }
-
-      // Fit map to show all markers
-      const bounds = new window.google.maps.LatLngBounds();
-      bounds.extend({ lat: IOCL_TERMINAL.lat, lng: IOCL_TERMINAL.lng });
-      bounds.extend({ lat: destination.lat, lng: destination.lng });
-      if (driverMarkerRef.current) {
-        bounds.extend({ lat: driverPosition.lat, lng: driverPosition.lng });
-      }
-      map.fitBounds(bounds);
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Error initializing tracking map:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to load tracking map";
-      setMapError(errorMessage);
-      setIsLoading(false);
-    }
-  }, [destination, deliveryAddress, orderStatus, driverPosition, getRoutePath]);
 
   // Simulate driver movement
   useEffect(() => {
@@ -397,42 +245,320 @@ export default function GoogleTrackingMap({
     }
   }, [orderStatus, destination, getRoutePath]);
 
-  // Initialize map on component mount
+  // Initialize map on component mount - ONLY ONCE
   useEffect(() => {
-    initializeMap();
-  }, [initializeMap]);
+    console.log("🔥 useEffect triggered - MOUNT ONLY");
+    console.log("   - mapRef.current (immediate):", mapRef.current);
 
-  if (isLoading) {
-    return (
-      <div className="h-64 w-full rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p className="text-sm text-gray-600">Loading tracking map...</p>
-        </div>
-      </div>
-    );
-  }
+    let isMounted = true;
 
-  if (mapError) {
-    return (
-      <div className="h-64 w-full rounded-lg border border-gray-200 flex items-center justify-center bg-red-50">
-        <div className="text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <span className="text-red-600 text-xl">⚠️</span>
-          </div>
-          <p className="text-sm text-red-600 font-medium">Failed to load map</p>
-          <p className="text-xs text-red-500 mt-1">{mapError}</p>
-        </div>
-      </div>
-    );
-  }
+    // Add delay to ensure DOM is ready
+    const timer = setTimeout(async () => {
+      console.log("⏰ Timer fired - checking mapRef again");
+      console.log("   - mapRef.current (after delay):", mapRef.current);
+
+      if (!isMounted) {
+        console.log("⚠️ Component unmounted, skipping init");
+        return;
+      }
+
+      if (!mapRef.current) {
+        console.error("❌ mapRef still null after delay!");
+        setMapError("Map container not ready");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("✅ mapRef is ready, initializing map");
+
+      try {
+        setMapError(null);
+        console.log("📡 Loading Google Maps...");
+        await loadGoogleMaps();
+        console.log("✅ Google Maps loaded");
+
+        if (!mapRef.current || !isMounted) {
+          console.error("❌ mapRef lost or unmounted");
+          return;
+        }
+        console.log("✅ mapRef.current still exists");
+
+        // Create map
+        const mapCenter = showDriverTracking
+          ? {
+              lat: (IOCL_TERMINAL.lat + destination.lat) / 2,
+              lng: (IOCL_TERMINAL.lng + destination.lng) / 2,
+            }
+          : { lat: destination.lat, lng: destination.lng };
+
+        const mapZoom = showDriverTracking ? 11 : 15;
+
+        console.log("🗺️ Creating map with:");
+        console.log("   - center:", mapCenter);
+        console.log("   - zoom:", mapZoom);
+
+        const map = new window.google.maps.Map(mapRef.current, {
+          center: mapCenter,
+          zoom: mapZoom,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          zoomControl: true,
+          styles: [
+            {
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
+            },
+          ],
+        });
+
+        console.log("✅ Map created:", map);
+        mapInstanceRef.current = map;
+
+        // Phase 1: Only show source marker if driver tracking is active
+        let sourceMarker = null;
+        if (showDriverTracking) {
+          sourceMarker = new window.google.maps.Marker({
+            position: { lat: IOCL_TERMINAL.lat, lng: IOCL_TERMINAL.lng },
+            map: map,
+            title: "Fuel Terminal",
+            icon: {
+              url:
+                "data:image/svg+xml;charset=UTF-8," +
+                encodeURIComponent(`
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="white" stroke-width="3"/>
+                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">⛽</text>
+                </svg>
+              `),
+              scaledSize: new window.google.maps.Size(32, 32),
+              anchor: new window.google.maps.Point(16, 16),
+            },
+          });
+          sourceMarkerRef.current = sourceMarker;
+        }
+
+        // Customer location marker - always shown
+        console.log("📍 Creating customer marker at:", destination);
+        const destinationMarker = new window.google.maps.Marker({
+          position: { lat: destination.lat, lng: destination.lng },
+          map: map,
+          title: "Your Delivery Location",
+          icon: {
+            url:
+              "data:image/svg+xml;charset=UTF-8," +
+              encodeURIComponent(`
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="18" fill="#dc2626" stroke="white" stroke-width="3"/>
+                <text x="20" y="26" text-anchor="middle" fill="white" font-size="20">📍</text>
+              </svg>
+            `),
+            scaledSize: new window.google.maps.Size(40, 40),
+            anchor: new window.google.maps.Point(20, 20),
+          },
+          animation: window.google.maps.Animation.DROP,
+        });
+
+        console.log("✅ Customer marker created");
+        destinationMarkerRef.current = destinationMarker;
+
+        // Create info windows
+        if (sourceMarker) {
+          const sourceInfoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div style="text-align: center; padding: 8px;">
+                <h3 style="margin: 0; font-weight: bold;">Fuel Terminal</h3>
+                <p style="margin: 4px 0; font-size: 14px;">${IOCL_TERMINAL.name}</p>
+                <p style="margin: 0; font-size: 12px; color: #666;">Source Location</p>
+              </div>
+            `,
+          });
+
+          sourceMarker.addListener("click", () => {
+            sourceInfoWindow.open(map, sourceMarker);
+          });
+        }
+
+        const destinationInfoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="text-align: center; padding: 10px;">
+              <h3 style="margin: 0; font-weight: bold; color: #dc2626;">Your Delivery Location</h3>
+              <p style="margin: 6px 0; font-size: 14px; font-weight: 500;">${
+                destination.name
+              }</p>
+              <p style="margin: 0; font-size: 12px; color: #666;">${deliveryAddress}</p>
+              ${
+                !showDriverTracking
+                  ? '<p style="margin: 6px 0 0 0; font-size: 11px; color: #f97316; font-weight: 500;">⏳ Waiting for driver assignment</p>'
+                  : ""
+              }
+            </div>
+          `,
+        });
+
+        destinationMarker.addListener("click", () => {
+          destinationInfoWindow.open(map, destinationMarker);
+        });
+
+        // Auto-open info window for customer location in Phase 1
+        if (!showDriverTracking) {
+          setTimeout(() => {
+            destinationInfoWindow.open(map, destinationMarker);
+          }, 500);
+        }
+
+        // Phase 1: Only create driver marker when actually tracking
+        if (showDriverTracking) {
+          const driverMarker = new window.google.maps.Marker({
+            position: { lat: driverPosition.lat, lng: driverPosition.lng },
+            map: map,
+            title: "Driver Location",
+            icon: {
+              url:
+                "data:image/svg+xml;charset=UTF-8," +
+                encodeURIComponent(`
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="16" cy="16" r="14" fill="#16a34a" stroke="white" stroke-width="3"/>
+                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🚛</text>
+                </svg>
+              `),
+              scaledSize: new window.google.maps.Size(32, 32),
+              anchor: new window.google.maps.Point(16, 16),
+            },
+          });
+
+          driverMarkerRef.current = driverMarker;
+
+          const driverInfoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div style="text-align: center; padding: 8px;">
+                <h3 style="margin: 0; font-weight: bold;">Driver Location</h3>
+                <p style="margin: 4px 0; font-size: 14px;">
+                  ${
+                    orderStatus === "delivered"
+                      ? "Delivered!"
+                      : "En route to destination"
+                  }
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #666;">
+                  Status: ${orderStatus.replace("_", " ")}
+                </p>
+              </div>
+            `,
+          });
+
+          driverMarker.addListener("click", () => {
+            driverInfoWindow.open(map, driverMarker);
+          });
+
+          // Create route polyline
+          const routePath = getRoutePath();
+          const routePolyline = new window.google.maps.Polyline({
+            path: routePath,
+            geodesic: true,
+            strokeColor: "#2563eb",
+            strokeOpacity: 0.7,
+            strokeWeight: 4,
+          });
+
+          routePolyline.setMap(map);
+          routePolylineRef.current = routePolyline;
+        }
+
+        // Fit map to show all markers
+        const bounds = new window.google.maps.LatLngBounds();
+
+        if (showDriverTracking) {
+          // Show full route when driver is active
+          bounds.extend({ lat: IOCL_TERMINAL.lat, lng: IOCL_TERMINAL.lng });
+          bounds.extend({ lat: destination.lat, lng: destination.lng });
+          if (driverMarkerRef.current) {
+            bounds.extend({ lat: driverPosition.lat, lng: driverPosition.lng });
+          }
+          map.fitBounds(bounds);
+        } else {
+          // Phase 1: Just center on customer location with good zoom
+          map.setCenter({ lat: destination.lat, lng: destination.lng });
+          map.setZoom(15);
+        }
+
+        console.log("✅ Map initialization complete!");
+        setIsLoading(false);
+      } catch (error) {
+        console.error("❌ Error initializing tracking map:", error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to load tracking map";
+        console.error("❌ Error message:", errorMessage);
+        setMapError(errorMessage);
+        setIsLoading(false);
+      }
+    }, 300); // Increased delay
+
+    return () => {
+      console.log("🧹 Component unmounting, cleaning up");
+      isMounted = false;
+      clearTimeout(timer);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []); // Empty array - only run once on mount
+
+  console.log("🎬 RENDERING - isLoading:", isLoading, "mapError:", mapError);
+  console.log("✅ Always rendering map container to keep ref stable");
 
   return (
     <div
-      className="h-64 w-full rounded-lg overflow-hidden border border-gray-200"
+      className="h-64 w-full rounded-lg overflow-hidden border border-gray-200 relative"
       data-testid="google-tracking-map"
     >
-      <div ref={mapRef} className="h-full w-full" />
+      {/* Map container - ALWAYS RENDERED to keep ref stable */}
+      <div
+        ref={mapRef}
+        className="h-full w-full bg-gray-100"
+        style={{ display: isLoading || mapError ? "none" : "block" }}
+      />
+
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Loading tracking map...</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Destination: {destination.name} ({destination.lat.toFixed(4)},{" "}
+              {destination.lng.toFixed(4)})
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span className="text-red-600 text-xl">⚠️</span>
+            </div>
+            <p className="text-sm text-red-600 font-medium">
+              Failed to load map
+            </p>
+            <p className="text-xs text-red-500 mt-1">{mapError}</p>
+            <button
+              onClick={() => {
+                console.log("🔄 Retry button clicked - reloading page");
+                window.location.reload();
+              }}
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
