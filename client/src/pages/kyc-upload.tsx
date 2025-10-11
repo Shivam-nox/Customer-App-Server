@@ -77,6 +77,7 @@ export default function KycUploadScreen() {
       refetchUser();
       setLocation("/home");
     },
+
     onError: (error: any) => {
       toast({
         title: "Error",
@@ -97,7 +98,7 @@ export default function KycUploadScreen() {
   const handleUploadComplete =
     (docType: string) =>
     (
-      result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
+      result: UploadResult<Record<string, unknown>, Record<string, unknown>>
     ) => {
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
@@ -107,13 +108,15 @@ export default function KycUploadScreen() {
           prev.map((doc) =>
             doc.type === docType
               ? { ...doc, uploaded: true, url: fileUrl }
-              : doc,
-          ),
+              : doc
+          )
         );
 
         toast({
           title: "Upload Successful",
-          description: `${documents.find((d) => d.type === docType)?.name} uploaded successfully`,
+          description: `${
+            documents.find((d) => d.type === docType)?.name
+          } uploaded successfully`,
         });
       }
     };
@@ -145,15 +148,12 @@ export default function KycUploadScreen() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50"
-      data-testid="kyc-upload-screen"
-    >
+    <div className="min-h-screen bg-gray-50" data-testid="kyc-upload-screen">
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/home")}
+          onClick={() => window.history.back()}
           className="mr-3"
           data-testid="back-button"
         >
@@ -166,107 +166,150 @@ export default function KycUploadScreen() {
 
       <div className="p-4 pb-6">
         {/* Hero Section */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Shield className="text-white" size={36} />
+        <div className="text-center mb-8 sm:mb-10">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-lg">
+            <Shield className="text-white" size={40} />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2" data-testid="verify-title">
+          <h3
+            className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3"
+            data-testid="verify-title"
+          >
             Verify Your Business
           </h3>
-          <p className="text-gray-600 text-lg" data-testid="verify-description">
+          <p
+            className="text-gray-600 text-base sm:text-lg px-4"
+            data-testid="verify-description"
+          >
             Upload required documents to complete verification
           </p>
-          
+
           {/* Progress Indicator */}
-          <div className="mt-6 mb-2">
-            <div className="flex items-center justify-center space-x-2">
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Upload Documents</span>
+          <div className="mt-6 sm:mt-8 mb-2">
+            <div className="flex items-center justify-center space-x-2 sm:space-x-3 px-4">
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-700">
+                  Upload
+                </span>
               </div>
-              <div className="w-8 h-px bg-gray-300"></div>
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                <span className="text-sm text-gray-400">Review</span>
+              <div className="w-6 sm:w-10 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-400">
+                  Review
+                </span>
               </div>
-              <div className="w-8 h-px bg-gray-300"></div>
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                <span className="text-sm text-gray-400">Approved</span>
+              <div className="w-6 sm:w-10 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-400">
+                  Approved
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Document Upload Cards */}
-        <div className="space-y-6 mb-8">
+        <div className="space-y-5 mb-8">
           {documents.map((doc, index) => (
-            <Card key={doc.type} className={`border-2 transition-all duration-200 ${
-              doc.uploaded 
-                ? 'border-green-200 bg-green-50/30 shadow-sm' 
-                : 'border-gray-200 hover:border-blue-200 hover:shadow-md'
-            }`}>
-              <CardContent className="p-6">
+            <Card
+              key={doc.type}
+              className={`border-2 transition-all duration-200 overflow-hidden ${
+                doc.uploaded
+                  ? "border-green-300 bg-green-50/40 shadow-md"
+                  : "border-gray-300 hover:border-blue-300 hover:shadow-lg"
+              }`}
+            >
+              <CardContent className="p-5 sm:p-6">
                 {/* Document Header */}
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-start space-x-4 flex-1">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      doc.uploaded 
-                        ? 'bg-green-100 text-green-600' 
-                        : 'bg-blue-100 text-blue-600'
-                    }`}>
-                      {doc.uploaded ? <CheckCircle size={24} /> : doc.icon}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex items-start space-x-3 sm:space-x-4 flex-1">
+                    <div
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                        doc.uploaded
+                          ? "bg-green-100 text-green-600"
+                          : "bg-blue-100 text-blue-600"
+                      }`}
+                    >
+                      {doc.uploaded ? <CheckCircle size={28} /> : doc.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 text-base mb-1" data-testid={`${doc.type}-title`}>
+                      <h4
+                        className="font-bold text-gray-900 text-lg sm:text-xl mb-1.5"
+                        data-testid={`${doc.type}-title`}
+                      >
                         {doc.name}
                       </h4>
-                      <p className="text-gray-600 text-sm" data-testid={`${doc.type}-description`}>
+                      <p
+                        className="text-gray-600 text-sm sm:text-base"
+                        data-testid={`${doc.type}-description`}
+                      >
                         {doc.description}
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Status Badge */}
-                  <div className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ml-3 ${
-                    doc.uploaded 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {doc.uploaded ? 'Uploaded' : `${index + 1} of 3`}
+                  <div
+                    className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 self-start ${
+                      doc.uploaded
+                        ? "bg-green-100 text-green-700 border border-green-300"
+                        : "bg-gray-100 text-gray-700 border border-gray-300"
+                    }`}
+                  >
+                    {doc.uploaded ? "✓ Uploaded" : `Step ${index + 1} of 3`}
                   </div>
                 </div>
 
                 {/* Upload Area */}
                 {!doc.uploaded ? (
-                  <ObjectUploader
-                    maxNumberOfFiles={1}
-                    maxFileSize={5 * 1024 * 1024} // 5MB
-                    onGetUploadParameters={handleGetUploadParameters}
-                    onComplete={handleUploadComplete(doc.type)}
-                    buttonClassName="w-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-xl py-8 px-6 text-center hover:from-blue-50 hover:to-blue-100 hover:border-blue-400 transition-all duration-300 group"
-                  >
-                    <div className="flex flex-col items-center space-y-3" data-testid={`${doc.type}-upload-button`}>
-                      <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow duration-200">
-                        <Upload className="text-blue-600 group-hover:text-blue-700" size={24} />
+                  <div className="mt-4">
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={5 * 1024 * 1024} // 5MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleUploadComplete(doc.type)}
+                      buttonClassName="w-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-400 rounded-2xl py-6 px-4 text-center hover:from-blue-50 hover:to-blue-100 hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-md min-h-[200px] flex items-center justify-center"
+                    >
+                      <div
+                        className="flex flex-col items-center justify-center space-y-3 w-full"
+                        data-testid={`${doc.type}-upload-button`}
+                      >
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:scale-105">
+                          <Upload
+                            className="text-blue-600 group-hover:text-blue-700"
+                            size={28}
+                          />
+                        </div>
+                        <div className="text-center space-y-2 w-full max-w-xs mx-auto">
+                          <h6 className="text-base font-bold text-gray-900">
+                            Drag & drop or click to upload
+                          </h6>
+                          <p className="text-sm text-gray-700 font-semibold">
+                            {doc.name}
+                          </p>
+                        </div>
+                        <div className="text-center space-y-1 pt-1">
+                          <p className="text-xs text-gray-600">
+                            Supported: PDF, JPG, PNG
+                          </p>
+                          <p className="text-xs text-gray-600">Max size: 5MB</p>
+                        </div>
                       </div>
-                      <div className="text-center space-y-1">
-                        <h6 className="text-base font-medium text-gray-800">
-                          Click to upload {doc.name}
-                        </h6>
-                        <p className="text-xs text-gray-500 pb-2">
-                          PDF, JPG, PNG • Max 5MB
-                        </p>
-                      </div>
-                    </div>
-                  </ObjectUploader>
+                    </ObjectUploader>
+                  </div>
                 ) : (
-                  <div className="w-full bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 text-center">
-                    <div className="flex items-center justify-center space-x-3">
-                      <CheckCircle className="text-green-500" size={24} />
-                      <div>
-                        <p className="text-green-700 font-medium text-sm">Document uploaded successfully</p>
-                        <p className="text-green-600 text-xs">Ready for verification</p>
+                  <div className="mt-4 w-full bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 text-center shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <CheckCircle className="text-green-600" size={32} />
+                      <div className="text-center sm:text-left">
+                        <p className="text-green-800 font-bold text-base sm:text-lg">
+                          Document uploaded successfully
+                        </p>
+                        <p className="text-green-700 text-sm">
+                          Ready for verification
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -277,13 +320,13 @@ export default function KycUploadScreen() {
         </div>
 
         {/* Submit Button */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           <Button
             onClick={handleSubmitKyc}
-            className={`w-full h-14 text-lg font-semibold ripple transition-all duration-200 ${
+            className={`w-full h-16 sm:h-14 text-base sm:text-lg font-bold ripple transition-all duration-200 rounded-xl ${
               documents.filter((d) => d.uploaded).length === 3
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
-                : 'bg-gray-400 cursor-not-allowed'
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl"
+                : "bg-gray-400 cursor-not-allowed opacity-60"
             }`}
             disabled={
               updateKycMutation.isPending ||
@@ -292,54 +335,68 @@ export default function KycUploadScreen() {
             data-testid="submit-kyc-button"
           >
             {updateKycMutation.isPending ? (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-center space-x-3">
                 <LoadingSpinner />
                 <span>Submitting...</span>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Shield size={20} />
+              <div className="flex items-center justify-center space-x-3">
+                <Shield size={22} />
                 <span>Submit for Verification</span>
               </div>
             )}
           </Button>
 
           {/* Progress Summary */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              {documents.filter((d) => d.uploaded).length} of 3 documents uploaded
+          <div className="text-center bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">
+              {documents.filter((d) => d.uploaded).length} of 3 documents
+              uploaded
             </p>
-            {documents.filter((d) => d.uploaded).length < 3 && (
-              <p className="text-xs text-orange-600 mt-1">
-                Please upload all documents to continue
+            {documents.filter((d) => d.uploaded).length < 3 ? (
+              <p className="text-sm text-orange-600 font-medium">
+                ⚠️ Please upload all documents to continue
+              </p>
+            ) : (
+              <p className="text-sm text-green-600 font-medium">
+                ✓ All documents ready for submission
               </p>
             )}
           </div>
         </div>
 
         {/* Info Card */}
-        <Card className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-start space-x-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Shield className="text-blue-600" size={20} />
+        <Card className="mt-6 sm:mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Shield className="text-blue-600" size={24} />
               </div>
-              <div>
-                <h4 className="text-blue-900 font-semibold mb-2" data-testid="verification-info-title">
+              <div className="flex-1">
+                <h4
+                  className="text-blue-900 font-bold text-base sm:text-lg mb-3"
+                  data-testid="verification-info-title"
+                >
                   What happens next?
                 </h4>
-                <div className="space-y-2 text-sm text-blue-800">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                    <span>Documents reviewed within 24-48 hours</span>
+                <div className="space-y-2.5 text-sm sm:text-base text-blue-800">
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      Documents reviewed within 24-48 hours
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                    <span>You'll receive notification once approved</span>
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      You'll receive notification once approved
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                    <span>Start ordering fuel immediately after approval</span>
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      Start ordering fuel immediately after approval
+                    </span>
                   </div>
                 </div>
               </div>

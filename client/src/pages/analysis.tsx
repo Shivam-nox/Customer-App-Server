@@ -86,7 +86,7 @@ export default function AnalysisScreen() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/profile")}
+            onClick={() => window.history.back()}
             className="mr-3"
             data-testid="back-button"
           >

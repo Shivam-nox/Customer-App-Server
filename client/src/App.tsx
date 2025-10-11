@@ -71,7 +71,11 @@ function Router() {
         </>
       ) : (
         <>
+          {/* Redirect all unauthenticated routes to login */}
           <Route path="/">
+            <Redirect to="/login" />
+          </Route>
+          <Route path="/:rest*">
             <Redirect to="/login" />
           </Route>
         </>

@@ -449,7 +449,6 @@ export default function GoogleMapPicker({
   return (
     <div className="space-y-4">
       {/* API Key Check */}
-     
 
       <div className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
         <div className="flex items-center justify-between mb-2">

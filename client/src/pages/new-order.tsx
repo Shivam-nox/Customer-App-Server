@@ -135,7 +135,7 @@ export default function NewOrderScreen() {
         { value: "19:00", label: "7-9pm" }
       ];
 
-  const subtotal = quantity * ratePerLiter;
+  const subtotal = Math.max(0, quantity) * ratePerLiter;
   const gst = deliveryCharges * gstRate;
   const totalAmount = subtotal + deliveryCharges + gst;
 
@@ -226,6 +226,14 @@ export default function NewOrderScreen() {
                     step={orderStep}
                     className="peer"
                     data-testid="quantity-input"
+                    onInput={(e) => {
+                      const input = e.target as HTMLInputElement;
+                      const value = parseFloat(input.value);
+                      if (value < 0) {
+                        input.value = "0";
+                        form.setValue("quantity", 0);
+                      }
+                    }}
                   />
                   <Label className="peer-focus:text-primary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">
                     Diesel Quantity (Liters)

@@ -35,13 +35,16 @@ export interface IStorage {
   getCustomerByEmail(email: string): Promise<Customer | undefined>;
   getCustomerByUsername(username: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer>;
+  updateCustomer(
+    id: string,
+    updates: Partial<InsertCustomer>
+  ): Promise<Customer>;
 
   // OTP methods
   createOtp(otp: InsertOtp): Promise<OtpVerification>;
   getValidOtp(
     identifier: string,
-    otp: string,
+    otp: string
   ): Promise<OtpVerification | undefined>;
   markOtpVerified(id: string): Promise<void>;
   cleanupExpiredOtps(): Promise<void>;
@@ -53,7 +56,7 @@ export interface IStorage {
   updateOrderStatus(
     id: string,
     status: string,
-    driverId?: string,
+    driverId?: string
   ): Promise<Order>;
   generateOrderNumber(): Promise<string>;
 
@@ -64,18 +67,18 @@ export interface IStorage {
   updatePaymentStatus(
     id: string,
     status: string,
-    transactionId?: string,
+    transactionId?: string
   ): Promise<Payment>;
 
-
-
   // Saved Address methods
-  createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress>;
+  createCustomerAddress(
+    address: InsertCustomerAddress
+  ): Promise<CustomerAddress>;
   getUserCustomerAddresses(userId: string): Promise<CustomerAddress[]>;
   getCustomerAddress(id: string): Promise<CustomerAddress | undefined>;
   updateCustomerAddress(
     id: string,
-    updates: Partial<InsertCustomerAddress>,
+    updates: Partial<InsertCustomerAddress>
   ): Promise<CustomerAddress>;
   deleteCustomerAddress(id: string): Promise<void>;
   setDefaultAddress(userId: string, addressId: string): Promise<void>;
@@ -94,7 +97,7 @@ export interface IStorage {
   updateSystemSetting(
     key: string,
     value: string,
-    updatedBy?: string,
+    updatedBy?: string
   ): Promise<SystemSetting>;
   createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
 
@@ -103,22 +106,34 @@ export interface IStorage {
   getDriverByPhone(phone: string): Promise<Driver | undefined>;
   createDriver(driver: InsertDriver): Promise<Driver>;
   updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver>;
+
+  // Admin methods
+  getAdminUsers(): Promise<Customer[]>;
 }
 
 export class DatabaseStorage implements IStorage {
   // Customer methods
   async getCustomer(id: string): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
     return customer || undefined;
   }
 
   async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.phone, phone));
     return customer || undefined;
   }
 
   async getCustomerByEmail(email: string): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.email, email));
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.email, email));
     return customer || undefined;
   }
 
@@ -131,11 +146,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const [customer] = await db.insert(customers).values(insertCustomer).returning();
+    const [customer] = await db
+      .insert(customers)
+      .values(insertCustomer)
+      .returning();
     return customer;
   }
 
-  async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
+  async updateCustomer(
+    id: string,
+    updates: Partial<InsertCustomer>
+  ): Promise<Customer> {
     const [customer] = await db
       .update(customers)
       .set({ ...updates, updatedAt: new Date() })
@@ -165,7 +186,10 @@ export class DatabaseStorage implements IStorage {
     return this.createCustomer(insertCustomer);
   }
 
-  async updateUser(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
+  async updateUser(
+    id: string,
+    updates: Partial<InsertCustomer>
+  ): Promise<Customer> {
     return this.updateCustomer(id, updates);
   }
 
@@ -180,7 +204,7 @@ export class DatabaseStorage implements IStorage {
 
   async getValidOtp(
     identifier: string,
-    otp: string,
+    otp: string
   ): Promise<OtpVerification | undefined> {
     const [verification] = await db
       .select()
@@ -190,8 +214,8 @@ export class DatabaseStorage implements IStorage {
           eq(otpVerifications.identifier, identifier),
           eq(otpVerifications.otp, otp),
           eq(otpVerifications.isVerified, false),
-          gte(otpVerifications.expiresAt, new Date()),
-        ),
+          gte(otpVerifications.expiresAt, new Date())
+        )
       );
     return verification || undefined;
   }
@@ -226,7 +250,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserOrders(
     customerId: string,
-    limit: number = 20,
+    limit: number = 20
   ): Promise<Order[]> {
     return await db
       .select()
@@ -239,7 +263,7 @@ export class DatabaseStorage implements IStorage {
   async updateOrderStatus(
     id: string,
     status: string,
-    driverId?: string,
+    driverId?: string
   ): Promise<Order> {
     const updates: any = { status: status as any, updatedAt: new Date() };
     if (driverId) {
@@ -299,7 +323,7 @@ export class DatabaseStorage implements IStorage {
   async updatePaymentStatus(
     id: string,
     status: string,
-    transactionId?: string,
+    transactionId?: string
   ): Promise<Payment> {
     const updates: any = { status, updatedAt: new Date() };
     if (transactionId) {
@@ -313,11 +337,9 @@ export class DatabaseStorage implements IStorage {
     return payment;
   }
 
-
-
   // Saved Address methods
   async createCustomerAddress(
-    insertAddress: InsertCustomerAddress,
+    insertAddress: InsertCustomerAddress
   ): Promise<CustomerAddress> {
     const [address] = await db
       .insert(customerAddresses)
@@ -333,10 +355,13 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(customerAddresses.userId, userId),
-          eq(customerAddresses.isActive, true),
-        ),
+          eq(customerAddresses.isActive, true)
+        )
       )
-      .orderBy(desc(customerAddresses.isDefault), desc(customerAddresses.createdAt));
+      .orderBy(
+        desc(customerAddresses.isDefault),
+        desc(customerAddresses.createdAt)
+      );
   }
 
   async getCustomerAddress(id: string): Promise<CustomerAddress | undefined> {
@@ -349,7 +374,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateCustomerAddress(
     id: string,
-    updates: Partial<InsertCustomerAddress>,
+    updates: Partial<InsertCustomerAddress>
   ): Promise<CustomerAddress> {
     const [address] = await db
       .update(customerAddresses)
@@ -376,7 +401,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSystemSettingsByCategory(
-    category: string,
+    category: string
   ): Promise<SystemSetting[]> {
     return await db
       .select()
@@ -388,7 +413,7 @@ export class DatabaseStorage implements IStorage {
   async updateSystemSetting(
     key: string,
     value: string,
-    updatedBy?: string,
+    updatedBy?: string
   ): Promise<SystemSetting> {
     const [setting] = await db
       .update(systemSettings)
@@ -403,7 +428,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSystemSetting(
-    insertSetting: InsertSystemSetting,
+    insertSetting: InsertSystemSetting
   ): Promise<SystemSetting> {
     const [setting] = await db
       .insert(systemSettings)
@@ -420,17 +445,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setDefaultAddress(userId: string, addressId: string): Promise<void> {
-    // First, unset all default addresses for the user
-    await db
-      .update(customerAddresses)
-      .set({ isDefault: false, updatedAt: new Date() })
-      .where(eq(customerAddresses.userId, userId));
-
-    // Then set the specified address as default
-    await db
-      .update(customerAddresses)
-      .set({ isDefault: true, updatedAt: new Date() })
+    // Get the current address to check if it's already default
+    const [currentAddress] = await db
+      .select()
+      .from(customerAddresses)
       .where(eq(customerAddresses.id, addressId));
+
+    if (!currentAddress) {
+      throw new Error("Address not found");
+    }
+
+    // If the address is already default, unset it
+    if (currentAddress.isDefault) {
+      await db
+        .update(customerAddresses)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(customerAddresses.id, addressId));
+    } else {
+      // First, unset all default addresses for the user
+      await db
+        .update(customerAddresses)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(customerAddresses.userId, userId));
+
+      // Then set the specified address as default
+      await db
+        .update(customerAddresses)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(customerAddresses.id, addressId));
+    }
   }
 
   // Driver methods
@@ -440,19 +483,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDriverByPhone(phone: string): Promise<Driver | undefined> {
-    const [driver] = await db.select().from(drivers).where(eq(drivers.phone, phone));
+    const [driver] = await db
+      .select()
+      .from(drivers)
+      .where(eq(drivers.phone, phone));
     return driver || undefined;
   }
 
   async createDriver(insertDriver: InsertDriver): Promise<Driver> {
-    const [driver] = await db
-      .insert(drivers)
-      .values(insertDriver)
-      .returning();
+    const [driver] = await db.insert(drivers).values(insertDriver).returning();
     return driver;
   }
 
-  async updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver> {
+  async updateDriver(
+    id: string,
+    updates: Partial<InsertDriver>
+  ): Promise<Driver> {
     const [driver] = await db
       .update(drivers)
       .set({ ...updates, updatedAt: new Date() })
@@ -461,8 +507,19 @@ export class DatabaseStorage implements IStorage {
     return driver;
   }
 
+  // Admin methods
+  async getAdminUsers(): Promise<Customer[]> {
+    const admins = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.role, "admin"));
+    return admins;
+  }
+
   // Notification methods
-  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+  async createNotification(
+    insertNotification: InsertNotification
+  ): Promise<Notification> {
     const [notification] = await db
       .insert(notifications)
       .values(insertNotification)
@@ -470,7 +527,10 @@ export class DatabaseStorage implements IStorage {
     return notification;
   }
 
-  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 50
+  ): Promise<Notification[]> {
     return await db
       .select()
       .from(notifications)
@@ -484,10 +544,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql`COUNT(*)`.as("count") })
       .from(notifications)
       .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.isRead, false)
-        )
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false))
       );
     return Number(result[0]?.count || 0);
   }

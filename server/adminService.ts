@@ -245,6 +245,82 @@ export class AdminService {
   }
 
   /**
+   * Notify admin dashboard about KYC document submission
+   * Sends notification when customer uploads KYC documents for review
+   */
+  async notifyKycSubmission(customer: User): Promise<boolean> {
+    try {
+      if (!this.adminDashboardUrl || !this.apiKey) {
+        console.log(
+          "⚠️  Admin dashboard integration not configured - skipping KYC submission notification",
+        );
+        return false;
+      }
+
+      // Prepare KYC submission notification payload
+      const kycNotification = {
+        type: "kyc_submission",
+        customer_id: customer.id,
+        customer_name: customer.name,
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        business_name: customer.businessName,
+        kyc_status: customer.kycStatus,
+        kyc_documents: customer.kycDocuments,
+        submitted_at: new Date().toISOString(),
+      };
+
+      // Log KYC submission notification
+      console.log(`\n📄 =======================================`);
+      console.log(`🔔 NOTIFYING ADMIN ABOUT KYC SUBMISSION`);
+      console.log(`📄 =======================================`);
+      console.log(`👤 Customer: ${customer.name}`);
+      console.log(`📧 Email: ${customer.email}`);
+      console.log(`📞 Phone: ${customer.phone}`);
+      console.log(`🏢 Business: ${customer.businessName || 'Not provided'}`);
+      console.log(`📋 KYC Status: ${customer.kycStatus}`);
+      console.log(`📎 Documents: ${customer.kycDocuments ? 'Uploaded' : 'None'}`);
+      console.log(`🔗 Admin URL: ${this.adminDashboardUrl}/api/external/kyc-submission`);
+
+      // Send KYC submission notification to admin dashboard
+      const response = await fetch(
+        `${this.adminDashboardUrl}/api/external/kyc-submission`,
+        {
+          method: "POST",
+          headers: {
+            "X-API-Key": this.apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(kycNotification),
+        },
+      );
+
+      const success = response.ok;
+
+      if (success) {
+        console.log(`✅ SUCCESS: Admin notified about KYC submission`);
+        console.log(`👤 Customer: ${customer.name} (${customer.email})`);
+        console.log(`📋 Status: ${customer.kycStatus}`);
+        console.log(`📄 =======================================\n`);
+      } else {
+        console.error(`❌ FAILED: Admin KYC notification failed`);
+        console.error(`🔥 Response: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => "Unknown error");
+        console.error(`📄 Error details:`, errorText);
+        console.log(`📄 =======================================\n`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error(`💥 EXCEPTION: Error sending KYC notification to admin`);
+      console.error(`👤 Customer: ${customer.name}`);
+      console.error(`🔥 Error:`, error);
+      console.log(`📄 =======================================\n`);
+      return false;
+    }
+  }
+
+  /**
    * Get admin dashboard integration information for debugging
    */
   async getIntegrationInfo() {
@@ -254,6 +330,7 @@ export class AdminService {
       endpoints: {
         health: `${this.adminDashboardUrl}/api/health`,
         customerRegistration: `${this.adminDashboardUrl}/api/external/customer-registration`,
+        kycSubmission: `${this.adminDashboardUrl}/api/external/kyc-submission`,
       },
       headers: {
         "X-API-Key": this.apiKey ? "[CONFIGURED]" : "[MISSING]",

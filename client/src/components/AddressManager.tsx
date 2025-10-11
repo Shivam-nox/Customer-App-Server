@@ -724,16 +724,18 @@ export default function AddressManager({
                       >
                         <Edit size={14} />
                       </Button>
-                      {!address.isDefault && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDefaultMutation.mutate(address.id)}
-                          data-testid={`set-default-${address.id}`}
-                        >
-                          <Star size={14} />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDefaultMutation.mutate(address.id)}
+                        data-testid={`set-default-${address.id}`}
+                        title={address.isDefault ? "Unset as default" : "Set as default"}
+                      >
+                        <Star 
+                          size={14} 
+                          className={address.isDefault ? "fill-yellow-500 text-yellow-500" : ""}
+                        />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

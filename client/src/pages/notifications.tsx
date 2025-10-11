@@ -21,7 +21,7 @@ export default function NotificationsScreen() {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      return apiRequest("PATCH", `/api/notifications/${notificationId}/read`, {});
+      return apiRequest("PUT", `/api/notifications/${notificationId}/read`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -37,7 +37,7 @@ export default function NotificationsScreen() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("PATCH", "/api/notifications/mark-all-read", {});
+      return apiRequest("PUT", "/api/notifications/mark-all-read", {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -106,7 +106,7 @@ export default function NotificationsScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/home")}
+          onClick={() => window.history.back()}
           className="mr-3"
           data-testid="back-button"
         >
@@ -152,6 +152,10 @@ export default function NotificationsScreen() {
                 onClick={() => {
                   if (!notification.isRead) {
                     markAsReadMutation.mutate(notification.id);
+                  }
+                  // Navigate to order if notification has orderId
+                  if (notification.orderId) {
+                    setLocation(`/track-order/${notification.orderId}`);
                   }
                 }}
                 data-testid={`notification-${notification.id}`}

@@ -12,7 +12,7 @@ import { ArrowLeft, Download, RefreshCw, Filter, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 
-type FilterType = "all" | "delivered" | "pending" | "cancelled";
+type FilterType = "all" | "pending" | "confirmed" | "in_transit" | "delivered" | "cancelled";
 
 export default function OrderHistoryScreen() {
   const [, setLocation] = useLocation();
@@ -88,12 +88,16 @@ export default function OrderHistoryScreen() {
   if (!user) return null;
 
   const orders = ordersData?.orders || [];
-  const filteredOrders = orders.filter((order: any) => {
+  
+  // Sort orders by creation date (newest first)
+  const sortedOrders = [...orders].sort((a: any, b: any) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  
+  // Filter orders by status
+  const filteredOrders = sortedOrders.filter((order: any) => {
     if (filter === "all") return true;
-    if (filter === "delivered") return order.status === "delivered";
-    if (filter === "pending") return ["pending", "confirmed", "in_transit"].includes(order.status);
-    if (filter === "cancelled") return order.status === "cancelled";
-    return true;
+    return order.status === filter;
   });
 
   const getStatusColor = (status: string) => {
@@ -113,8 +117,11 @@ export default function OrderHistoryScreen() {
 
   const filterButtons = [
     { key: "all", label: "All" },
-    { key: "delivered", label: "Delivered" },
     { key: "pending", label: "Pending" },
+    { key: "confirmed", label: "Confirmed" },
+    { key: "in_transit", label: "In Transit" },
+    { key: "delivered", label: "Delivered" },
+    { key: "cancelled", label: "Cancelled" },
   ];
 
   return (
@@ -123,7 +130,7 @@ export default function OrderHistoryScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/home")}
+          onClick={() => window.history.back()}
           className="mr-3"
           data-testid="back-button"
         >
@@ -135,14 +142,14 @@ export default function OrderHistoryScreen() {
       <div className="flex-1 pb-20">
         <div className="p-4">
           {/* Filter Options */}
-          <div className="flex space-x-2 mb-4" data-testid="filter-buttons">
+          <div className="flex space-x-2 mb-4 overflow-x-auto pb-2" data-testid="filter-buttons">
             {filterButtons.map((button) => (
               <Button
                 key={button.key}
                 variant={filter === button.key ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilter(button.key as FilterType)}
-                className="rounded-full"
+                className="rounded-full whitespace-nowrap flex-shrink-0"
                 data-testid={`filter-${button.key}`}
               >
                 {button.label}

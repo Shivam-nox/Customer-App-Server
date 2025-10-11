@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         kycStatus: "submitted",
       });
 
-      // Create notification
+      // Create notification for customer
       await storage.createNotification({
         userId: user.id,
         title: "KYC Documents Submitted",
@@ -267,7 +267,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "kyc",
       });
 
-      res.json({ user });
+      // Notify admin dashboard about KYC submission
+      console.log(`📄 KYC documents submitted by ${user.name} (${user.email})`);
+      console.log(`📧 Attempting to notify admin dashboard...`);
+      
+      const adminNotificationSuccess = await adminService.notifyKycSubmission(user);
+      
+      if (adminNotificationSuccess) {
+        console.log(`✅ Admin dashboard successfully notified about KYC submission`);
+      } else {
+        console.log(`⚠️  Admin dashboard notification failed - KYC submission recorded but admin was not notified`);
+      }
+
+      // Get all admin users to send in-app notifications
+      const adminUsers = await storage.getAdminUsers();
+      
+      // Create in-app notifications for all admin users
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          title: "New KYC Submission",
+          message: `${user.name} (${user.businessName || 'No business name'}) has submitted KYC documents for review.`,
+          type: "kyc",
+        });
+      }
+      
+      console.log(`📬 Created in-app notifications for ${adminUsers.length} admin user(s)`);
+
+      res.json({ 
+        user,
+        adminNotified: adminNotificationSuccess,
+        adminUsersNotified: adminUsers.length,
+      });
     } catch (error) {
       console.error("KYC documents error:", error);
       res.status(400).json({ error: "Failed to update KYC documents" });
@@ -1277,6 +1308,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get notifications error:", error);
       res.status(500).json({ error: "Failed to get notifications" });
+    }
+  });
+
+  // Mark all as read - MUST come before :id route
+  app.put("/api/notifications/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark all notifications read error:", error);
+      res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
   });
 
