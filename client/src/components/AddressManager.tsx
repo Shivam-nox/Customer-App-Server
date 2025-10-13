@@ -51,7 +51,7 @@ const addressSchema = z.object({
   label: z.string().min(1, "Address label is required"),
   addressLine1: z
     .string()
-    .min(10, "Address line 1 must be at least 10 characters"),
+    .min(1, "Address line 1 is required"),
   addressLine2: z.string().optional(),
   landmark: z.string().optional(),
   area: z.string().min(2, "Area is required"),

@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
+import { getCurrentLocation } from "@/lib/location";
 
 declare global {
   interface Window {
@@ -168,88 +169,78 @@ export default function GoogleMapPicker({
     });
   };
 
-  const getUserLocation = () => {
+  const getUserLocation = async () => {
     console.log(
       "🌍 getUserLocation CALLED - Attempting to get real GPS location"
     );
-    return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-      if (!navigator.geolocation) {
-        console.warn("Geolocation not supported, using Bangalore center");
-        setDebugInfo("⚠️ GPS not supported, using default location");
-        resolve(BANGALORE_CENTER);
-        return;
+    
+    setDebugInfo("📡 Requesting GPS location...");
+
+    try {
+      const coords = await getCurrentLocation();
+      
+      const location = {
+        lat: coords.latitude,
+        lng: coords.longitude,
+      };
+
+      console.log(
+        "✅ Got GPS location:",
+        location,
+        "Accuracy:",
+        coords.accuracy,
+        "meters"
+      );
+      setDebugInfo(
+        `✅ GPS location acquired (±${Math.round(
+          coords.accuracy || 0
+        )}m accuracy)`
+      );
+
+      // Check if location is in Bangalore
+      if (isInBangalore(location.lat, location.lng)) {
+        return location;
+      } else {
+        console.warn("Location outside Bangalore, using city center");
+        setDebugInfo("⚠️ Location outside Bangalore, using city center");
+        toast({
+          title: "Location Outside Service Area",
+          description:
+            "Your location is outside Bangalore. Showing Bangalore center.",
+          variant: "destructive",
+        });
+        return BANGALORE_CENTER;
+      }
+    } catch (error: any) {
+      console.error("GPS error:", error.message);
+      let errorMsg = "GPS unavailable";
+
+      switch (error.type) {
+        case "PERMISSION_DENIED":
+          errorMsg = "Location permission denied";
+          setDebugInfo("❌ Location permission denied by user");
+          break;
+        case "POSITION_UNAVAILABLE":
+          errorMsg = "Location unavailable";
+          setDebugInfo("❌ GPS position unavailable");
+          break;
+        case "TIMEOUT":
+          errorMsg = "Location request timeout";
+          setDebugInfo("❌ GPS request timed out");
+          break;
+        case "NOT_SUPPORTED":
+          errorMsg = "GPS not supported";
+          setDebugInfo("⚠️ GPS not supported, using default location");
+          break;
       }
 
-      setDebugInfo("📡 Requesting GPS location...");
+      toast({
+        title: errorMsg,
+        description: "Using Bangalore center as default location",
+      });
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-
-          console.log(
-            "✅ Got GPS location:",
-            location,
-            "Accuracy:",
-            position.coords.accuracy,
-            "meters"
-          );
-          setDebugInfo(
-            `✅ GPS location acquired (±${Math.round(
-              position.coords.accuracy
-            )}m accuracy)`
-          );
-
-          // Check if location is in Bangalore
-          if (isInBangalore(location.lat, location.lng)) {
-            resolve(location);
-          } else {
-            console.warn("Location outside Bangalore, using city center");
-            setDebugInfo("⚠️ Location outside Bangalore, using city center");
-            toast({
-              title: "Location Outside Service Area",
-              description:
-                "Your location is outside Bangalore. Showing Bangalore center.",
-              variant: "destructive",
-            });
-            resolve(BANGALORE_CENTER);
-          }
-        },
-        (error) => {
-          console.error("GPS error:", error.message);
-          let errorMsg = "GPS unavailable";
-
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMsg = "Location permission denied";
-              setDebugInfo("❌ Location permission denied by user");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMsg = "Location unavailable";
-              setDebugInfo("❌ GPS position unavailable");
-              break;
-            case error.TIMEOUT:
-              errorMsg = "Location request timeout";
-              setDebugInfo("❌ GPS request timed out");
-              break;
-          }
-
-          toast({
-            title: errorMsg,
-            description: "Using Bangalore center as default location",
-          });
-
-          resolve(BANGALORE_CENTER);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0, // Don't use cached location
-        }
-      );
-    });
+      return BANGALORE_CENTER;
+    }
   };
 
   const handleLocationChange = useCallback(
@@ -398,7 +389,7 @@ export default function GoogleMapPicker({
       console.log("Map initialization complete");
 
       await handleLocationChange(location.lat, location.lng);
-      
+
       // Initialize autocomplete after map is ready
       initializeAutocomplete();
     } catch (err) {
@@ -413,7 +404,11 @@ export default function GoogleMapPicker({
 
   // Initialize Google Places Autocomplete
   const initializeAutocomplete = useCallback(() => {
-    if (!window.google?.maps?.places || !searchInputRef.current || !mapInstanceRef.current) {
+    if (
+      !window.google?.maps?.places ||
+      !searchInputRef.current ||
+      !mapInstanceRef.current
+    ) {
       console.log("⚠️ Autocomplete not ready yet");
       return;
     }
@@ -424,8 +419,14 @@ export default function GoogleMapPicker({
       searchInputRef.current,
       {
         bounds: new window.google.maps.LatLngBounds(
-          new window.google.maps.LatLng(BANGALORE_BOUNDS.south, BANGALORE_BOUNDS.west),
-          new window.google.maps.LatLng(BANGALORE_BOUNDS.north, BANGALORE_BOUNDS.east)
+          new window.google.maps.LatLng(
+            BANGALORE_BOUNDS.south,
+            BANGALORE_BOUNDS.west
+          ),
+          new window.google.maps.LatLng(
+            BANGALORE_BOUNDS.north,
+            BANGALORE_BOUNDS.east
+          )
         ),
         strictBounds: true,
         componentRestrictions: { country: "in" },
@@ -453,7 +454,8 @@ export default function GoogleMapPicker({
       if (!isInBangalore(lat, lng)) {
         toast({
           title: "Outside Bangalore",
-          description: "We only deliver in Bangalore. Please select a location within Bangalore.",
+          description:
+            "We only deliver in Bangalore. Please select a location within Bangalore.",
           variant: "destructive",
         });
         return;
@@ -532,7 +534,8 @@ export default function GoogleMapPicker({
           <Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
         </div>
         <p className="text-xs text-gray-500 ml-1">
-          💡 Try: "Phoenix Mall", "Prestige Shantiniketan", "Manyata Tech Park", "New Horizon College"
+          💡 Try: "Phoenix Mall", "Prestige Shantiniketan", "Manyata Tech Park",
+          "New Horizon College"
         </p>
       </div>
 

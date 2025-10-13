@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MapPin, Navigation, Target, X } from "lucide-react";
 import { useLocation as useLocationHook } from "@/hooks/useLocation";
 import GoogleMapPicker from "./GoogleMapPicker";
@@ -81,7 +86,9 @@ export default function LocationPrompt({
                       <Target className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="flex-1 text-left">
-                      <h3 className="font-medium text-gray-900">Use GPS Location</h3>
+                      <h3 className="font-medium text-gray-900">
+                        Use GPS Location
+                      </h3>
                       <p className="text-sm text-gray-600">
                         Automatically detect your current location
                       </p>
@@ -104,7 +111,9 @@ export default function LocationPrompt({
                       <MapPin className="h-5 w-5 text-orange-600" />
                     </div>
                     <div className="flex-1 text-left">
-                      <h3 className="font-medium text-gray-900">Select on Map</h3>
+                      <h3 className="font-medium text-gray-900">
+                        Select on Map
+                      </h3>
                       <p className="text-sm text-gray-600">
                         Choose your location using our interactive map
                       </p>
@@ -127,7 +136,9 @@ export default function LocationPrompt({
                       <Navigation className="h-5 w-5 text-gray-600" />
                     </div>
                     <div className="flex-1 text-left">
-                      <h3 className="font-medium text-gray-900">Enter Manually</h3>
+                      <h3 className="font-medium text-gray-900">
+                        Enter Manually
+                      </h3>
                       <p className="text-sm text-gray-600">
                         Type your address details manually
                       </p>
@@ -141,7 +152,8 @@ export default function LocationPrompt({
           {/* Service Area Note */}
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
             <p className="text-sm text-orange-800">
-              <strong>Note:</strong> We currently deliver only in Bangalore. Please select a location within Bangalore city limits.
+              <strong>Note:</strong> We currently deliver only in Bangalore.
+              Please select a location within Bangalore city limits.
             </p>
           </div>
         </div>
@@ -166,11 +178,7 @@ export function useLocationPrompt() {
   const hidePrompt = () => setIsOpen(false);
 
   const LocationPromptComponent = (props: Partial<LocationPromptProps>) => (
-    <LocationPrompt
-      isOpen={isOpen}
-      onClose={hidePrompt}
-      {...props}
-    />
+    <LocationPrompt isOpen={isOpen} onClose={hidePrompt} {...props} />
   );
 
   return {

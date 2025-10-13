@@ -303,7 +303,7 @@ export default function TrackOrderScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => window.history.back()}
+          onClick={() => setLocation("/")}
           className="mr-3"
           data-testid="back-button"
         >
