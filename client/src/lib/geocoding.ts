@@ -1,5 +1,5 @@
 /**
- * Geocoding service using Nominatim (OpenStreetMap) API
+ * Geocoding service using Google Maps Geocoding API
  * Converts addresses to latitude/longitude coordinates
  */
 
@@ -9,89 +9,51 @@ export interface GeocodeResult {
   display_name: string;
 }
 
-interface NominatimResponse {
-  lat: string;
-  lon: string;
-  display_name: string;
-  place_id: string;
-  importance: number;
-}
-
 /**
- * Geocode an address using Nominatim API
+ * Geocode an address using Google Maps Geocoding API
  * @param address - The complete address to geocode
  * @returns Promise with coordinates or null if failed
  */
 export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
-  console.log('🗺️ [GEOCODING] Starting geocoding for address:', address);
-  
   try {
-    // Build the complete address string
     const addressQuery = encodeURIComponent(address.trim());
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
     
-    // Nominatim API endpoint
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${addressQuery}&limit=1&addressdetails=1&countrycodes=in`;
+    if (!apiKey) {
+      console.error('Google Maps API key not found');
+      return null;
+    }
     
-    console.log('🌐 [GEOCODING] Making request to URL:', url);
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${addressQuery}&key=${apiKey}&region=in&components=country:IN`;
     
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Zapygo-App/1.0', // Required by Nominatim
-      },
-    });
-    
-    console.log('📡 [GEOCODING] Response status:', response.status, response.statusText);
+    const response = await fetch(url);
     
     if (!response.ok) {
-      console.error('💥 [GEOCODING] API request failed:', response.status);
+      console.error('Geocoding API request failed:', response.status);
       return null;
     }
     
-    const data: NominatimResponse[] = await response.json();
-    console.log('🔍 [GEOCODING] Raw API response:', data);
+    const data = await response.json();
     
-    if (data.length === 0) {
-      console.warn('❌ [GEOCODING] No results found for address:', address);
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      console.warn('No results found for address:', address);
       return null;
     }
     
-    const result = data[0];
+    const result = data.results[0];
     const coordinates = {
-      latitude: parseFloat(result.lat),
-      longitude: parseFloat(result.lon),
-      display_name: result.display_name,
+      latitude: result.geometry.location.lat,
+      longitude: result.geometry.location.lng,
+      display_name: result.formatted_address,
     };
     
-    console.log('✅ [GEOCODING] Success! Coordinates found:', coordinates);
     return coordinates;
     
   } catch (error) {
-    console.error('💥 [GEOCODING] Error during geocoding:', error);
+    console.error('Error during geocoding:', error);
     return null;
   }
 }
-
-/**
- * Test function to verify geocoding with specific addresses
- * This will help debug geocoding issues in the console
- */
-export async function testGeocoding() {
-  console.log('🧪 [GEOCODING TEST] Starting geocoding tests...');
-  
-  const testAddresses = [
-    'Kempegowda International Airport Bengaluru, near Devanahalli - 534320',
-    'RMZ Infinity, Old Mardras Road, Sadanandanagar, Bennigana Halli, opposite Gopalan Signature Mall, 560016'
-  ];
-  
-  for (const address of testAddresses) {
-    console.log(`\n🔍 Testing address: ${address}`);
-    const result = await geocodeAddress(address);
-    console.log(`Result:`, result);
-  }
-}
-
-// Expose test function globally for debugging
-(window as any).testGeocoding = testGeocoding;
 
 /**
  * Build a complete address string from form data

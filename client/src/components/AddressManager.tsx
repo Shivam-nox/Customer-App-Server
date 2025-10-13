@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -31,7 +30,6 @@ import {
   getCurrentLocation,
   reverseGeocode,
   isWithinBangalore,
-  isValidBangalorePincode,
   getLocationErrorMessage,
   type LocationError,
 } from "@/lib/location";
@@ -44,9 +42,10 @@ import {
   Star,
   Loader2,
   Navigation,
-  AlertCircle,
+  Target,
 } from "lucide-react";
 import LocationPermissionHelper from "./LocationPermissionHelper";
+import GoogleMapPicker from "./GoogleMapPicker";
 
 const addressSchema = z.object({
   label: z.string().min(1, "Address label is required"),
@@ -389,65 +388,83 @@ export default function AddressManager({
                 />
               )}
 
-              {/* Location Detection Button */}
+              {/* Google Map Picker - Always Visible */}
+              <GoogleMapPicker
+                onLocationSelect={(location) => {
+                  const addressParts = location.formattedAddress.split(",");
+                  form.setValue("addressLine1", addressParts[0]?.trim() || location.area);
+                  form.setValue("addressLine2", addressParts[1]?.trim() || "");
+                  form.setValue("area", location.area);
+                  form.setValue("city", "Bangalore");
+                  form.setValue("state", "Karnataka");
+                  form.setValue("pincode", location.pincode || "");
+
+                  setDetectedCoordinates({
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                  });
+                }}
+              />
+
+              {/* GPS Detection Button */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Navigation className="text-blue-600" size={20} />
-                    <span className="font-medium text-blue-800">
-                      Quick Fill
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Navigation className="text-blue-600" size={20} />
+                      <span className="font-medium text-blue-800">
+                        GPS Detection
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDetectLocation}
+                      disabled={isDetectingLocation}
+                      className="bg-white hover:bg-blue-50"
+                    >
+                      {isDetectingLocation ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Detecting...
+                        </>
+                      ) : (
+                        <>
+                          <Target className="w-4 h-4 mr-2" />
+                          Use GPS
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDetectLocation}
-                    disabled={isDetectingLocation}
-                    className="bg-white hover:bg-blue-50"
-                  >
-                    {isDetectingLocation ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Detecting...
-                      </>
-                    ) : (
-                      <>
-                        <MapPin className="w-4 h-4 mr-2" />
-                        Use My Location
-                      </>
+                  <p className="text-sm text-blue-700">
+                    Auto-fill address using your device's GPS location
+                    {isDetectingLocation && (
+                      <span className="block mt-1 text-blue-600 font-medium">
+                        🔍 Detecting your location and fetching address
+                        details...
+                      </span>
                     )}
-                  </Button>
-                </div>
-                <p className="text-sm text-blue-700">
-                  Click "Use My Location" to automatically fill address details
-                  using GPS
-                  {isDetectingLocation && (
-                    <span className="block mt-1 text-blue-600 font-medium">
-                      🔍 Detecting your location and fetching address details...
-                    </span>
+                  </p>
+                  {navigator.permissions && !detectedCoordinates && (
+                    <div className="mt-2 text-xs text-blue-600">
+                      💡 Make sure location permissions are enabled for accurate
+                      detection
+                    </div>
                   )}
-                </p>
-                {navigator.permissions && !detectedCoordinates && (
-                  <div className="mt-2 text-xs text-blue-600">
-                    💡 Make sure location permissions are enabled for accurate
-                    detection
-                  </div>
-                )}
-                {detectedCoordinates && (
-                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-xs text-green-800">
-                    📍 GPS coordinates detected:{" "}
-                    {formatCoordinates(
-                      detectedCoordinates.latitude,
-                      detectedCoordinates.longitude
-                    )}
-                    <br />
-                    🎯 {getAccuracyDescription(detectedCoordinates.accuracy)}
-                    <br />✅ This address will be saved with precise location
-                    data for delivery optimization
-                  </div>
-                )}
-              </div>
+                  {detectedCoordinates && (
+                    <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-xs text-green-800">
+                      📍 GPS coordinates detected:{" "}
+                      {formatCoordinates(
+                        detectedCoordinates.latitude,
+                        detectedCoordinates.longitude
+                      )}
+                      <br />
+                      🎯 {getAccuracyDescription(detectedCoordinates.accuracy)}
+                      <br />✅ This address will be saved with precise location
+                      data for delivery optimization
+                    </div>
+                  )}
+                </div>
 
               {/* Address Label */}
               <div>
@@ -480,17 +497,15 @@ export default function AddressManager({
 
               {/* Address Line 1 */}
               <div>
-                <Label htmlFor="addressLine1">Address Line 1 *</Label>
-                <div className="relative">
-                  <Input
-                    {...form.register("addressLine1")}
-                    placeholder="Building name, floor, etc."
-                    data-testid="address-line1-input"
-                  />
-                  {form.watch("addressLine1") && (
-                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
-                  )}
-                </div>
+                <Label htmlFor="addressLine1">
+                  Address Line 1 * 
+                  {detectedCoordinates && <span className="text-xs text-green-600 ml-2">✓ From map</span>}
+                </Label>
+                <Input
+                  {...form.register("addressLine1")}
+                  placeholder="Building name, floor, etc."
+                  data-testid="address-line1-input"
+                />
                 {form.formState.errors.addressLine1 && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.addressLine1.message}
@@ -521,24 +536,19 @@ export default function AddressManager({
               {/* Area */}
               <div>
                 <Label htmlFor="area">Area *</Label>
-                <div className="relative">
-                  <Input
-                    {...form.register("area")}
-                    placeholder="Area in Bangalore (e.g., Koramangala, HSR Layout)"
-                    data-testid="area-input"
-                    list="bangalore-areas"
-                  />
-                  <datalist id="bangalore-areas">
-                    {BANGALORE_AREAS.map((area) => (
-                      <option key={area} value={area} />
-                    ))}
-                  </datalist>
-                  {form.watch("area") && (
-                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
-                  )}
-                </div>
+                <Input
+                  {...form.register("area")}
+                  placeholder="Area in Bangalore (e.g., Koramangala, HSR Layout)"
+                  data-testid="area-input"
+                  list="bangalore-areas"
+                />
+                <datalist id="bangalore-areas">
+                  {BANGALORE_AREAS.map((area) => (
+                    <option key={area} value={area} />
+                  ))}
+                </datalist>
                 <p className="text-xs text-gray-500 mt-1">
-                  Start typing to see suggestions or use location detection
+                  Start typing to see suggestions
                 </p>
                 {form.formState.errors.area && (
                   <p className="text-sm text-red-600 mt-1">
@@ -550,17 +560,12 @@ export default function AddressManager({
               {/* Pincode */}
               <div>
                 <Label htmlFor="pincode">Pincode *</Label>
-                <div className="relative">
-                  <Input
-                    {...form.register("pincode")}
-                    placeholder="560001"
-                    maxLength={6}
-                    data-testid="pincode-input"
-                  />
-                  {form.watch("pincode") && (
-                    <MapPin className="absolute right-3 top-3 w-4 h-4 text-green-500" />
-                  )}
-                </div>
+                <Input
+                  {...form.register("pincode")}
+                  placeholder="560001"
+                  maxLength={6}
+                  data-testid="pincode-input"
+                />
                 {form.formState.errors.pincode && (
                   <p className="text-sm text-red-600 mt-1">
                     {form.formState.errors.pincode.message}

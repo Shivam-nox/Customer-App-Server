@@ -1,28 +1,62 @@
 const CACHE_NAME = 'zapygo-v1';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json'
 ];
 
 // Install event
 self.addEventListener('install', (event) => {
+  console.log('Service Worker installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        return cache.addAll(urlsToCache);
+        console.log('Opened cache');
+        // Only cache essential files that exist
+        return cache.addAll(urlsToCache.filter(url => url === '/' || url === '/manifest.json'));
+      })
+      .catch((error) => {
+        console.error('Cache addAll failed:', error);
       })
   );
+  // Skip waiting to activate immediately
+  self.skipWaiting();
 });
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Skip caching for API requests and hot reload
+  if (event.request.url.includes('/api/') || 
+      event.request.url.includes('/@vite/') ||
+      event.request.url.includes('/__vite_ping') ||
+      event.request.url.includes('/src/') ||
+      event.request.url.includes('.hot-update.')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request);
+        if (response) {
+          return response;
+        }
+        
+        return fetch(event.request).catch((error) => {
+          console.log('Fetch failed for:', event.request.url, error);
+          // Return a basic offline page for navigation requests
+          if (event.request.mode === 'navigate') {
+            return new Response('App is offline', {
+              status: 200,
+              headers: { 'Content-Type': 'text/html' }
+            });
+          }
+          throw error;
+        });
       })
   );
 });
