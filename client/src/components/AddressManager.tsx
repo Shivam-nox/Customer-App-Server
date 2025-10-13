@@ -176,21 +176,39 @@ export default function AddressManager({
       // Build complete address string for geocoding
       const fullAddress = buildAddressString(data);
 
-      // Attempt to geocode the address
+      // Attempt to geocode the manually entered address
       const coordinates = await geocodeAddress(fullAddress);
 
-      // Prepare address data with coordinates (from detection or geocoding)
+      // Priority: Use geocoded coordinates from typed address, fallback to detected coordinates
+      // This ensures manually typed addresses are respected
       const addressData = {
         ...data,
         latitude:
-          detectedCoordinates?.latitude.toString() ||
           coordinates?.latitude.toString() ||
+          detectedCoordinates?.latitude.toString() ||
           null,
         longitude:
-          detectedCoordinates?.longitude.toString() ||
           coordinates?.longitude.toString() ||
+          detectedCoordinates?.longitude.toString() ||
           null,
       };
+
+      console.log('💾 Saving address with coordinates:', {
+        typed: fullAddress,
+        geocoded: coordinates,
+        detected: detectedCoordinates,
+        final: { lat: addressData.latitude, lng: addressData.longitude }
+      });
+
+      // Warn if no coordinates found
+      if (!addressData.latitude || !addressData.longitude) {
+        console.warn('⚠️ No coordinates found for address!');
+        toast({
+          title: "Warning",
+          description: "Could not find exact location. Please use the map picker for accurate delivery.",
+          variant: "destructive",
+        });
+      }
 
       const response = await apiRequest("POST", "/api/addresses", addressData);
       return response.json();

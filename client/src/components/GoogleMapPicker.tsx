@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Navigation,
   AlertCircle,
+  Search,
 } from "lucide-react";
 
 declare global {
@@ -45,6 +46,8 @@ export default function GoogleMapPicker({
   console.log("🎨 GoogleMapPicker COMPONENT RENDERED");
 
   const mapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -395,6 +398,9 @@ export default function GoogleMapPicker({
       console.log("Map initialization complete");
 
       await handleLocationChange(location.lat, location.lng);
+      
+      // Initialize autocomplete after map is ready
+      initializeAutocomplete();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load map";
@@ -404,6 +410,72 @@ export default function GoogleMapPicker({
       setIsLoading(false);
     }
   }, [handleLocationChange]);
+
+  // Initialize Google Places Autocomplete
+  const initializeAutocomplete = useCallback(() => {
+    if (!window.google?.maps?.places || !searchInputRef.current || !mapInstanceRef.current) {
+      console.log("⚠️ Autocomplete not ready yet");
+      return;
+    }
+
+    console.log("🔍 Initializing Places Autocomplete");
+
+    const autocomplete = new window.google.maps.places.Autocomplete(
+      searchInputRef.current,
+      {
+        bounds: new window.google.maps.LatLngBounds(
+          new window.google.maps.LatLng(BANGALORE_BOUNDS.south, BANGALORE_BOUNDS.west),
+          new window.google.maps.LatLng(BANGALORE_BOUNDS.north, BANGALORE_BOUNDS.east)
+        ),
+        strictBounds: true,
+        componentRestrictions: { country: "in" },
+        fields: ["geometry", "formatted_address", "address_components", "name"],
+      }
+    );
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+
+      if (!place.geometry || !place.geometry.location) {
+        toast({
+          title: "Invalid Location",
+          description: "Please select a valid location from the suggestions",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+
+      console.log("📍 Place selected:", place.name, lat, lng);
+
+      if (!isInBangalore(lat, lng)) {
+        toast({
+          title: "Outside Bangalore",
+          description: "We only deliver in Bangalore. Please select a location within Bangalore.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Move map and marker to selected place
+      mapInstanceRef.current.setCenter({ lat, lng });
+      mapInstanceRef.current.setZoom(16);
+      markerRef.current.setPosition({ lat, lng });
+
+      // Trigger location change to update form
+      handleLocationChange(lat, lng);
+
+      toast({
+        title: "Location Selected",
+        description: place.name || "Location set successfully",
+      });
+    });
+
+    autocompleteRef.current = autocomplete;
+    console.log("✅ Autocomplete initialized");
+  }, [handleLocationChange, toast]);
 
   const handleDetectLocation = async () => {
     setIsDetectingLocation(true);
@@ -448,6 +520,22 @@ export default function GoogleMapPicker({
 
   return (
     <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="space-y-2">
+        <div className="relative">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search for malls, societies, landmarks, colleges..."
+            className="w-full px-4 py-3 pl-10 pr-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-sm shadow-sm"
+          />
+          <Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
+        </div>
+        <p className="text-xs text-gray-500 ml-1">
+          💡 Try: "Phoenix Mall", "Prestige Shantiniketan", "Manyata Tech Park", "New Horizon College"
+        </p>
+      </div>
+
       {/* API Key Check */}
 
       <div className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
