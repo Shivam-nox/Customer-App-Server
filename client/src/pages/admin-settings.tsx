@@ -17,11 +17,13 @@ export default function AdminSettingsScreen() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [editingSettings, setEditingSettings] = useState<Record<string, string>>({});
+  const [editingSettings, setEditingSettings] = useState<
+    Record<string, string>
+  >({});
 
   const { data: settingsData, isLoading } = useQuery({
     queryKey: ["/api/settings"],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role === "admin",
   });
 
   const updateSettingMutation = useMutation({
@@ -47,8 +49,8 @@ export default function AdminSettingsScreen() {
   });
 
   // Redirect if not admin
-  if (!user || user.role !== 'admin') {
-    setLocation('/home');
+  if (!user || user.role !== "admin") {
+    setLocation("/home");
     return null;
   }
 
@@ -61,7 +63,7 @@ export default function AdminSettingsScreen() {
   }
 
   const settings = (settingsData as any)?.settings || [];
-  
+
   // Group settings by category
   const settingsByCategory = settings.reduce((acc: any, setting: any) => {
     if (!acc[setting.category]) {
@@ -90,25 +92,34 @@ export default function AdminSettingsScreen() {
   };
 
   const formatCategoryName = (category: string) => {
-    return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
+    return (
+      category.charAt(0).toUpperCase() + category.slice(1).replace("_", " ")
+    );
   };
 
   const getDataTypeIcon = (dataType: string) => {
     switch (dataType) {
-      case 'number': return '🔢';
-      case 'string': return '📝';
-      case 'boolean': return '✅';
-      default: return '📄';
+      case "number":
+        return "🔢";
+      case "string":
+        return "📝";
+      case "boolean":
+        return "✅";
+      default:
+        return "📄";
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" data-testid="admin-settings-screen">
+    <div
+      className="min-h-screen flex flex-col bg-gray-50"
+      data-testid="admin-settings-screen"
+    >
       <div className="flex items-center p-4 border-b bg-white">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/home")}
+          onClick={() => window.history.back()}
           className="mr-3"
           data-testid="back-button"
         >
@@ -125,14 +136,19 @@ export default function AdminSettingsScreen() {
       <div className="flex-1 p-4">
         <div className="mb-4">
           <p className="text-sm text-gray-600">
-            Manage system-wide configuration settings. Changes affect all users immediately.
+            Manage system-wide configuration settings. Changes affect all users
+            immediately.
           </p>
         </div>
 
         <Tabs defaultValue={categories[0]} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
             {categories.map((category) => (
-              <TabsTrigger key={category} value={category} data-testid={`tab-${category}`}>
+              <TabsTrigger
+                key={category}
+                value={category}
+                data-testid={`tab-${category}`}
+              >
                 {formatCategoryName(category)}
               </TabsTrigger>
             ))}
@@ -142,14 +158,21 @@ export default function AdminSettingsScreen() {
             <TabsContent key={category} value={category}>
               <div className="space-y-4">
                 {settingsByCategory[category].map((setting: any) => (
-                  <Card key={setting.key} data-testid={`setting-${setting.key}`}>
+                  <Card
+                    key={setting.key}
+                    data-testid={`setting-${setting.key}`}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-base flex items-center space-x-2">
                             <span>{getDataTypeIcon(setting.dataType)}</span>
-                            <span>{setting.key.replace(/_/g, ' ').toUpperCase()}</span>
-                            {!setting.isEditable && <Lock size={14} className="text-gray-400" />}
+                            <span>
+                              {setting.key.replace(/_/g, " ").toUpperCase()}
+                            </span>
+                            {!setting.isEditable && (
+                              <Lock size={14} className="text-gray-400" />
+                            )}
                           </CardTitle>
                           {setting.description && (
                             <p className="text-sm text-gray-600 mt-1">
@@ -167,17 +190,26 @@ export default function AdminSettingsScreen() {
                         {editingSettings[setting.key] !== undefined ? (
                           <div className="space-y-3">
                             <div>
-                              <Label htmlFor={`edit-${setting.key}`} className="text-sm font-medium">
+                              <Label
+                                htmlFor={`edit-${setting.key}`}
+                                className="text-sm font-medium"
+                              >
                                 New Value
                               </Label>
                               <Input
                                 id={`edit-${setting.key}`}
-                                type={setting.dataType === 'number' ? 'number' : 'text'}
+                                type={
+                                  setting.dataType === "number"
+                                    ? "number"
+                                    : "text"
+                                }
                                 value={editingSettings[setting.key]}
-                                onChange={(e) => setEditingSettings({
-                                  ...editingSettings,
-                                  [setting.key]: e.target.value
-                                })}
+                                onChange={(e) =>
+                                  setEditingSettings({
+                                    ...editingSettings,
+                                    [setting.key]: e.target.value,
+                                  })
+                                }
                                 className="mt-1"
                                 data-testid={`input-${setting.key}`}
                               />
@@ -206,7 +238,9 @@ export default function AdminSettingsScreen() {
                         ) : (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <span className="text-sm text-gray-500">Current Value:</span>
+                              <span className="text-sm text-gray-500">
+                                Current Value:
+                              </span>
                               <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
                                 {setting.value}
                               </code>
@@ -215,7 +249,9 @@ export default function AdminSettingsScreen() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleEditSetting(setting.key, setting.value)}
+                                onClick={() =>
+                                  handleEditSetting(setting.key, setting.value)
+                                }
                                 data-testid={`edit-${setting.key}`}
                               >
                                 Edit
@@ -225,7 +261,8 @@ export default function AdminSettingsScreen() {
                         )}
                         {setting.updatedAt && (
                           <p className="text-xs text-gray-400">
-                            Last updated: {new Date(setting.updatedAt).toLocaleString()}
+                            Last updated:{" "}
+                            {new Date(setting.updatedAt).toLocaleString()}
                           </p>
                         )}
                       </div>

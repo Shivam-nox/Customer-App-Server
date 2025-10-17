@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 import SplashScreen from "@/pages/splash";
 import LoginScreen from "@/pages/login";
@@ -71,7 +72,11 @@ function Router() {
         </>
       ) : (
         <>
+          {/* Redirect all unauthenticated routes to login */}
           <Route path="/">
+            <Redirect to="/login" />
+          </Route>
+          <Route path="/:rest*">
             <Redirect to="/login" />
           </Route>
         </>
@@ -90,6 +95,7 @@ function App() {
           <div className="max-w-sm mx-auto bg-surface shadow-xl min-h-screen mobile-container relative overflow-y-auto">
             <Toaster />
             <Router />
+            <PWAInstallPrompt />
           </div>
         </TooltipProvider>
       </AuthProvider>

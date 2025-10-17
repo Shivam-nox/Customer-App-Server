@@ -12,7 +12,7 @@ export default function TermsConditionsScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/profile")}
+          onClick={() => window.history.back()}
           className="mr-3"
         >
           <ArrowLeft size={20} />

@@ -480,7 +480,7 @@ export default function PaymentScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation(`/new-order`)}
+          onClick={() => window.history.back()}
           className="mr-3"
           data-testid="back-button"
         >
