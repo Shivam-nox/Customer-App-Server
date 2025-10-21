@@ -205,7 +205,7 @@ export default function AddressManager({
         console.warn('⚠️ No coordinates found for address!');
         toast({
           title: "Warning",
-          description: "Could not find exact location. Please use the map picker for accurate delivery.",
+          description: "Could not find exact location. Please use the map picker for accurate delivery or more accurate landmark.",
           variant: "destructive",
         });
       }

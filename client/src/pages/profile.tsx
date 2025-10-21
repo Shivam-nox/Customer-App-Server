@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import {
   ArrowLeft,
   Edit,
@@ -254,19 +255,22 @@ export default function ProfileScreen() {
       className="min-h-screen bg-gray-50"
       data-testid="profile-screen"
     >
-      <div className="flex items-center p-4 border-b bg-white">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation("/home")}
-          className="mr-3"
-          data-testid="back-button"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <h2 className="text-lg font-medium" data-testid="page-title">
-          Profile
-        </h2>
+      <div className="flex items-center justify-between p-4 border-b bg-white">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/home")}
+            className="mr-3"
+            data-testid="back-button"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h2 className="text-lg font-medium" data-testid="page-title">
+            Profile
+          </h2>
+        </div>
+        <PWAInstallButton />
       </div>
 
       <div className="pb-20">

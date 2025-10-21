@@ -7,12 +7,35 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Controller } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Eye, EyeOff, User, Mail, Phone, Building, MapPin, CreditCard, FileText, Building2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Phone,
+  Building,
+  MapPin,
+  CreditCard,
+  FileText,
+  Building2,
+} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
@@ -20,14 +43,47 @@ const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   username: z.string().min(3, "Username must be at least 3 characters").max(50),
   email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number is required").regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
+  phone: z
+    .string()
+    .min(10, "Phone number is required")
+    .regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   businessName: z.string().min(1, "Business name is required"),
   businessAddress: z.string().min(1, "Business address is required"),
   industryType: z.string().min(1, "Industry type is required"),
-  gstNumber: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GST number format"),
-  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format"),
-  cinNumber: z.string().regex(/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/, "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"),
+  gstNumber: z
+    .string()
+    .transform((val) => val.toUpperCase())
+    .pipe(
+      z
+        .string()
+        .regex(
+          /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+          "Invalid GST number format"
+        )
+    ),
+  panNumber: z
+    .string()
+    .transform((val) => val.toUpperCase())
+    .pipe(
+      z
+        .string()
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format")
+    ),
+  cinNumber: z
+    .string()
+    .optional()
+    .transform((val) => (val ? val.toUpperCase() : val))
+    .pipe(
+      z
+        .string()
+        .optional()
+        .refine(
+          (val) =>
+            !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
+          "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"
+        )
+    ),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -37,7 +93,7 @@ const industryOptions = [
   "Manufacturing",
   "Construction",
   "Transportation & Logistics",
-  "Mining & Quarrying", 
+  "Mining & Quarrying",
   "Retail & Wholesale",
   "Hospitality & Tourism",
   "Healthcare",
@@ -46,7 +102,7 @@ const industryOptions = [
   "IT & Technology",
   "Financial Services",
   "Government",
-  "Others"
+  "Others",
 ];
 
 export default function SignupScreen() {
@@ -107,19 +163,21 @@ export default function SignupScreen() {
       <Card className="w-full max-w-md shadow-lg" data-testid="signup-card">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto mb-6">
-            <img 
-              src={logoUrl} 
-              alt="Zapygo - Fueling business, Driving progress" 
+            <img
+              src={logoUrl}
+              alt="Zapygo - Fueling business, Driving progress"
               className="h-16 w-auto mx-auto"
               data-testid="signup-logo"
             />
           </div>
-          <CardTitle className="text-2xl font-bold text-primary">Create Account</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary">
+            Create Account
+          </CardTitle>
           <CardDescription>
             Join Zapygo for reliable diesel delivery
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
@@ -134,7 +192,9 @@ export default function SignupScreen() {
                 data-testid="input-name"
               />
               {errors.name && (
-                <p className="text-sm text-red-500" data-testid="error-name">{errors.name.message}</p>
+                <p className="text-sm text-red-500" data-testid="error-name">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
@@ -147,7 +207,12 @@ export default function SignupScreen() {
                 data-testid="input-username"
               />
               {errors.username && (
-                <p className="text-sm text-red-500" data-testid="error-username">{errors.username.message}</p>
+                <p
+                  className="text-sm text-red-500"
+                  data-testid="error-username"
+                >
+                  {errors.username.message}
+                </p>
               )}
             </div>
 
@@ -164,7 +229,9 @@ export default function SignupScreen() {
                 data-testid="input-email"
               />
               {errors.email && (
-                <p className="text-sm text-red-500" data-testid="error-email">{errors.email.message}</p>
+                <p className="text-sm text-red-500" data-testid="error-email">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -186,11 +253,20 @@ export default function SignupScreen() {
                   onClick={() => setShowPassword(!showPassword)}
                   data-testid="button-toggle-password"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
               {errors.password && (
-                <p className="text-sm text-red-500" data-testid="error-password">{errors.password.message}</p>
+                <p
+                  className="text-sm text-red-500"
+                  data-testid="error-password"
+                >
+                  {errors.password.message}
+                </p>
               )}
             </div>
 
@@ -206,17 +282,24 @@ export default function SignupScreen() {
                 data-testid="input-phone"
               />
               {errors.phone && (
-                <p className="text-sm text-red-500" data-testid="error-phone">{errors.phone.message}</p>
+                <p className="text-sm text-red-500" data-testid="error-phone">
+                  {errors.phone.message}
+                </p>
               )}
             </div>
 
             {/* Business Details Section */}
             <div className="border-t pt-4">
-              <h3 className="text-lg font-semibold mb-4 text-primary">Business Details</h3>
-              
+              <h3 className="text-lg font-semibold mb-4 text-primary">
+                Business Details
+              </h3>
+
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="businessName" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="businessName"
+                    className="flex items-center gap-2"
+                  >
                     <Building className="w-4 h-4" />
                     Business Name *
                   </Label>
@@ -227,12 +310,20 @@ export default function SignupScreen() {
                     data-testid="input-businessName"
                   />
                   {errors.businessName && (
-                    <p className="text-sm text-red-500" data-testid="error-businessName">{errors.businessName.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-businessName"
+                    >
+                      {errors.businessName.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="businessAddress" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="businessAddress"
+                    className="flex items-center gap-2"
+                  >
                     <MapPin className="w-4 h-4" />
                     Business Address *
                   </Label>
@@ -243,7 +334,12 @@ export default function SignupScreen() {
                     data-testid="input-businessAddress"
                   />
                   {errors.businessAddress && (
-                    <p className="text-sm text-red-500" data-testid="error-businessAddress">{errors.businessAddress.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-businessAddress"
+                    >
+                      {errors.businessAddress.message}
+                    </p>
                   )}
                 </div>
 
@@ -253,7 +349,10 @@ export default function SignupScreen() {
                     name="industryType"
                     control={control}
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <SelectTrigger data-testid="select-industryType">
                           <SelectValue placeholder="Select your industry" />
                         </SelectTrigger>
@@ -268,12 +367,20 @@ export default function SignupScreen() {
                     )}
                   />
                   {errors.industryType && (
-                    <p className="text-sm text-red-500" data-testid="error-industryType">{errors.industryType.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-industryType"
+                    >
+                      {errors.industryType.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gstNumber" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="gstNumber"
+                    className="flex items-center gap-2"
+                  >
                     <FileText className="w-4 h-4" />
                     GST Number *
                   </Label>
@@ -282,15 +389,23 @@ export default function SignupScreen() {
                     {...register("gstNumber")}
                     placeholder="Enter 15-digit GST number"
                     data-testid="input-gstNumber"
-                    style={{ textTransform: 'uppercase' }}
+                    style={{ textTransform: "uppercase" }}
                   />
                   {errors.gstNumber && (
-                    <p className="text-sm text-red-500" data-testid="error-gstNumber">{errors.gstNumber.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-gstNumber"
+                    >
+                      {errors.gstNumber.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="panNumber" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="panNumber"
+                    className="flex items-center gap-2"
+                  >
                     <CreditCard className="w-4 h-4" />
                     PAN Number *
                   </Label>
@@ -299,31 +414,45 @@ export default function SignupScreen() {
                     {...register("panNumber")}
                     placeholder="Enter 10-digit PAN number"
                     data-testid="input-panNumber"
-                    style={{ textTransform: 'uppercase' }}
+                    style={{ textTransform: "uppercase" }}
                   />
                   {errors.panNumber && (
-                    <p className="text-sm text-red-500" data-testid="error-panNumber">{errors.panNumber.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-panNumber"
+                    >
+                      {errors.panNumber.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cinNumber" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="cinNumber"
+                    className="flex items-center gap-2"
+                  >
                     <Building2 className="w-4 h-4" />
-                    CIN Number *
+                    CIN Number (Optional)
                   </Label>
                   <Input
                     id="cinNumber"
                     {...register("cinNumber")}
                     placeholder="Enter 21-digit CIN number"
                     data-testid="input-cinNumber"
-                    style={{ textTransform: 'uppercase' }}
+                    style={{ textTransform: "uppercase" }}
                     maxLength={21}
                   />
                   {errors.cinNumber && (
-                    <p className="text-sm text-red-500" data-testid="error-cinNumber">{errors.cinNumber.message}</p>
+                    <p
+                      className="text-sm text-red-500"
+                      data-testid="error-cinNumber"
+                    >
+                      {errors.cinNumber.message}
+                    </p>
                   )}
                   <p className="text-xs text-gray-500">
-                    Format: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits
+                    Format: L/U + 5 digits + 2 letters + 4 digits + 3 letters +
+                    6 digits
                   </p>
                 </div>
               </div>
@@ -335,7 +464,9 @@ export default function SignupScreen() {
               disabled={signupMutation.isPending}
               data-testid="button-signup"
             >
-              {signupMutation.isPending ? "Creating Account..." : "Create Account"}
+              {signupMutation.isPending
+                ? "Creating Account..."
+                : "Create Account"}
             </Button>
           </form>
 
