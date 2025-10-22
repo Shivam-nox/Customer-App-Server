@@ -50,14 +50,17 @@ export default function LoginScreen() {
       }
       return response.json();
     },
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success && response.user) {
         setUser(response.user);
         toast({
           title: "Welcome back!",
           description: "Successfully signed in to Zapygo",
         });
-        setLocation("/home");
+        // Use setTimeout to ensure state updates before navigation
+        setTimeout(() => {
+          setLocation("/home");
+        }, 100);
       }
     },
     onError: (error: any) => {

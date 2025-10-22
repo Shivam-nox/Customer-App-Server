@@ -2,10 +2,12 @@
 
 ## Overview
 
-we  have **3 options** to get your PWA into app stores:
+we have **3 options** to get your PWA into app stores:
 
 ### Option 1: PWA Builder (Easiest) ⭐ RECOMMENDED
+
 ### Option 2: Capacitor (More Control)
+
 ### Option 3: TWA (Android Only)
 
 ---
@@ -19,36 +21,45 @@ we  have **3 options** to get your PWA into app stores:
 ### Steps:
 
 #### 1. Deploy Your PWA
+
 First, deploy your app to a public URL with HTTPS:
+
 - Vercel, Netlify, or your current hosting
 - Example: `https://zapygo.com`
 
 #### 2. Use PWA Builder
+
 1. Go to: https://www.pwabuilder.com/
 2. Enter your deployed URL
 3. Click "Start"
 4. PWA Builder will analyze your app
 
 #### 3. Generate App Packages
+
 **For Android (Google Play):**
+
 - Click "Publish" → "Android"
 - Choose "Trusted Web Activity (TWA)"
 - Download the `.aab` file
 - Upload to Google Play Console
 
 **For iOS (App Store):**
+
 - Click "Publish" → "iOS"
 - Download the Xcode project
 - Open in Xcode on Mac
 - Build and submit to App Store
 
 #### 4. Submit to Stores
+
 **Google Play:**
+
 - Cost: $25 one-time fee
 - Review time: 1-3 days
 - Link: https://play.google.com/console
 
 **Apple App Store:**
+
 - Cost: $99/year
 - Review time: 1-7 days
 - Requires Mac with Xcode
@@ -90,23 +101,24 @@ npx cap open ios      # Opens Xcode (Mac only)
 ### Configuration:
 
 Create `capacitor.config.ts`:
+
 ```typescript
-import { CapacitorConfig } from '@capacitor/cli';
+import { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.zapygo.app',
-  appName: 'Zapygo',
-  webDir: 'dist/public',
+  appId: "com.zapygo.app",
+  appName: "Zapygo",
+  webDir: "dist/public",
   server: {
-    androidScheme: 'https'
+    androidScheme: "https",
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
       backgroundColor: "#1976D2",
-      showSpinner: false
-    }
-  }
+      showSpinner: false,
+    },
+  },
 };
 
 export default config;
@@ -115,6 +127,7 @@ export default config;
 ### Build for Stores:
 
 **Android:**
+
 ```bash
 npx cap sync android
 npx cap open android
@@ -124,6 +137,7 @@ npx cap open android
 ```
 
 **iOS:**
+
 ```bash
 npx cap sync ios
 npx cap open ios
@@ -163,6 +177,7 @@ bubblewrap build
 ### Before Submitting:
 
 #### Both Stores:
+
 - ✅ PWA deployed with HTTPS
 - ✅ Valid manifest.json
 - ✅ All icons (192, 512, etc.)
@@ -172,6 +187,7 @@ bubblewrap build
 - ✅ Support email/contact
 
 #### Google Play Specific:
+
 - ✅ Developer account ($25)
 - ✅ App signing key
 - ✅ Store listing (description, screenshots)
@@ -179,6 +195,7 @@ bubblewrap build
 - ✅ Target API level 33+ (Android 13)
 
 #### App Store Specific:
+
 - ✅ Apple Developer account ($99/year)
 - ✅ Mac with Xcode
 - ✅ App Store Connect access
@@ -191,26 +208,33 @@ bubblewrap build
 ## 🎨 Store Assets Needed
 
 ### Screenshots:
+
 **Android:**
+
 - Phone: 1080x1920 (minimum 2 screenshots)
 - Tablet: 1920x1080 (optional)
 - Feature graphic: 1024x500
 
 **iOS:**
+
 - iPhone 6.7": 1290x2796
 - iPhone 6.5": 1242x2688
 - iPhone 5.5": 1242x2208
 - iPad Pro 12.9": 2048x2732
 
 ### App Icons:
+
 **Android:**
+
 - 512x512 PNG (already have ✅)
 - Adaptive icon (foreground + background)
 
 **iOS:**
+
 - 1024x1024 PNG (can resize from your logo)
 
 ### Feature Graphic (Android):
+
 - 1024x500 banner image
 - Shows in Play Store listing
 
@@ -219,15 +243,18 @@ bubblewrap build
 ## 💰 Cost Breakdown
 
 ### One-Time Costs:
+
 - Google Play Developer: $25
 - Apple Developer: $99/year
 
 ### Optional Costs:
+
 - Mac (for iOS development): $1000+
 - Or use Mac cloud service: $20-50/month
 - Or hire developer for iOS build: $100-500
 
 ### Total to Launch Both:
+
 - **Minimum**: $124 (if you have Mac)
 - **Without Mac**: $124 + cloud service or developer
 
@@ -236,6 +263,7 @@ bubblewrap build
 ## ⏱️ Timeline
 
 ### Google Play (Android):
+
 - Setup: 1-2 hours
 - Build: 30 minutes
 - Submit: 15 minutes
@@ -243,6 +271,7 @@ bubblewrap build
 - **Total: ~2-4 days**
 
 ### App Store (iOS):
+
 - Setup: 2-4 hours (first time)
 - Build: 1 hour
 - Submit: 30 minutes
@@ -254,18 +283,21 @@ bubblewrap build
 ## 🚀 Recommended Approach
 
 ### Phase 1: Start with PWA (Now)
+
 - Deploy your PWA
 - Users can install from browser
 - No store fees yet
 - Test everything works
 
 ### Phase 2: Android (Easy)
+
 - Use PWA Builder or Bubblewrap
 - Submit to Google Play
 - $25 one-time fee
 - Reaches 70% of users
 
 ### Phase 3: iOS (If Needed)
+
 - Use PWA Builder or Capacitor
 - Requires Mac or cloud Mac
 - $99/year fee
@@ -276,6 +308,7 @@ bubblewrap build
 ## 📱 PWA vs Native App
 
 ### PWA Advantages:
+
 - ✅ No store approval needed
 - ✅ Instant updates
 - ✅ No store fees
@@ -283,6 +316,7 @@ bubblewrap build
 - ✅ Easier to maintain
 
 ### Native App Advantages:
+
 - ✅ Better discoverability (store search)
 - ✅ More trust from users
 - ✅ Push notifications easier
@@ -290,6 +324,7 @@ bubblewrap build
 - ✅ Access to all native features
 
 ### Recommendation:
+
 **Start with PWA, add native apps later if needed.**
 
 Many successful apps (Twitter, Starbucks, Uber) use PWAs and don't need native apps for most users.
@@ -299,20 +334,24 @@ Many successful apps (Twitter, Starbucks, Uber) use PWAs and don't need native a
 ## 🛠️ Tools & Resources
 
 ### PWA to Native:
+
 - **PWA Builder**: https://www.pwabuilder.com/
 - **Capacitor**: https://capacitorjs.com/
 - **Bubblewrap**: https://github.com/GoogleChromeLabs/bubblewrap
 
 ### Store Consoles:
+
 - **Google Play**: https://play.google.com/console
 - **App Store Connect**: https://appstoreconnect.apple.com/
 
 ### Testing:
+
 - **Android**: Android Studio Emulator
 - **iOS**: Xcode Simulator (Mac only)
 - **Cloud Testing**: BrowserStack, Sauce Labs
 
 ### Asset Generation:
+
 - **App Icon Generator**: https://www.appicon.co/
 - **Screenshot Generator**: https://www.screely.com/
 - **Feature Graphic**: Canva, Figma
@@ -322,6 +361,7 @@ Many successful apps (Twitter, Starbucks, Uber) use PWAs and don't need native a
 ## 📝 Step-by-Step: PWA Builder Method
 
 ### 1. Prepare Your PWA
+
 ```bash
 # Ensure everything works
 npm run build
@@ -332,6 +372,7 @@ npm start
 ```
 
 ### 2. Deploy
+
 ```bash
 # Deploy to Vercel (example)
 npm install -g vercel
@@ -343,6 +384,7 @@ netlify deploy --prod
 ```
 
 ### 3. Generate Packages
+
 1. Go to https://www.pwabuilder.com/
 2. Enter your URL: `https://your-app.vercel.app`
 3. Click "Start"
@@ -350,7 +392,9 @@ netlify deploy --prod
 5. Click "Package for Stores"
 
 ### 4. Download & Submit
+
 **Android:**
+
 - Download `.aab` file
 - Go to Google Play Console
 - Create new app
@@ -359,6 +403,7 @@ netlify deploy --prod
 - Submit for review
 
 **iOS:**
+
 - Download Xcode project
 - Open on Mac
 - Configure signing
@@ -419,6 +464,7 @@ A: Google Play: 1-3 days. App Store: 1-7 days.
 ## 🎉 Summary
 
 **Easiest Path:**
+
 1. Deploy your PWA (already done ✅)
 2. Use PWA Builder to generate app packages
 3. Submit to Google Play ($25)

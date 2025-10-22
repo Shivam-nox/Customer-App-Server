@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import BottomNav from "@/components/bottom-nav";
 import LoadingSpinner from "@/components/loading-spinner";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import { Bell, Fuel, MapPin, Plus, Eye, Shield, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
@@ -159,23 +160,26 @@ export default function HomeScreen() {
               data-testid="company-logo"
             />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-blue-600 relative p-2"
-            onClick={() => setLocation("/notifications")}
-            data-testid="notifications-button"
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span
-                className="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-white"
-                data-testid="notification-count"
-              >
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <PWAInstallButton />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-blue-600 relative p-2"
+              onClick={() => setLocation("/notifications")}
+              data-testid="notifications-button"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-white"
+                  data-testid="notification-count"
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats */}
