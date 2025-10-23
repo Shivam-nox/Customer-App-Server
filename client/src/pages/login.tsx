@@ -54,7 +54,7 @@ export default function LoginScreen() {
       if (response.success && response.user) {
         setUser(response.user);
         toast({
-          title: "Welcome back!",
+          title: "Welcome!",
           description: "Successfully signed in to Zapygo",
         });
         // Use setTimeout to ensure state updates before navigation
