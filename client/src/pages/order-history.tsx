@@ -26,6 +26,19 @@ export default function OrderHistoryScreen() {
       headers: { "x-user-id": user?.id || "" },
     }).then(res => res.json()),
     enabled: !!user,
+    refetchInterval: (query) => {
+      // Poll if there are any active orders
+      const data = query.state.data as any;
+      const orders = data?.orders || [];
+      const hasActiveOrders = orders.some((order: any) => 
+        order.status === "pending" || 
+        order.status === "confirmed" || 
+        order.status === "in_transit"
+      );
+      return hasActiveOrders ? 10000 : false; // Poll every 10 seconds if active orders exist
+    },
+    refetchOnWindowFocus: true, // Refetch when user returns to order history
+    refetchIntervalInBackground: false, // Stop polling when tab is hidden
   });
 
   // Track which orders are currently downloading invoices
