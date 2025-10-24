@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 import SplashScreen from "@/pages/splash";
 import LoginScreen from "@/pages/login";
@@ -88,6 +90,51 @@ function Router() {
 }
 
 function App() {
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check for service worker updates
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        // Check for updates every 60 seconds
+        setInterval(() => {
+          registration.update();
+        }, 60000);
+
+        // Listen for new service worker
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New service worker available, prompt user to refresh
+                toast({
+                  title: "Update Available",
+                  description: "A new version is available. Refresh to update.",
+                  action: (
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-3 py-1 bg-primary text-white rounded"
+                    >
+                      Refresh
+                    </button>
+                  ),
+                  duration: 10000,
+                });
+              }
+            });
+          }
+        });
+      });
+
+      // Handle controller change (new SW activated)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Reload the page when new service worker takes control
+        window.location.reload();
+      });
+    }
+  }, [toast]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
