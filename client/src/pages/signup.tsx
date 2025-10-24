@@ -39,6 +39,8 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
+// SIMPLIFIED SIGNUP - Business details commented out for easier onboarding
+// TODO: Can be re-enabled later or moved to profile completion
 const signupSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
@@ -53,43 +55,45 @@ const signupSchema = z
       .regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
-    businessName: z.string().min(1, "Business name is required"),
-    businessAddress: z.string().min(1, "Business address is required"),
-    industryType: z.string().min(1, "Industry type is required"),
-    gstNumber: z
-      .string()
-      .transform((val) => val.toUpperCase())
-      .pipe(
-        z
-          .string()
-          .regex(
-            /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
-            "Invalid GST number format"
-          )
-      ),
-    panNumber: z
-      .string()
-      .transform((val) => val.toUpperCase())
-      .pipe(
-        z
-          .string()
-          .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format")
-      ),
-    cinNumber: z
-      .string()
-      .optional()
-      .transform((val) => (val ? val.toUpperCase() : val))
-      .pipe(
-        z
-          .string()
-          .optional()
-          .refine(
-            (val) =>
-              !val ||
-              /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
-            "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"
-          )
-      ),
+    
+    // COMMENTED OUT - Business fields (can be added later via profile)
+    // businessName: z.string().min(1, "Business name is required"),
+    // businessAddress: z.string().min(1, "Business address is required"),
+    // industryType: z.string().min(1, "Industry type is required"),
+    // gstNumber: z
+    //   .string()
+    //   .transform((val) => val.toUpperCase())
+    //   .pipe(
+    //     z
+    //       .string()
+    //       .regex(
+    //         /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+    //         "Invalid GST number format"
+    //       )
+    //   ),
+    // panNumber: z
+    //   .string()
+    //   .transform((val) => val.toUpperCase())
+    //   .pipe(
+    //     z
+    //       .string()
+    //       .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format")
+    //   ),
+    // cinNumber: z
+    //   .string()
+    //   .optional()
+    //   .transform((val) => (val ? val.toUpperCase() : val))
+    //   .pipe(
+    //     z
+    //       .string()
+    //       .optional()
+    //       .refine(
+    //         (val) =>
+    //           !val ||
+    //           /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
+    //         "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"
+    //       )
+    //   ),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -336,7 +340,8 @@ export default function SignupScreen() {
               )}
             </div>
 
-            {/* Business Details Section */}
+            {/* COMMENTED OUT - Business Details Section (can be added later via profile or separate flow) */}
+            {/* 
             <div className="border-t pt-4">
               <h3 className="text-lg font-semibold mb-4 text-primary">
                 Business Details
@@ -505,6 +510,7 @@ export default function SignupScreen() {
                 </div>
               </div>
             </div>
+            */}
 
             <Button
               type="submit"

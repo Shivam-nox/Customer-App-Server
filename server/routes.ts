@@ -14,25 +14,29 @@ import bcrypt from "bcryptjs";
 import "./types";
 
 // Validation schemas
+// SIMPLIFIED SIGNUP - Business fields made optional for easier onboarding
+// TODO: Can be required later or collected via profile completion
 const signupSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(3).max(50),
   email: z.string().email(),
   phone: z.string().min(10),
   password: z.string().min(6),
-  businessName: z.string().min(1),
-  businessAddress: z.string().min(1),
-  industryType: z.string().min(1),
-  gstNumber: z.string().min(15).max(15),
-  panNumber: z.string().min(10).max(10),
-  cinNumber: z
-    .string()
-    .optional()
-    .refine(
-      (val) =>
-        !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
-      "Invalid CIN format"
-    ),
+  
+  // COMMENTED OUT - Business fields (optional for now, can be added later)
+  // businessName: z.string().min(1),
+  // businessAddress: z.string().min(1),
+  // industryType: z.string().min(1),
+  // gstNumber: z.string().min(15).max(15),
+  // panNumber: z.string().min(10).max(10),
+  // cinNumber: z
+  //   .string()
+  //   .optional()
+  //   .refine(
+  //     (val) =>
+  //       !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
+  //     "Invalid CIN format"
+  //   ),
 });
 
 const loginSchema = z.object({
@@ -93,19 +97,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const passwordHash = await bcrypt.hash(userData.password, 10);
 
-      // Create user
+      // Create user - business fields set to null for simplified signup
       const newUser = await storage.createUser({
         name: userData.name,
         username: userData.username,
-        email: userData.email,
+        email: userData.email.toLowerCase(), // Normalize email to lowercase
         phone: userData.phone,
         passwordHash,
-        businessName: userData.businessName,
-        businessAddress: userData.businessAddress,
-        industryType: userData.industryType,
-        gstNumber: userData.gstNumber,
-        panNumber: userData.panNumber,
-        cinNumber: userData.cinNumber,
+        // COMMENTED OUT - Business fields (can be added later via profile update)
+        businessName: null, // userData.businessName,
+        businessAddress: null, // userData.businessAddress,
+        industryType: null, // userData.industryType,
+        gstNumber: null, // userData.gstNumber,
+        panNumber: null, // userData.panNumber,
+        cinNumber: null, // userData.cinNumber,
         role: "customer",
       });
 
@@ -156,11 +161,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = loginSchema.parse(req.body);
 
-      // Get user by username
-      const user = await storage.getUserByUsername(username);
+      console.log(`🔐 Login attempt with: "${username}"`);
+
+      // Try to get user by username first, then by email
+      let user = await storage.getUserByUsername(username);
+      console.log(`👤 User found by username: ${user ? 'YES' : 'NO'}`);
+      
+      // If not found by username, try email
       if (!user) {
-        return res.status(401).json({ error: "Invalid username or password" });
+        user = await storage.getUserByEmail(username);
+        console.log(`📧 User found by email: ${user ? 'YES' : 'NO'}`);
       }
+      
+      if (!user) {
+        console.log(`❌ No user found for: "${username}"`);
+        return res.status(401).json({ error: "Invalid email/username or password" });
+      }
+      
+      console.log(`✅ User found: ${user.name} (${user.email})`);
+
 
       // Check password
       if (!user.passwordHash) {
@@ -171,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        return res.status(401).json({ error: "Invalid username or password" });
+        return res.status(401).json({ error: "Invalid email/username or password" });
       }
 
       // Return user without password hash
