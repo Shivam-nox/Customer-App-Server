@@ -81,26 +81,28 @@ export default function AnalysisScreen() {
   return (
     <div className="min-h-screen bg-gray-50" data-testid="analysis-screen">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-white">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="mr-3"
-            data-testid="back-button"
-          >
-            <ArrowLeft size={20} />
-          </Button>
-          <h2 className="text-lg font-medium" data-testid="page-title">
-            Fuel Analysis Report
-          </h2>
+      <div className="p-4 border-b bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center flex-1 min-w-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.history.back()}
+              className="mr-2 flex-shrink-0"
+              data-testid="back-button"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <h2 className="text-base sm:text-lg font-medium truncate" data-testid="page-title">
+              Fuel Analysis Report
+            </h2>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex justify-end">
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-1 border rounded-md text-sm"
+            className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
           >
             <option value="1month">Last Month</option>
             <option value="3months">Last 3 Months</option>

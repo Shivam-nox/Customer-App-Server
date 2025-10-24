@@ -264,37 +264,31 @@ export default function KycUploadScreen() {
 
                 {/* Upload Area */}
                 {!doc.uploaded ? (
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <ObjectUploader
                       maxNumberOfFiles={1}
                       maxFileSize={5 * 1024 * 1024} // 5MB
                       onGetUploadParameters={handleGetUploadParameters}
                       onComplete={handleUploadComplete(doc.type)}
-                      buttonClassName="w-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-400 rounded-2xl py-6 px-4 text-center hover:from-blue-50 hover:to-blue-100 hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-md min-h-[200px] flex items-center justify-center"
+                      buttonClassName="w-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-400 rounded-xl py-3 sm:py-5 px-3 sm:px-4 text-center hover:from-blue-50 hover:to-blue-100 hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-md min-h-[100px] sm:min-h-[160px] flex items-center justify-center"
                     >
                       <div
-                        className="flex flex-col items-center justify-center space-y-3 w-full"
+                        className="flex flex-col items-center justify-center space-y-1.5 sm:space-y-3 w-full"
                         data-testid={`${doc.type}-upload-button`}
                       >
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:scale-105">
+                        <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200">
                           <Upload
                             className="text-blue-600 group-hover:text-blue-700"
-                            size={28}
+                            size={20}
                           />
                         </div>
-                        <div className="text-center space-y-2 w-full max-w-xs mx-auto">
-                          <h6 className="text-base font-bold text-gray-900">
-                            Drag & drop or click to upload
+                        <div className="text-center w-full">
+                          <h6 className="text-xs sm:text-base font-bold text-gray-900 mb-0.5 sm:mb-1">
+                            Click to upload
                           </h6>
-                          <p className="text-sm text-gray-700 font-semibold">
-                            {doc.name}
-                          </p>
-                        </div>
-                        <div className="text-center space-y-1 pt-1">
                           <p className="text-xs text-gray-600">
-                            Supported: PDF, JPG, PNG
+                            PDF, JPG, PNG • Max 5MB
                           </p>
-                          <p className="text-xs text-gray-600">Max size: 5MB</p>
                         </div>
                       </div>
                     </ObjectUploader>

@@ -27,8 +27,10 @@ const signupSchema = z.object({
   panNumber: z.string().min(10).max(10),
   cinNumber: z
     .string()
-    .regex(
-      /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/,
+    .optional()
+    .refine(
+      (val) =>
+        !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
       "Invalid CIN format"
     ),
 });

@@ -39,52 +39,62 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
-const signupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  username: z.string().min(3, "Username must be at least 3 characters").max(50),
-  email: z.string().email("Invalid email address"),
-  phone: z
-    .string()
-    .min(10, "Phone number is required")
-    .regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  businessName: z.string().min(1, "Business name is required"),
-  businessAddress: z.string().min(1, "Business address is required"),
-  industryType: z.string().min(1, "Industry type is required"),
-  gstNumber: z
-    .string()
-    .transform((val) => val.toUpperCase())
-    .pipe(
-      z
-        .string()
-        .regex(
-          /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
-          "Invalid GST number format"
-        )
-    ),
-  panNumber: z
-    .string()
-    .transform((val) => val.toUpperCase())
-    .pipe(
-      z
-        .string()
-        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format")
-    ),
-  cinNumber: z
-    .string()
-    .optional()
-    .transform((val) => (val ? val.toUpperCase() : val))
-    .pipe(
-      z
-        .string()
-        .optional()
-        .refine(
-          (val) =>
-            !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
-          "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"
-        )
-    ),
-});
+const signupSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .max(50),
+    email: z.string().email("Invalid email address"),
+    phone: z
+      .string()
+      .min(10, "Phone number is required")
+      .regex(/^[6-9]\d{9}$/, "Invalid Indian phone number"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    businessName: z.string().min(1, "Business name is required"),
+    businessAddress: z.string().min(1, "Business address is required"),
+    industryType: z.string().min(1, "Industry type is required"),
+    gstNumber: z
+      .string()
+      .transform((val) => val.toUpperCase())
+      .pipe(
+        z
+          .string()
+          .regex(
+            /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+            "Invalid GST number format"
+          )
+      ),
+    panNumber: z
+      .string()
+      .transform((val) => val.toUpperCase())
+      .pipe(
+        z
+          .string()
+          .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN number format")
+      ),
+    cinNumber: z
+      .string()
+      .optional()
+      .transform((val) => (val ? val.toUpperCase() : val))
+      .pipe(
+        z
+          .string()
+          .optional()
+          .refine(
+            (val) =>
+              !val ||
+              /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
+            "Invalid CIN format (21 characters: L/U + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits)"
+          )
+      ),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
@@ -110,6 +120,7 @@ export default function SignupScreen() {
   const { toast } = useToast();
   const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -155,7 +166,9 @@ export default function SignupScreen() {
   });
 
   const onSubmit = (data: SignupFormData) => {
-    signupMutation.mutate(data);
+    // Remove confirmPassword before sending to API
+    const { confirmPassword, ...signupData } = data;
+    signupMutation.mutate(signupData as SignupFormData);
   };
 
   return (
@@ -266,6 +279,41 @@ export default function SignupScreen() {
                   data-testid="error-password"
                 >
                   {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...register("confirmPassword")}
+                  placeholder="Re-enter your password"
+                  data-testid="input-confirmPassword"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  data-testid="button-toggle-confirmPassword"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              {errors.confirmPassword && (
+                <p
+                  className="text-sm text-red-500"
+                  data-testid="error-confirmPassword"
+                >
+                  {errors.confirmPassword.message}
                 </p>
               )}
             </div>

@@ -169,7 +169,7 @@ export default function HomeScreen() {
             <img
               src={logoUrl}
               alt="Zapygo - Fueling business, Driving progress"
-              className="h-12 w-auto"
+              className="h-14 sm:h-16 md:h-18 w-auto"
               data-testid="company-logo"
             />
           </div>
