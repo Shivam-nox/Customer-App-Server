@@ -23,7 +23,10 @@ export function PWAInstallButton() {
 
   useEffect(() => {
     // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
+    if (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true
+    ) {
       setIsInstalled(true);
       return;
     }
@@ -32,13 +35,19 @@ export function PWAInstallButton() {
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     setIsIOS(iOS);
 
-    // Listen for install prompt
+    // Listen for install prompt (Android/Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    // Check if app was installed
+    window.addEventListener("appinstalled", () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    });
 
     return () => {
       window.removeEventListener(
@@ -76,7 +85,10 @@ export function PWAInstallButton() {
   // Don't show button if already installed
   if (isInstalled) return null;
 
-  // Show button if iOS or if install prompt is available
+  // Show button if:
+  // 1. iOS (always show, since we need to provide manual instructions)
+  // 2. Android with install prompt available
+  // Note: On Android without prompt, button won't show (likely already installed or criteria not met)
   const showButton = isIOS || deferredPrompt;
 
   if (!showButton) return null;

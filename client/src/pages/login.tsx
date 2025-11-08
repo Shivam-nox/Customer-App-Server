@@ -15,7 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().min(1, "Email or username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -54,7 +54,7 @@ export default function LoginScreen() {
       if (response.success && response.user) {
         setUser(response.user);
         toast({
-          title: "Welcome back!",
+          title: "Welcome!",
           description: "Successfully signed in to Zapygo",
         });
         // Use setTimeout to ensure state updates before navigation
@@ -97,11 +97,11 @@ export default function LoginScreen() {
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Email or Username</Label>
               <Input
                 id="username"
                 {...register("username")}
-                placeholder="Enter your username"
+                placeholder="Enter your email or username"
                 data-testid="input-username"
               />
               {errors.username && (

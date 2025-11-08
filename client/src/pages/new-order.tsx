@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import LoadingSpinner from "@/components/loading-spinner";
 import AddressManager from "@/components/AddressManager";
-import { ArrowLeft, Calculator } from "lucide-react";
+import { ArrowLeft, Calculator, MessageCircle } from "lucide-react";
 
 const orderSchema = z.object({
   quantity: z
@@ -179,6 +179,123 @@ export default function NewOrderScreen() {
     localStorage.setItem("pendingOrderData", JSON.stringify(orderData));
     setLocation("/payment/new");
   };
+
+  // whatsapp-changes
+//   const handleWhatsAppOrder = async () => {
+//     // First validate the address
+//     if (!selectedAddress) {
+//       toast({
+//         title: "Address Required",
+//         description: "Please select a delivery address",
+//         variant: "destructive",
+//       });
+//       return;
+//     }
+
+//     // Trigger form validation
+//     const isValid = await form.trigger();
+    
+//     if (!isValid) {
+//       // Show specific error messages
+//       const errors = form.formState.errors;
+      
+//       if (errors.quantity) {
+//         toast({
+//           title: "Invalid Quantity",
+//           description: errors.quantity.message,
+//           variant: "destructive",
+//         });
+//         return;
+//       }
+      
+//       if (errors.deliveryDate) {
+//         toast({
+//           title: "Delivery Date Required",
+//           description: errors.deliveryDate.message,
+//           variant: "destructive",
+//         });
+//         return;
+//       }
+      
+//       if (errors.deliveryTime) {
+//         toast({
+//           title: "Delivery Time Required",
+//           description: errors.deliveryTime.message,
+//           variant: "destructive",
+//         });
+//         return;
+//       }
+      
+//       toast({
+//         title: "Validation Error",
+//         description: "Please fill all required fields correctly",
+//         variant: "destructive",
+//       });
+//       return;
+//     }
+
+//     // Get validated data
+//     const data = form.getValues();
+
+//     // Find the selected time slot label
+//     const selectedTimeSlot = timeSlots.find((slot: any) => slot.value === data.deliveryTime);
+//     const timeLabel = selectedTimeSlot ? selectedTimeSlot.label : data.deliveryTime;
+
+//     // Format the address
+//     const fullAddress = [
+//       selectedAddress.addressLine1,
+//       selectedAddress.addressLine2,
+//       selectedAddress.landmark,
+//       selectedAddress.area,
+//       selectedAddress.city,
+//       selectedAddress.state,
+//       selectedAddress.pincode
+//     ].filter(Boolean).join(", ");
+
+//     // Create WhatsApp message
+//     const message = `Hi! I'd like to place a diesel order:
+
+// 📦 *Order Details:*
+// Quantity: ${data.quantity} Liters
+// Delivery Date: ${new Date(data.deliveryDate).toLocaleDateString('en-IN', { 
+//       weekday: 'short', 
+//       year: 'numeric', 
+//       month: 'short', 
+//       day: 'numeric' 
+//     })}
+// Delivery Time: ${timeLabel}
+
+// 📍 *Delivery Address:*
+// ${selectedAddress.label}
+// ${fullAddress}
+
+// 💰 *Pricing:*
+// Rate per Liter: ₹${ratePerLiter.toFixed(2)}
+// Subtotal: ₹${subtotal.toLocaleString()}
+// Delivery Charges: ₹${deliveryCharges}
+// GST (18%): ₹${gst.toLocaleString()}
+// *Total Amount: ₹${totalAmount.toLocaleString()}*
+
+// 👤 *Customer Details:*
+// Name: ${user?.name || 'N/A'}
+// Phone: ${user?.phone || 'N/A'}
+
+// Please confirm my order. Thank you!`;
+
+//     // Get WhatsApp business number from env
+//     const whatsappNumber = import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || "919876543210";
+    
+//     // Create WhatsApp URL with pre-filled message
+//     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    
+//     // Open WhatsApp
+//     window.open(whatsappUrl, '_blank');
+    
+//     toast({
+//       title: "Opening WhatsApp",
+//       description: "Your order details have been prepared. Just hit send!",
+//     });
+//   };
 
   if (!user) return null;
 
@@ -372,13 +489,37 @@ export default function NewOrderScreen() {
             </CardContent>
           </Card>
 
-          <Button
-            type="submit"
-            className="w-full bg-secondary hover:bg-green-600 text-white py-4 text-lg font-bold ripple"
-            data-testid="proceed-payment-button"
-          >
-            Proceed to Payment
-          </Button>
+          <div className="space-y-3">
+            <Button
+              type="submit"
+              className="w-full bg-secondary hover:bg-green-600 text-white py-4 text-lg font-bold ripple"
+              data-testid="proceed-payment-button"
+            >
+              Proceed to Payment
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              {/* {whatsapp-changes} */}
+              {/* <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-gray-50 px-2 text-muted-foreground">
+                  Or order via
+                </span>
+              </div> */}
+            </div>
+
+            {/* <Button
+              type="button"
+              onClick={handleWhatsAppOrder}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-bold ripple flex items-center justify-center gap-2"
+              data-testid="whatsapp-order-button"
+            >
+              <MessageCircle size={24} />
+              Order via WhatsApp
+            </Button> */}
+          </div>
         </form>
       </div>
     </div>

@@ -14,23 +14,29 @@ import bcrypt from "bcryptjs";
 import "./types";
 
 // Validation schemas
+// SIMPLIFIED SIGNUP - Business fields made optional for easier onboarding
+// TODO: Can be required later or collected via profile completion
 const signupSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(3).max(50),
   email: z.string().email(),
   phone: z.string().min(10),
   password: z.string().min(6),
-  businessName: z.string().min(1),
-  businessAddress: z.string().min(1),
-  industryType: z.string().min(1),
-  gstNumber: z.string().min(15).max(15),
-  panNumber: z.string().min(10).max(10),
-  cinNumber: z
-    .string()
-    .regex(
-      /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/,
-      "Invalid CIN format"
-    ),
+  
+  // COMMENTED OUT - Business fields (optional for now, can be added later)
+  // businessName: z.string().min(1),
+  // businessAddress: z.string().min(1),
+  // industryType: z.string().min(1),
+  // gstNumber: z.string().min(15).max(15),
+  // panNumber: z.string().min(10).max(10),
+  // cinNumber: z
+  //   .string()
+  //   .optional()
+  //   .refine(
+  //     (val) =>
+  //       !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
+  //     "Invalid CIN format"
+  //   ),
 });
 
 const loginSchema = z.object({
@@ -91,19 +97,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const passwordHash = await bcrypt.hash(userData.password, 10);
 
-      // Create user
+      // Create user - business fields set to null for simplified signup
       const newUser = await storage.createUser({
         name: userData.name,
         username: userData.username,
-        email: userData.email,
+        email: userData.email.toLowerCase(), // Normalize email to lowercase
         phone: userData.phone,
         passwordHash,
-        businessName: userData.businessName,
-        businessAddress: userData.businessAddress,
-        industryType: userData.industryType,
-        gstNumber: userData.gstNumber,
-        panNumber: userData.panNumber,
-        cinNumber: userData.cinNumber,
+        // COMMENTED OUT - Business fields (can be added later via profile update)
+        businessName: null, // userData.businessName,
+        businessAddress: null, // userData.businessAddress,
+        industryType: null, // userData.industryType,
+        gstNumber: null, // userData.gstNumber,
+        panNumber: null, // userData.panNumber,
+        cinNumber: null, // userData.cinNumber,
         role: "customer",
       });
 
@@ -154,11 +161,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = loginSchema.parse(req.body);
 
-      // Get user by username
-      const user = await storage.getUserByUsername(username);
+      console.log(`🔐 Login attempt with: "${username}"`);
+
+      // Try to get user by username first, then by email
+      let user = await storage.getUserByUsername(username);
+      console.log(`👤 User found by username: ${user ? 'YES' : 'NO'}`);
+      
+      // If not found by username, try email
       if (!user) {
-        return res.status(401).json({ error: "Invalid username or password" });
+        user = await storage.getUserByEmail(username);
+        console.log(`📧 User found by email: ${user ? 'YES' : 'NO'}`);
       }
+      
+      if (!user) {
+        console.log(`❌ No user found for: "${username}"`);
+        return res.status(401).json({ error: "Invalid email/username or password" });
+      }
+      
+      console.log(`✅ User found: ${user.name} (${user.email})`);
+
 
       // Check password
       if (!user.passwordHash) {
@@ -169,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
-        return res.status(401).json({ error: "Invalid username or password" });
+        return res.status(401).json({ error: "Invalid email/username or password" });
       }
 
       // Return user without password hash
@@ -375,14 +396,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Notify driver app about the new order
-      const notificationSuccess = await driverService.notifyNewOrder(
+      const driverNotificationSuccess = await driverService.notifyNewOrder(
         order,
         req.user!
       );
 
+      // Notify admin dashboard about the new order (external webhook only - like customer registration)
+      const adminNotificationSuccess = await adminService.notifyNewOrder(
+        order,
+        req.user!
+      );
+
+      // Check if this is a high-value order and notify admin
+      await adminService.notifyHighValueOrder(
+        order,
+        req.user!,
+        50000 // Threshold: ₹50,000
+      );
+
       res.json({
         order,
-        driverNotified: notificationSuccess,
+        driverNotified: driverNotificationSuccess,
       });
     } catch (error) {
       console.error("Create order error:", error);
@@ -446,6 +480,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get order error:", error);
       res.status(500).json({ error: "Failed to get order" });
+    }
+  });
+
+  // Cancel order route
+  app.post("/api/orders/:id/cancel", requireAuth, async (req, res) => {
+    try {
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ error: "Cancellation reason is required" });
+      }
+
+      const order = await storage.getOrder(req.params.id);
+      if (!order || order.customerId !== req.user!.id) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Only allow cancellation for pending or confirmed orders
+      if (!["pending", "confirmed"].includes(order.status)) {
+        return res.status(400).json({ 
+          error: `Cannot cancel order with status: ${order.status}. Only pending or confirmed orders can be cancelled.` 
+        });
+      }
+
+      // Update order status to cancelled
+      const cancelledOrder = await storage.updateOrderStatus(order.id, "cancelled");
+
+      // Create notification for customer
+      await storage.createNotification({
+        userId: req.user!.id,
+        title: "Order Cancelled",
+        message: `Your order #${order.orderNumber} has been cancelled. Reason: ${reason}`,
+        type: "order_update",
+        orderId: order.id,
+      });
+
+      // Notify admin dashboard about cancellation (external webhook only)
+      await adminService.notifyOrderCancelled(
+        order,
+        req.user!,
+        reason
+      );
+
+      console.log(`🚫 Order ${order.orderNumber} cancelled by customer. Reason: ${reason}`);
+
+      res.json({
+        success: true,
+        order: cancelledOrder,
+      });
+    } catch (error) {
+      console.error("Cancel order error:", error);
+      res.status(500).json({ error: "Failed to cancel order" });
     }
   });
 
@@ -555,6 +641,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "order_update",
           orderId,
         });
+
+        // Notify admin dashboard about COD payment (external webhook only)
+        await adminService.notifyPaymentCompleted(
+          order,
+          payment,
+          req.user!
+        );
 
         res.json({
           payment,
@@ -778,6 +871,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "order_update",
         orderId: order.id,
       });
+
+      // Notify admin dashboard about payment completion (external webhook only)
+      await adminService.notifyPaymentCompleted(
+        order,
+        payment,
+        req.user!
+      );
 
       console.log(`✅ Payment verified and order confirmed:`, {
         orderId: order.id,
@@ -1393,123 +1493,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // // Webhook middleware for driver app authentication
-  // const requireDriverAuth = async (req: any, res: any, next: any) => {
-  //   const apiSecret = req.headers["x-api-secret"];
-  //   const expectedSecret = process.env.CUSTOMER_APP_KEY;
-
-  //   if (!apiSecret || !expectedSecret) {
-  //     return res.status(401).json({ error: "API secret required" });
-  //   }
-
-  //   if (apiSecret !== expectedSecret) {
-  //     return res.status(401).json({ error: "Invalid API secret" });
-  //   }
-
-  //   next();
-  // };
-
-  // // Webhook Routes for Driver App Integration
-  // const deliveryStatusSchema = z.object({
-  //   orderId: z.string().min(1),
-  //   status: z.enum(["confirmed", "fuel_loaded", "in_transit", "delivered"]),
-  //   driverId: z.string().min(1).optional(),
-  //   timestamp: z.string().optional(),
-  // });
-
-  // app.post("/api/webhooks/delivery-status", requireDriverAuth, async (req, res) => {
-  //   try {
-  //     const statusUpdate = deliveryStatusSchema.parse(req.body);
-
-  //     console.log(`📦 Received delivery status update from driver app:`, statusUpdate);
-
-  //     // Update order status in database
-  //     const updatedOrder = await storage.updateOrderStatus(
-  //       statusUpdate.orderId,
-  //       statusUpdate.status,
-  //       statusUpdate.driverId
-  //     );
-
-  //     // Create notification for customer
-  //     await storage.createNotification({
-  //       userId: updatedOrder.customerId,
-  //       title: "Order Status Updated",
-  //       message: `Your order ${updatedOrder.orderNumber} is now ${statusUpdate.status.replace('_', ' ')}`,
-  //       type: "order_update",
-  //       orderId: updatedOrder.id,
-  //     });
-
-  //     console.log(`✅ Order ${updatedOrder.orderNumber} status updated to: ${statusUpdate.status}`);
-
-  //     res.json({
-  //       success: true,
-  //       order: updatedOrder,
-  //       message: "Status updated successfully"
-  //     });
-  //   } catch (error) {
-  //     console.error("Webhook delivery status error:", error);
-  //     if (error instanceof z.ZodError) {
-  //       return res.status(400).json({
-  //         error: "Invalid payload",
-  //         details: error.errors
-  //       });
-  //     }
-  //     res.status(500).json({ error: "Failed to update delivery status" });
-  //   }
-  // });
-
-  // // Test endpoint for driver app to verify webhook connectivity
-  // app.post("/api/webhooks/test", requireDriverAuth, async (req, res) => {
-  //   res.json({
-  //     success: true,
-  //     message: "Webhook connection successful",
-  //     timestamp: new Date().toISOString()
-  //   });
-  // });
-
-  // // Update order status from driver app (for future use)
-  // app.put("/api/webhooks/delivery-status", async (req, res) => {
-  //   try {
-  //     const { status, driverId } = req.body;
-
-  //     // Validate status
-  //     const validStatuses = [
-  //       "pending",
-  //       "confirmed",
-  //       "fuel_loaded",
-  //       "in_transit",
-  //       "delivered",
-  //       "cancelled",
-  //     ];
-  //     if (!validStatuses.includes(status)) {
-  //       return res.status(400).json({ error: "Invalid status" });
-  //     }
-
-  //     const order = await storage.updateOrderStatus(
-  //       req.body.id,
-  //       status,
-  //       driverId,
-  //     );
-
-  //     // Create notification for customer
-  //     const customer = await storage.getUser(order.customerId);
-  //     if (customer) {
-  //       await storage.createNotification({
-  //         userId: customer.id,
-  //         title: "Order Status Updated",
-  //         message: `Your order #${order.orderNumber} is now ${status.replace("_", " ")}`,
-  //         type: "order_update",
-  //         orderId: order.id,
-  //       });
-  //     }
-
-  //     res.json({ order });
-  //   } catch (error) {
-  //     console.error("Update order status error:", error);
-  //     res.status(500).json({ error: "Failed to update order status" });
-  //   }
-  // });
-
   // Serve KYC documents
   app.get("/api/kyc-documents/:filePath(*)", requireAuth, async (req, res) => {
     try {
@@ -1698,6 +1681,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orderId: order.id,
       });
 
+      // Get customer details for admin notification
+      const customer = await storage.getUser(order.customerId);
+      
+      if (customer) {
+        // Notify admin dashboard about driver assignment (external webhook only)
+        await adminService.notifyOrderStatusChange(
+          order,
+          customer,
+          order.status,
+          "confirmed"
+        );
+      }
+
       res.json({
         success: true,
         message: "Driver assigned successfully",
@@ -1829,14 +1825,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
 
-        // // Create notification for customer
-        // await storage.createNotification({
-        //   userId: updatedOrder.customerId,
-        //   title: "Order Status Updated",
-        //   message: `Your order ${updatedOrder.orderNumber} is now ${statusUpdate.status.replace('_', ' ')}`,
-        //   type: "order_update",
-        //   orderId: updatedOrder.id,
-        // });
+        // Create notification for customer
+        await storage.createNotification({
+          userId: updatedOrder.customerId,
+          title: "Order Status Updated",
+          message: `Your order #${updatedOrder.orderNumber} is now ${statusUpdate.status.replace('_', ' ')}`,
+          type: "order_update",
+          orderId: updatedOrder.id,
+        });
+
+        // Get customer details for admin notification
+        const customer = await storage.getUser(updatedOrder.customerId);
+        
+        if (customer) {
+          // Notify admin dashboard about status change (external webhook only)
+          await adminService.notifyOrderStatusChange(
+            updatedOrder,
+            customer,
+            "previous_status",
+            statusUpdate.status
+          );
+        }
 
         res.json({
           success: true,

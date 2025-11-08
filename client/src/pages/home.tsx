@@ -21,6 +21,19 @@ export default function HomeScreen() {
       fetch("/api/orders", {
         headers: { "x-user-id": user?.id || "" },
       }).then((res) => res.json()),
+    refetchInterval: (query) => {
+      // Poll if there are any active orders
+      const data = query.state.data as any;
+      const orders = data?.orders || [];
+      const hasActiveOrders = orders.some((order: any) => 
+        order.status === "pending" || 
+        order.status === "confirmed" || 
+        order.status === "in_transit"
+      );
+      return hasActiveOrders ? 10000 : false; // Poll every 10 seconds if active orders exist
+    },
+    refetchOnWindowFocus: true, // Refetch when user returns to home
+    refetchIntervalInBackground: false, // Stop polling when tab is hidden
   });
 
   const { data: notificationsData } = useQuery({
@@ -156,7 +169,7 @@ export default function HomeScreen() {
             <img
               src={logoUrl}
               alt="Zapygo - Fueling business, Driving progress"
-              className="h-12 w-auto"
+              className="h-14 sm:h-16 md:h-18 w-auto"
               data-testid="company-logo"
             />
           </div>

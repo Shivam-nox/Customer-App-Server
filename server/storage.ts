@@ -130,10 +130,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomerByEmail(email: string): Promise<Customer | undefined> {
+    console.log(`🔍 Searching for email: "${email}"`);
+    // Use SQL LOWER for true case-insensitive search (works with existing data)
     const [customer] = await db
       .select()
       .from(customers)
-      .where(eq(customers.email, email));
+      .where(sql`LOWER(${customers.email}) = LOWER(${email})`);
+    console.log(`📧 Email search result: ${customer ? `Found ${customer.name}` : 'Not found'}`);
     return customer || undefined;
   }
 

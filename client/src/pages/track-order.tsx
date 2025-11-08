@@ -95,6 +95,17 @@ export default function TrackOrderScreen() {
     },
     enabled: !!orderId && !!user,
     retry: false, // Don't retry on error
+    refetchInterval: (query) => {
+      // Smart polling: only poll active orders
+      const data = query.state.data as any;
+      const status = data?.order?.status;
+      if (status === "pending" || status === "confirmed" || status === "in_transit") {
+        return 5000; // Poll every 5 seconds for active orders
+      }
+      return false; // Stop polling for completed/cancelled orders
+    },
+    refetchOnWindowFocus: true, // Refetch when user returns to the app
+    refetchIntervalInBackground: false, // Stop polling when tab is hidden (save battery)
   });
 
   const updateLocationMutation = useMutation({
