@@ -36,11 +36,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve Android App Links assetlinks.json file
-app.get("/.well-known/assetlinks.json", (_req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.sendFile("public/.well-known/assetlinks.json", { root: process.cwd() });
-});
+// Serve static files from public directory (for assetlinks.json and other static files)
+app.use(express.static("public"));
 
 (async () => {
   const server = await registerRoutes(app);
