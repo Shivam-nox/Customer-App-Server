@@ -1,5 +1,5 @@
 // Update this version number whenever you deploy breaking changes
-const CACHE_VERSION = "zapygo-v2";
+const CACHE_VERSION = "zapygo-v3";
 const CACHE_NAME = `${CACHE_VERSION}-${Date.now()}`;
 const urlsToCache = ["/", "/manifest.json"];
 
@@ -13,14 +13,14 @@ self.addEventListener("install", (event) => {
         console.log("Opened cache");
         // Only cache essential files that exist
         return cache.addAll(
-          urlsToCache.filter((url) => url === "/" || url === "/manifest.json")
+          urlsToCache.filter((url) => url === "/" || url === "/manifest.json"),
         );
       })
       .catch((error) => {
         console.error("Cache addAll failed:", error);
         // Don't fail installation if caching fails
         return Promise.resolve();
-      })
+      }),
   );
   // Skip waiting to activate immediately
   self.skipWaiting();
@@ -77,12 +77,12 @@ self.addEventListener("fetch", (event) => {
               {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
-              }
+              },
             );
           }
           throw error;
         });
-      })
+      }),
   );
 });
 
@@ -100,13 +100,13 @@ self.addEventListener("activate", (event) => {
               console.log("Deleting old cache:", cacheName);
               return caches.delete(cacheName);
             }
-          })
+          }),
         );
       })
       .then(() => {
         // Take control of all pages immediately
         return self.clients.claim();
-      })
+      }),
   );
 });
 
