@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.replit.zapygo",
+      "sha256_cert_fingerprints": [
+        "9E:C5:B5:3B:53:DD:9B:DE:04:7C:9B:93:1D:26:F5:F7:49:0E:5F:8D:B7:AA:0C:E6:08:9B:20:B8:7E:7C:07:35"
+      ]
+    }
+  }
+]
