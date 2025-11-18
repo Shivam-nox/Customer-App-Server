@@ -36,6 +36,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve Android App Links assetlinks.json file
+app.get("/.well-known/assetlinks.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.sendFile("public/.well-known/assetlinks.json", { root: process.cwd() });
+});
+
 (async () => {
   const server = await registerRoutes(app);
 
