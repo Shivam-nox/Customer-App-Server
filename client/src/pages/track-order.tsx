@@ -135,7 +135,7 @@ export default function TrackOrderScreen() {
           "x-user-id": user?.id || "",
         },
       });
-      if (!response.ok) {
+      if (!response.ok {
         throw new Error("Failed to generate OTP");
       }
       return response.json();
