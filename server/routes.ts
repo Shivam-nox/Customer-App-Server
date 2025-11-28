@@ -535,13 +535,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notifications", requireAuth, async (req, res) => {
+  app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
     console.log(
       `🔥 OTP GENERATION REQUEST - Order ID: 123456, User ID: ${req.user?.id}`
     );
 
     try {
-      const order = await storage.getOrder("123456");
+      const order = await storage.getOrder(req.params.id);
       console.log(`📋 Order lookup result:`, {
         found: !!order,
         orderNumber: order?.orderNumber,
