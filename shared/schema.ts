@@ -578,3 +578,29 @@ export type VehiclesKycDocuments = typeof vehiclesKycDocuments.$inferSelect;
 export type InsertVehiclesKycDocuments = z.infer<
   typeof insertVehiclesKycDocumentsSchema
 >;
+
+
+export const sampleTable = pgTable("sample_table", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  // 👉 Foreign key to customers table
+  customerId: varchar("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+
+  // 👉 2 random normal fields
+  valueOne: text("value_one").notNull(),
+  valueTwo: integer("value_two").notNull(),
+
+  createdAt: timestamp("created_at")
+    .default(sql`now()`)
+    .notNull(),
+});
+export const insertSampleSchema = createInsertSchema(sampleTable).omit({
+  id: true,
+  createdAt: true,
+});
+export type Sample = typeof sampleTable.$inferSelect;
+export type InsertSample = z.infer<typeof insertSampleSchema>;

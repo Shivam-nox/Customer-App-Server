@@ -1,3 +1,9 @@
+// Dev mode mein: Vite ko Express ke andar embed karta hai (live reload, HMR, etc.)
+
+// Prod mode mein: build hua static React app serve karta hai
+
+// Saath hi ek log() helper bhi diya hai pretty logs ke liye.
+
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";

@@ -535,80 +535,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
-    console.log(
-      `🔥 OTP GENERATION REQUEST - Order ID: 123456, User ID: ${req.user?.id}`
+app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
+  console.log(
+    `🔥 OTP GENERATION REQUEST - Order ID: ${req.params.id}, User ID: ${req.user?.id}`
+  );
+
+  try {
+    const order = await storage.getOrder(req.params.id);
+    console.log(`📋 Order lookup result:`, {
+      found: !!order,
+      orderNumber: order?.orderNumber,
+      status: order?.status,
+      customerId: order?.customerId,
+      requestUserId: req.user?.id,
+      ownerMatch: order?.customerId === req.user?.id,
+    });
+
+    if (!order || order.customerId !== req.user!.id) {
+      console.log(`❌ Order access denied - Order not found or unauthorized`);
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (order.status !== "in_transit") {
+      console.log(
+        `❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`
+      );
+      return res.status(400).json({
+        error:
+          "OTP can only be generated for orders that are out for delivery",
+      });
+    }
+
+    // 👉 storage.updateOrderStatus "in_transit" pe naya OTP generate karega
+    const updatedOrder = await storage.updateOrderStatus(
+      order.id,        // id se call kar rahe hain (orderNumber bhi chalega)
+      "in_transit"
     );
 
-    try {
-      const order = await storage.getOrder(req.params.id);
-      console.log(`📋 Order lookup result:`, {
-        found: !!order,
-        orderNumber: order?.orderNumber,
-        status: order?.status,
-        customerId: order?.customerId,
-        requestUserId: req.user?.id,
-        ownerMatch: order?.customerId === req.user?.id,
-      });
-
-      if (!order || order.customerId !== req.user!.id) {
-        console.log(`❌ Order access denied - Order not found or unauthorized`);
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      if (order.status !== "in_transit") {
-        console.log(
-          `❌ Invalid order status for OTP generation: ${order.status} (expected: in_transit)`
-        );
-        return res.status(400).json({
-          error:
-            "OTP can only be generated for orders that are out for delivery",
-        });
-      }
-
-      // Generate new OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log(`🎲 Generated OTP: ${otp} for order ${order.orderNumber}`);
-
-      const updatedOrder = await storage.updateOrderStatus(
-        order.id,
-        "in_transit"
+    const otp = updatedOrder.deliveryOtp;
+    if (!otp) {
+      console.error(
+        `❌ deliveryOtp missing on updated order ${updatedOrder.orderNumber}`
       );
-
-      // Manually update the OTP since the status didn't change
-      await db
-        .update(orders)
-        .set({ deliveryOtp: otp })
-        .where(eq(orders.id, order.id));
-      console.log(`💾 OTP saved to database for order ${order.orderNumber}`);
-
-      console.log(
-        `🔐 Generated delivery OTP for order ${order.orderNumber}: ${otp}`
-      );
-
-      // Send OTP to driver app via webhook
-      console.log(`📤 Attempting to send OTP to driver app...`);
-      const otpNotificationSuccess = await driverService.sendOtpToDriver(
-        order.orderNumber,
-        otp
-      );
-      console.log(
-        `📱 Driver notification result: ${
-          otpNotificationSuccess ? "SUCCESS" : "FAILED"
-        }`
-      );
-
-      res.json({
-        success: true,
-        message: "Delivery OTP generated successfully",
-        otp,
-        driverNotified: otpNotificationSuccess,
-      });
-    } catch (error) {
-      console.error("Generate OTP error:", error);
-      res.status(500).json({ error: "Failed to generate delivery OTP" });
+      return res
+        .status(500)
+        .json({ error: "Failed to generate delivery OTP" });
     }
-  });
+
+    console.log(
+      `🔐 Generated delivery OTP for order ${updatedOrder.orderNumber}: ${otp}`
+    );
+
+    // Send OTP to driver app via webhook
+    console.log(`📤 Attempting to send OTP to driver app...`);
+    const otpNotificationSuccess = await driverService.sendOtpToDriver(
+      updatedOrder.orderNumber,
+      otp
+    );
+    console.log(
+      `📱 Driver notification result: ${
+        otpNotificationSuccess ? "SUCCESS" : "FAILED"
+      }`
+    );
+
+    res.json({
+      success: true,
+      message: "Delivery OTP generated successfully",
+      otp,
+      driverNotified: otpNotificationSuccess,
+    });
+  } catch (error) {
+    console.error("Generate OTP error:", error);
+    res.status(500).json({ error: "Failed to generate delivery OTP" });
+  }
+});
+
 
   // Payment routes
   app.post("/api/payments", requireAuth, async (req, res) => {

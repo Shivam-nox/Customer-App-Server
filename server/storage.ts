@@ -27,6 +27,9 @@ import {
 import { db } from "./db";
 import { eq, desc, and, gte, lt, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { uuid } from "drizzle-orm/pg-core";
+
+
 
 export interface IStorage {
   // Customer methods
@@ -262,29 +265,46 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(orders.createdAt))
       .limit(limit);
   }
+  
 
-  async updateOrderStatus(
-    id: string,
-    status: string,
-    driverId?: string
-  ): Promise<Order> {
-    const updates: any = { status: status as any, updatedAt: new Date() };
-    if (driverId) {
-      updates.driverId = driverId;
-    }
+async updateOrderStatus(
+  id: string,
+  status: string,
+  driverId?: string
+): Promise<Order> {
+  const updates: any = { status: status as any, updatedAt: new Date() };
 
-    // Generate OTP when order goes in_transit
-    if (status === "in_transit") {
-      updates.deliveryOtp = this.generateDeliveryOtp();
-    }
-
-    const [order] = await db
-      .update(orders)
-      .set(updates)
-      .where(eq(orders.orderNumber, id)) // Use orderNumber instead of id
-      .returning();
-    return order;
+  if (driverId) {
+    updates.driverId = driverId;
   }
+
+  // Har baar "in_transit" set karte waqt naya OTP generate hoga
+  if (status === "in_transit") {
+    updates.deliveryOtp = this.generateDeliveryOtp();
+  }
+
+  const isUuid = (value: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+};
+
+ console.log(id);
+  const whereCondition = isUuid(id)
+    ? eq(orders.id, id)              // agar UUID hai → id column
+    : eq(orders.orderNumber, id);    // warna treat as orderNumber
+
+  const [order] = await db
+    .update(orders)
+    .set(updates)
+    .where(
+      whereCondition
+    )
+    .returning();
+
+  return order;
+}
+
+
+
 
   generateDeliveryOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();

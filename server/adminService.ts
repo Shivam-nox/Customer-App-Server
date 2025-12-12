@@ -643,7 +643,7 @@ export class AdminService {
         console.error(`❌ FAILED: Admin cancellation notification failed`);
         console.error(`🔥 Response: ${response.status} ${response.statusText}`);
       }
-      console.log(`🚫 =======================================\n`);
+        console.log(`🚫 =======================================\n`);
 
       return success;
     } catch (error) {
