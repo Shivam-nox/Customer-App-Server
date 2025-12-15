@@ -1,332 +1,407 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
-import { useUser } from "@clerk/clerk-react"; // Only for user ID
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  ArrowLeft, 
-  Building2, 
-  Users, 
-  Search, 
-  Upload, 
-  CheckCircle2, 
-  AlertTriangle,
-  Loader2
-} from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import LoadingSpinner from "@/components/loading-spinner";
 
-type ViewState = 'selection' | 'register_check' | 'register_form' | 'join_code';
+import {
+  ArrowLeft,
+  Shield,
+  CheckCircle,
+  Upload,
+  FileText,
+  CreditCard,
+  Award,
+} 
+
+from "lucide-react";
+import type { UploadResult } from "@uppy/core";
+
+interface KycDocument
+{
+  type: "gst" | "pan" | "license";
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  uploaded: boolean;
+  url?: string;
+}
 
 export default function KycUploadScreen() {
   const [, setLocation] = useLocation();
-  const { user } = useUser();
   const { toast } = useToast();
-  
-  // --- STATE ---
-  const [view, setView] = useState<ViewState>('selection');
-  
-  // Form Data
-  const [gstNumber, setGstNumber] = useState("");
-  const [orgName, setOrgName] = useState("");
-  const [orgCode, setOrgCode] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  
-  // API State (derived from check)
-  const [existingOrg, setExistingOrg] = useState<{ id: number, name: string } | null>(null);
-
-  // --- API MUTATIONS ---
-
-  // 1. Check GST (Flow 2.1.1.1.1.1)
-  const checkGstMutation = useMutation({
-    mutationFn: async (gst: string) => {
-      const res = await fetch("/api/kyb/check-gst", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gstNumber: gst }),
-      });
-      return res.json();
+  const { user, refetchUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [documents, setDocuments] = useState<KycDocument[]>([
+    {
+      type: "gst",
+      name: "GST Certificate",
+      description: "Required for business verification",
+      icon: <FileText size={24} />,
+      uploaded: false,
     },
-    onSuccess: (data) => {
-      if (data.exists) {
-        // GST Exists -> Show "Request to Join" UI
-        setExistingOrg({ id: data.orgId, name: data.orgName });
-        toast({
-          title: "Organization Found",
-          description: `This GST is already registered to ${data.orgName}.`,
-        });
-      } else {
-        // GST New -> Show "Create Form" UI
-        setExistingOrg(null);
-        setView('register_form');
-      }
-    }
+    {
+      type: "pan",
+      name: "PAN Card",
+      description: "Business PAN verification",
+      icon: <CreditCard size={24} />,
+      uploaded: false,
+    },
+    {
+      type: "license",
+      name: "Business License",
+      description: "Valid business operation license",
+      icon: <Award size={24} />,
+      uploaded: false,
+    },
+  ]);
+
+  const uploadUrlMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/kyc/upload-url");
+      return response.json();
+    },
   });
 
-  // 2. Submit New Org (Flow 2.1.1.1.1.1.1)
-  const submitOrgMutation = useMutation({
-    mutationFn: async () => {
-      // In real app, upload file first, get URL, then send URL
-      const res = await fetch("/api/custom-org/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id,
-          gstNumber,
-          name: orgName,
-          documents: ["mock_url_to_document.pdf"] // Replace with actual file URL
-        }),
-      });
-      return res.json();
+  const updateKycMutation = useMutation(
+  {
+    mutationFn: async (data: { documents: Record<string, string> }) => {
+      const response = await apiRequest("PUT", "/api/kyc/documents", data);
+      return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Organization created. Verification pending." });
-      setLocation("/home");
-    }
-  });
-
-  // 3. Join via Existing GST Match (Flow 2.1.1.1.1.2)
-  const joinRequestMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/custom-org/submit", { // Re-using submit endpoint which handles join logic
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id,
-          gstNumber, // Backend checks this and triggers 'request_sent'
-        }),
+      toast({
+        title: "Success",
+        description: "KYC documents submitted for verification",
       });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({ title: "Request Sent", description: data.message });
+      refetchUser();
       setLocation("/home");
-    }
-  });
+    },
 
-  // 4. Join via Code (Flow 2.1.1.2)
-  const joinByCodeMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/custom-org/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id,
-          orgCode
-        }),
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit KYC documents",
+        variant: "destructive",
       });
-      if (!res.ok) throw new Error("Invalid Code");
-      return res.json();
     },
-    onSuccess: () => {
-      toast({ title: "Request Sent", description: "Admins have been notified." });
-      setLocation("/home");
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Invalid Organization Code", variant: "destructive" });
-    }
   });
 
-  // --- RENDER HELPERS ---
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
+  const handleGetUploadParameters = async () => {
+    const result = await uploadUrlMutation.mutateAsync();
+    return {
+      method: "PUT" as const,
+      url: result.uploadURL,
+    };
   };
 
+  const handleUploadComplete =
+    (docType: string) =>
+    (
+      result: UploadResult<Record<string, unknown>, Record<string, unknown>>
+    ) => {
+      if (result.successful && result.successful.length > 0) {
+        const uploadedFile = result.successful[0];
+        const fileUrl = uploadedFile.uploadURL;
+
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.type === docType
+              ? { ...doc, uploaded: true, url: fileUrl }
+              : doc
+          )
+        );
+
+        toast({
+          title: "Upload Successful",
+          description: `${
+            documents.find((d) => d.type === docType)?.name
+          } uploaded successfully`,
+        });
+      }
+    };
+
+  const handleSubmitKyc = async () => {
+    const uploadedDocs = documents.filter((doc) => doc.uploaded);
+
+    if (uploadedDocs.length < 3) {
+      toast({
+        title: "Incomplete Documents",
+        description: "Please upload all required documents",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const docUrls: Record<string, string> = {};
+    uploadedDocs.forEach((doc) => {
+      if (doc.url) {
+        docUrls[doc.type] = doc.url;
+      }
+    });
+
+    updateKycMutation.mutate({ documents: docUrls });
+  };
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      
-      {/* Header */}
-      <div className="bg-white p-4 border-b sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => view === 'selection' ? setLocation("/home") : setView('selection')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="font-bold text-lg">Business Verification</h1>
-        </div>
+    <div className="min-h-screen bg-gray-50" data-testid="kyc-upload-screen">
+      <div className="flex items-center p-4 border-b bg-white">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.history.back()}
+          className="mr-3"
+          data-testid="back-button"
+        >
+          <ArrowLeft size={20} />
+        </Button>
+        <h2 className="text-lg font-medium" data-testid="page-title">
+          Complete KYC
+        </h2>
       </div>
 
-      <div className="p-4 max-w-md mx-auto mt-4">
-
-        {/* VIEW 1: SELECTION (Create vs Join) */}
-        {view === 'selection' && (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-xl font-bold text-gray-900">Setup your Profile</h2>
-              <p className="text-gray-500 text-sm mt-2">Are you registering a new company or joining an existing team?</p>
-            </div>
-
-            {/* Register New (Submit Details) */}
-            <button 
-              onClick={() => setView('register_check')}
-              className="w-full bg-white p-6 rounded-2xl border-2 border-transparent hover:border-red-100 shadow-sm hover:shadow-md transition-all text-left flex items-start gap-4 group"
-            >
-              <div className="bg-red-50 p-3 rounded-xl group-hover:bg-red-100 transition-colors">
-                <Building2 className="w-8 h-8 text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Submit Organization Details</h3>
-                <p className="text-sm text-gray-500 mt-1">I have a GST number and documents.</p>
-              </div>
-            </button>
-
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-gray-200"></div>
-              <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold tracking-widest">OR</span>
-              <div className="flex-grow border-t border-gray-200"></div>
-            </div>
-
-            {/* Join Existing (Enter Code) */}
-            <button 
-              onClick={() => setView('join_code')}
-              className="w-full bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-100 shadow-sm hover:shadow-md transition-all text-left flex items-start gap-4 group"
-            >
-              <div className="bg-blue-50 p-3 rounded-xl group-hover:bg-blue-100 transition-colors">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Enter Organization Code</h3>
-                <p className="text-sm text-gray-500 mt-1">I have a 6-digit code from my admin.</p>
-              </div>
-            </button>
+      <div className="p-4 pb-6">
+        {/* Hero Section */}
+        <div className="text-center mb-8 sm:mb-10">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-lg">
+            <Shield className="text-white" size={40} />
           </div>
-        )}
+          <h3
+            className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3"
+            data-testid="verify-title"
+          >
+            Verify Your Business
+          </h3>
+          <p
+            className="text-gray-600 text-base sm:text-lg px-4"
+            data-testid="verify-description"
+          >
+            Upload required documents to complete verification
+          </p>
 
-        {/* VIEW 2A: GST CHECK */}
-        {view === 'register_check' && (
-          <Card className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <CardHeader>
-              <CardTitle>Verify GST</CardTitle>
-              <CardDescription>Enter your GST number to check eligibility.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>GST Number</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="e.g. 29AAAAA0000A1Z5" 
-                    value={gstNumber}
-                    onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                    maxLength={15}
-                  />
-                  <Button 
-                    onClick={() => checkGstMutation.mutate(gstNumber)} 
-                    disabled={gstNumber.length !== 15 || checkGstMutation.isPending}
-                    className="bg-red-600 hover:bg-red-700 text-white min-w-[80px]"
-                  >
-                    {checkGstMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  </Button>
-                </div>
+          {/* Progress Indicator */}
+          <div className="mt-6 sm:mt-8 mb-2">
+            <div className="flex items-center justify-center space-x-2 sm:space-x-3 px-4">
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-700">
+                  Upload
+                </span>
               </div>
+              <div className="w-6 sm:w-10 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-400">
+                  Review
+                </span>
+              </div>
+              <div className="w-6 sm:w-10 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+                <span className="text-xs sm:text-sm font-medium text-gray-400">
+                  Approved
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-              {/* If GST Exists -> Show Join Prompt */}
-              {existingOrg && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-orange-900 text-sm">Organization Exists</h4>
-                      <p className="text-xs text-orange-800 mt-1 mb-3">
-                        The GST <strong>{gstNumber}</strong> is already registered to <strong>{existingOrg.name}</strong>.
-                      </p>
-                      <Button 
-                        onClick={() => joinRequestMutation.mutate()}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white h-8 text-xs"
-                        disabled={joinRequestMutation.isPending}
+        {/* Document Upload Cards */}
+        <div className="space-y-5 mb-8">
+          {documents.map((doc, index) => (
+            <Card
+              key={doc.type}
+              className={`border-2 transition-all duration-200 overflow-hidden ${
+                doc.uploaded
+                  ? "border-green-300 bg-green-50/40 shadow-md"
+                  : "border-gray-300 hover:border-blue-300 hover:shadow-lg"
+              }`}
+            >
+              <CardContent className="p-5 sm:p-6">
+                {/* Document Header */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex items-start space-x-3 sm:space-x-4 flex-1">
+                    <div
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                        doc.uploaded
+                          ? "bg-green-100 text-green-600"
+                          : "bg-blue-100 text-blue-600"
+                      }`}
+                    >
+                      {doc.uploaded ? <CheckCircle size={28} /> : doc.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4
+                        className="font-bold text-gray-900 text-lg sm:text-xl mb-1.5"
+                        data-testid={`${doc.type}-title`}
                       >
-                        {joinRequestMutation.isPending ? "Sending..." : "Request to Join Team"}
-                      </Button>
+                        {doc.name}
+                      </h4>
+                      <p
+                        className="text-gray-600 text-sm sm:text-base"
+                        data-testid={`${doc.type}-description`}
+                      >
+                        {doc.description}
+                      </p>
                     </div>
                   </div>
+
+                  {/* Status Badge */}
+                  <div
+                    className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 self-start ${
+                      doc.uploaded
+                        ? "bg-green-100 text-green-700 border border-green-300"
+                        : "bg-gray-100 text-gray-700 border border-gray-300"
+                    }`}
+                  >
+                    {doc.uploaded ? "✓ Uploaded" : `Step ${index + 1} of 3`}
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {/* VIEW 2B: REGISTER FORM (If GST is New) */}
-        {view === 'register_form' && (
-          <Card className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <CardHeader>
-              <CardTitle>Business Details</CardTitle>
-              <CardDescription>GST verified. Please complete your profile.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Organization Name</Label>
-                <Input 
-                  placeholder="Enter company name" 
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                />
+                {/* Upload Area */}
+                {!doc.uploaded ? (
+                  <div className="mt-3">
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={5 * 1024 * 1024} // 5MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleUploadComplete(doc.type)}
+                      buttonClassName="w-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-400 rounded-xl py-3 sm:py-5 px-3 sm:px-4 text-center hover:from-blue-50 hover:to-blue-100 hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-md min-h-[100px] sm:min-h-[160px] flex items-center justify-center"
+                    >
+                      <div
+                        className="flex flex-col items-center justify-center space-y-1.5 sm:space-y-3 w-full"
+                        data-testid={`${doc.type}-upload-button`}
+                      >
+                        <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200">
+                          <Upload
+                            className="text-blue-600 group-hover:text-blue-700"
+                            size={20}
+                          />
+                        </div>
+                        <div className="text-center w-full">
+                          <h6 className="text-xs sm:text-base font-bold text-gray-900 mb-0.5 sm:mb-1">
+                            Click to upload
+                          </h6>
+                          <p className="text-xs text-gray-600">
+                            PDF, JPG, PNG • Max 5MB
+                          </p>
+                        </div>
+                      </div>
+                    </ObjectUploader>
+                  </div>
+                ) : (
+                  <div className="mt-4 w-full bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 text-center shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <CheckCircle className="text-green-600" size={32} />
+                      <div className="text-center sm:text-left">
+                        <p className="text-green-800 font-bold text-base sm:text-lg">
+                          Document uploaded successfully
+                        </p>
+                        <p className="text-green-700 text-sm">
+                          Ready for verification
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Submit Button */}
+        <div className="space-y-5">
+          <Button
+            onClick={handleSubmitKyc}
+            className={`w-full h-16 sm:h-14 text-base sm:text-lg font-bold ripple transition-all duration-200 rounded-xl ${
+              documents.filter((d) => d.uploaded).length === 3
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl"
+                : "bg-gray-400 cursor-not-allowed opacity-60"
+            }`}
+            disabled={
+              updateKycMutation.isPending ||
+              documents.filter((d) => d.uploaded).length < 3
+            }
+            data-testid="submit-kyc-button"
+          >
+            {updateKycMutation.isPending ? (
+              <div className="flex items-center justify-center space-x-3">
+                <LoadingSpinner />
+                <span>Submitting...</span>
               </div>
+            ) : (
+              <div className="flex items-center justify-center space-x-3">
+                <Shield size={22} />
+                <span>Submit for Verification</span>
+              </div>
+            )}
+          </Button>
 
-              <div className="pt-2">
-                <Label className="mb-2 block">Upload GST Certificate</Label>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center bg-gray-50/50 relative">
-                  <input 
-                    type="file" 
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    accept=".pdf,.jpg,.png"
-                  />
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-600">
-                    {file ? file.name : "Click to upload document"}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">PDF, JPG or PNG (Max 5MB)</p>
+          {/* Progress Summary */}
+          <div className="text-center bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">
+              {documents.filter((d) => d.uploaded).length} of 3 documents
+              uploaded
+            </p>
+            {documents.filter((d) => d.uploaded).length < 3 ? (
+              <p className="text-sm text-orange-600 font-medium">
+                ⚠️ Please upload all documents to continue
+              </p>
+            ) : (
+              <p className="text-sm text-green-600 font-medium">
+                ✓ All documents ready for submission
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Info Card */}
+        <Card className="mt-6 sm:mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Shield className="text-blue-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <h4
+                  className="text-blue-900 font-bold text-base sm:text-lg mb-3"
+                  data-testid="verification-info-title"
+                >
+                  What happens next?
+                </h4>
+                <div className="space-y-2.5 text-sm sm:text-base text-blue-800">
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      Documents reviewed within 24-48 hours
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      You'll receive notification once approved
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-2.5">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <span className="leading-relaxed">
+                      Start ordering fuel immediately after approval
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white mt-4"
-                onClick={() => submitOrgMutation.mutate()}
-                disabled={!orgName || !file || submitOrgMutation.isPending}
-              >
-                {submitOrgMutation.isPending ? "Creating..." : "Submit for Verification"}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 3: JOIN BY CODE */}
-        {view === 'join_code' && (
-          <Card className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <CardHeader>
-              <CardTitle>Join via Code</CardTitle>
-              <CardDescription>Enter the 6-character code shared by your admin.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Organization Code</Label>
-                <div className="flex justify-center">
-                  <Input 
-                    className="text-center text-2xl tracking-[0.5em] font-mono h-14 uppercase" 
-                    placeholder="XXXXXX" 
-                    maxLength={6}
-                    value={orgCode}
-                    onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
-                  />
-                </div>
-              </div>
-
-              <div className="bg-blue-50 text-blue-700 p-4 rounded-lg text-sm flex gap-3">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <p>Your request will be sent to the organization admins for approval. You will receive a notification once approved.</p>
-              </div>
-
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
-                disabled={orgCode.length < 6 || joinByCodeMutation.isPending}
-                onClick={() => joinByCodeMutation.mutate()}
-              >
-                {joinByCodeMutation.isPending ? "Sending Request..." : "Send Join Request"}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

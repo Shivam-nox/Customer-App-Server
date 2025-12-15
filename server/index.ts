@@ -64,12 +64,24 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
+
+  app.use(express.json());
+
+app.use((req, _res, next) => {
+  console.log("📥 Incoming Request");
+  console.log("➡️  Method:", req.method);
+  console.log("➡️  URL:", req.url);
+  console.log("➡️  Headers:", req.headers);
+  console.log("➡️  Body:", req.body);
+  console.log("——————————————");
+  next();
+});
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen(port, () => {
+  server.listen(port,'0.0.0.0', () => {
     log(`serving on port ${port}`);
   });
 })();

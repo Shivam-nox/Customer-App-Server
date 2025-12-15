@@ -3,12 +3,11 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "./lib/auth";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { ClerkProvider, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 
-// Page Imports
 import SplashScreen from "@/pages/splash";
 import LoginScreen from "@/pages/login";
 import SignupScreen from "@/pages/signup";
@@ -31,30 +30,20 @@ import ContactUsScreen from "@/pages/contact-us";
 import NotFound from "@/pages/not-found";
 import { LocationPickerPage } from "@/components/LocationPicker";
 
-// Import your publishable key
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key");
-}
-
 function Router() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  // Show splash screen while Clerk loads
-  if (!isLoaded) {
+  if (isLoading) {
     return <SplashScreen />;
   }
 
   return (
     <Switch>
-      {/* Public Routes */}
       <Route path="/splash" component={SplashScreen} />
       <Route path="/login" component={LoginScreen} />
       <Route path="/signup" component={SignupScreen} />
 
-      {/* Protected Routes */}
-      {isSignedIn ? (
+      {user ? (
         <>
           <Route path="/kyc-upload" component={KycUploadScreen} />
           <Route path="/home" component={HomeScreen} />
@@ -68,22 +57,27 @@ function Router() {
           <Route path="/location-picker" component={LocationPickerPage} />
           <Route path="/analysis" component={AnalysisScreen} />
           <Route path="/admin/settings" component={AdminSettingsScreen} />
-          
+
           {/* Policy Pages */}
-          <Route path="/cancellation-refunds" component={CancellationRefundsScreen} />
+          <Route
+            path="/cancellation-refunds"
+            component={CancellationRefundsScreen}
+          />
           <Route path="/terms-conditions" component={TermsConditionsScreen} />
           <Route path="/shipping-policy" component={ShippingPolicyScreen} />
           <Route path="/privacy-policy" component={PrivacyPolicyScreen} />
           <Route path="/contact-us" component={ContactUsScreen} />
 
-          {/* Default Redirect for Authenticated Users */}
           <Route path="/">
             <Redirect to="/home" />
           </Route>
         </>
       ) : (
         <>
-          {/* Default Redirect for Guests */}
+          {/* Redirect all unauthenticated routes to login */}
+          <Route path="/">
+            <Redirect to="/login" />
+          </Route>
           <Route path="/:rest*">
             <Redirect to="/login" />
           </Route>
@@ -99,35 +93,51 @@ function App() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Service Worker Logic (Kept as is)
+    // Check for service worker updates
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then((registration) => {
-        setInterval(() => registration.update(), 60000);
+        // Check for updates every 60 seconds
+        setInterval(() => {
+          registration.update();
+        }, 60000);
+
+        // Listen for new service worker
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New service worker available, prompt user to refresh
                 toast({
                   title: "Update Available",
-                  description: "Refresh to update.",
+                  description: "A new version is available. Refresh to update.",
                   action: (
-                    <button onClick={() => window.location.reload()} className="px-3 py-1 bg-primary text-white rounded">
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-3 py-1 bg-primary text-white rounded"
+                    >
                       Refresh
                     </button>
                   ),
+                  duration: 10000,
                 });
               }
             });
           }
         });
       });
+
+      // Handle controller change (new SW activated)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Reload the page when new service worker takes control
+        window.location.reload();
+      });
     }
   }, [toast]);
 
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <TooltipProvider>
           <div className="max-w-sm mx-auto bg-surface shadow-xl min-h-screen mobile-container relative overflow-y-auto">
             <Toaster />
@@ -135,8 +145,8 @@ function App() {
             <PWAInstallPrompt />
           </div>
         </TooltipProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

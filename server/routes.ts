@@ -12,37 +12,24 @@ import { eq } from "drizzle-orm";
 import { jsPDF } from "jspdf";
 import bcrypt from "bcryptjs";
 import "./types";
+import jwt from "jsonwebtoken";
 
 // Validation schemas
 // SIMPLIFIED SIGNUP - Business fields made optional for easier onboarding
 // TODO: Can be required later or collected via profile completion
 const signupSchema = z.object({
   name: z.string().min(1),
-  username: z.string().min(3).max(50),
+  username: z.string().min(3),
   email: z.string().email(),
   phone: z.string().min(10),
   password: z.string().min(6),
-  
-  // COMMENTED OUT - Business fields (optional for now, can be added later)
-  // businessName: z.string().min(1),
-  // businessAddress: z.string().min(1),
-  // industryType: z.string().min(1),
-  // gstNumber: z.string().min(15).max(15),
-  // panNumber: z.string().min(10).max(10),
-  // cinNumber: z
-  //   .string()
-  //   .optional()
-  //   .refine(
-  //     (val) =>
-  //       !val || /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(val),
-  //     "Invalid CIN format"
-  //   ),
 });
 
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
 });
+
 
 const createOrderSchema = z.object({
   quantity: z.number().min(1),
@@ -62,21 +49,38 @@ const processPaymentSchema = z.object({
   orderId: z.string(),
   method: z.enum(["upi", "cards", "netbanking", "wallet", "cod"]),
 });
+const requireAuth = async (req: any, res: any, next: any) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  const requireAuth = async (req: any, res: any, next: any) => {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Authorization token missing" });
     }
-    const user = await storage.getUser(userId);
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as { userId: string };
+
+    const user = await storage.getUser(decoded.userId);
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
+
     req.user = user;
     next();
-  };
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
+
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  
 
   // Authentication Routes
   app.post("/api/auth/signup", async (req, res) => {
@@ -157,54 +161,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { username, password } = loginSchema.parse(req.body);
 
-      console.log(`🔐 Login attempt with: "${username}"`);
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = loginSchema.parse(req.body);
 
-      // Try to get user by username first, then by email
-      let user = await storage.getUserByUsername(username);
-      console.log(`👤 User found by username: ${user ? 'YES' : 'NO'}`);
-      
-      // If not found by username, try email
-      if (!user) {
-        user = await storage.getUserByEmail(username);
-        console.log(`📧 User found by email: ${user ? 'YES' : 'NO'}`);
-      }
-      
-      if (!user) {
-        console.log(`❌ No user found for: "${username}"`);
-        return res.status(401).json({ error: "Invalid email/username or password" });
-      }
-      
-      console.log(`✅ User found: ${user.name} (${user.email})`);
-
-
-      // Check password
-      if (!user.passwordHash) {
-        return res
-          .status(401)
-          .json({ error: "Account not properly configured" });
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: "Invalid email/username or password" });
-      }
-
-      // Return user without password hash
-      const { passwordHash: _, ...userResponse } = user;
-
-      res.json({
-        success: true,
-        user: userResponse,
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(400).json({ error: "Login failed" });
+    let user = await storage.getUserByUsername(username);
+    if (!user) {
+      user = await storage.getUserByEmail(username);
     }
-  });
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const { passwordHash, ...safeUser } = user;
+
+    // 🔐 CREATE TOKEN
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET!,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({
+      success: true,
+      user: safeUser,
+      token, // ✅ STRING
+    });
+  } catch (err) {
+    return res.status(400).json({ error: "Login failed" });
+  }
+});
 
   // User profile routes
   app.get("/api/user/profile", requireAuth, async (req, res) => {

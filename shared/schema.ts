@@ -21,6 +21,20 @@ import { z } from "zod";
 //   "admin",
 // ]);
 
+// New Enums for B2B Logic
+export const orgUserRoleEnum = pgEnum("org_user_role", [
+  "admin",
+  "member",
+]);
+
+export const orgUserStatusEnum = pgEnum("org_user_status", [
+  "pending",
+  "invited",  // Added this for invite flows
+  "approved",
+  "rejected",
+  "removed",
+]);
+
 export const kycStatusEnum = pgEnum("kyc_status", [
   "pending",
   "submitted",
@@ -63,7 +77,7 @@ export const organizations = pgTable("organizations", {
     .default(sql`gen_random_uuid()`),
 
   businessName: text("business_name").notNull(),
-  customerAddress: text("customer_address"),
+ 
   industryType: text("industry_type"),
 
   organizationCode: text("organization_code").notNull().unique(),
@@ -75,7 +89,7 @@ export const organizations = pgTable("organizations", {
   gstCertificate: text("gst_certificate"),
 
   kycStatus: text("kyc_status"),   // pending, submitted, verified, rejected
- 
+ kycRemark: text("kyc_remark"),
 
   createdAt: timestamp("created_at")
     .notNull()
@@ -91,11 +105,8 @@ export const customers = pgTable("customers", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-
-  // belongs to which organization
   organizationId: varchar("organization_id")
-    .references(() => organizations.id, { onDelete: "cascade" }),
-
+    .references(() => organizations.id, { onDelete: "set null" }),
   name: text("name").notNull(),
 
   username: varchar("username", { length: 50 }).unique(),  // keep for now
@@ -118,6 +129,36 @@ export const customers = pgTable("customers", {
     .notNull()
     .default(sql`now()`),
 });
+
+// The Critical Mapping Table
+export const organizationUsers = pgTable("organization_users", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  // Link Organization
+  organizationId: varchar("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+
+  // Link Customer (User)
+  customerId: varchar("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+
+  // Relationship Details
+  role: orgUserRoleEnum("role").notNull().default("member"),
+  kycStatus: orgUserStatusEnum("kyc_status").notNull().default("pending"),
+
+  // Audit who added them (optional but good for B2B)
+  addedBy: varchar("added_by"), 
+
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Create unique constraint so a user can't join the same org twice
+// (You might need to add this via SQL or drizzle composite key syntax)
 
 // Customer Addresses table
 export const organizationAddresses = pgTable("organization_addresses", {
@@ -455,8 +496,8 @@ export const driversKycDocuments = pgTable("driver_kyc_documents", {
   panNumber: text("pan_number"),
   panCard: text("pan_card"),
 
-  gstNumber: text("gst_number"),
-  gstCertificate: text("gst_certificate"),
+  adhaarNumber: text("adhaar_number"),
+  adhaarCard: text("adhaar_card"),
 
   kycRemark: text("kyc_remark"),
 
@@ -606,6 +647,13 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   updatedAt: true,
 });
 
+export const insertOrganizationUserSchema = createInsertSchema(organizationUsers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertOrganizationUser = z.infer<typeof insertOrganizationUserSchema>;
+export type OrganizationUser = typeof organizationUsers.$inferSelect;
 export const insertCustomerAddressSchema = createInsertSchema(
   organizationAddresses,
 ).omit({
