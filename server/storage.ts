@@ -1,29 +1,40 @@
 import {
+  organizations,
   customers,
-  orders,
-  payments,
-  otpVerifications,
-  customerAddresses,
+  drivers,
   systemSettings,
   notifications,
-  drivers,
+  vehicles,
+  driversKycDocuments,
+  driverVehicleAssignments,
+  organizationAddresses,
+  orders,
+  payments,
+  // types
+  type Organization,
+  type InsertOrganization,
   type Customer,
   type InsertCustomer,
-  type Order,
-  type InsertOrder,
-  type Payment,
-  type InsertPayment,
-  type OtpVerification,
-  type InsertOtp,
-  type CustomerAddress,
-  type InsertCustomerAddress,
-  type SystemSetting,
-  type InsertSystemSetting,
-  type Notification,
-  type InsertNotification,
   type Driver,
   type InsertDriver,
+  type Vehicle,
+  type InsertVehicle,
+  type DriverKycDocument,
+  type InsertDriverKycDocument,
+  type DriverVehicleAssignment,
+  type InsertDriverVehicleAssignment,
+  type OrganizationAddress,
+  type InsertOrganizationAddress,
+  type InsertNotification,
+  type Order,
+  type InsertOrder,
+  type InsertSystemSetting,
+  type SystemSetting,
+  type Notification,
+  type Payment,
+  type InsertPayment,
 } from "@shared/schema";
+
 import { db } from "./db";
 import { eq, desc, and, gte, lt, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -44,13 +55,13 @@ export interface IStorage {
   ): Promise<Customer>;
 
   // OTP methods
-  createOtp(otp: InsertOtp): Promise<OtpVerification>;
-  getValidOtp(
-    identifier: string,
-    otp: string
-  ): Promise<OtpVerification | undefined>;
-  markOtpVerified(id: string): Promise<void>;
-  cleanupExpiredOtps(): Promise<void>;
+  // createOtp(otp: InsertOtp): Promise<OtpVerification>;
+  // getValidOtp(
+  //   identifier: string,
+  //   otp: string
+  // ): Promise<OtpVerification | undefined>;
+  // markOtpVerified(id: string): Promise<void>;
+  // cleanupExpiredOtps(): Promise<void>;
 
   // Order methods
   createOrder(order: InsertOrder): Promise<Order>;
@@ -61,7 +72,7 @@ export interface IStorage {
     status: string,
     driverId?: string
   ): Promise<Order>;
-  generateOrderNumber(): Promise<string>;
+  // generateOrderNumber(): Promise<string>;
 
   // Payment methods
   createPayment(payment: InsertPayment): Promise<Payment>;
@@ -72,37 +83,65 @@ export interface IStorage {
     status: string,
     transactionId?: string
   ): Promise<Payment>;
+}
 
   // Saved Address methods
-  createCustomerAddress(
-    address: InsertCustomerAddress
-  ): Promise<CustomerAddress>;
-  getUserCustomerAddresses(userId: string): Promise<CustomerAddress[]>;
-  getCustomerAddress(id: string): Promise<CustomerAddress | undefined>;
-  updateCustomerAddress(
-    id: string,
-    updates: Partial<InsertCustomerAddress>
-  ): Promise<CustomerAddress>;
-  deleteCustomerAddress(id: string): Promise<void>;
-  setDefaultAddress(userId: string, addressId: string): Promise<void>;
+//   createCustomerAddress(
+//     address: InsertCustomerAddress
+//   ): Promise<CustomerAddress>;
+//   getUserorganizationAddresses(userId: string): Promise<CustomerAddress[]>;
+//   getCustomerAddress(id: string): Promise<CustomerAddress | undefined>;
+//   updateCustomerAddress(
+//     id: string,
+//     updates: Partial<InsertCustomerAddress>
+//   ): Promise<CustomerAddress>;
+//   deleteCustomerAddress(id: string): Promise<void>;
+//   setDefaultAddress(userId: string, addressId: string): Promise<void>;
 
-  // Notification methods
-  createNotification(notification: InsertNotification): Promise<Notification>;
-  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
-  getUnreadCount(userId: string): Promise<number>;
-  markNotificationRead(id: string): Promise<void>;
-  markAllNotificationsRead(userId: string): Promise<void>;
+//   // Notification methods
+//   createNotification(notification: InsertNotification): Promise<Notification>;
+//   getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+//   getUnreadCount(userId: string): Promise<number>;
+//   markNotificationRead(id: string): Promise<void>;
+//   markAllNotificationsRead(userId: string): Promise<void>;
 
-  // System Settings methods
-  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
-  getAllSystemSettings(): Promise<SystemSetting[]>;
-  getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
-  updateSystemSetting(
-    key: string,
-    value: string,
-    updatedBy?: string
-  ): Promise<SystemSetting>;
-  createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+//   // System Settings methods
+//   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+//   getAllSystemSettings(): Promise<SystemSetting[]>;
+//   getSystemSettingsByCategory(category: string): Promise<SystemSetting[]>;
+//   updateSystemSetting(
+//     key: string,
+//     value: string,
+//     updatedBy?: string
+//   ): Promise<SystemSetting>;
+//   createSystemSetting(setting: InsertSystemSetting): Promise<SystemSetting>;
+
+//   // Driver methods
+//   getDriver(id: string): Promise<Driver | undefined>;
+//   getDriverByPhone(phone: string): Promise<Driver | undefined>;
+//   createDriver(driver: InsertDriver): Promise<Driver>;
+//   updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver>;
+
+//   // Admin methods
+//   getAdminUsers(): Promise<Customer[]>;
+// }
+
+
+export interface IStorage {
+  // Organization Users (Customers)
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  getCustomerByEmail(email: string): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer>;
+
+  // Organization Address methods
+  createOrganizationAddress(address: InsertOrganizationAddress): Promise<OrganizationAddress>;
+  getOrganizationAddresses(orgId: string): Promise<OrganizationAddress[]>;
+  getOrganizationAddress(id: string): Promise<OrganizationAddress | undefined>;
+  updateOrganizationAddress(id: string, updates: Partial<InsertOrganizationAddress>): Promise<OrganizationAddress>;
+  deleteOrganizationAddress(id: string): Promise<void>;
+  setDefaultAddress(orgId: string, addressId: string): Promise<void>;
 
   // Driver methods
   getDriver(id: string): Promise<Driver | undefined>;
@@ -110,7 +149,7 @@ export interface IStorage {
   createDriver(driver: InsertDriver): Promise<Driver>;
   updateDriver(id: string, updates: Partial<InsertDriver>): Promise<Driver>;
 
-  // Admin methods
+  // Admin methods (Org users with role = admin)
   getAdminUsers(): Promise<Customer[]>;
 }
 
@@ -199,55 +238,56 @@ export class DatabaseStorage implements IStorage {
     return this.updateCustomer(id, updates);
   }
 
-  // OTP methods
-  async createOtp(insertOtp: InsertOtp): Promise<OtpVerification> {
-    const [otp] = await db
-      .insert(otpVerifications)
-      .values(insertOtp)
-      .returning();
-    return otp;
-  }
+  // // OTP methods
+  // async createOtp(insertOtp: InsertOtp): Promise<OtpVerification> {
+  //   const [otp] = await db
+  //     .insert(otpVerifications)
+  //     .values(insertOtp)
+  //     .returning();
+  //   return otp;
+  // }
 
-  async getValidOtp(
-    identifier: string,
-    otp: string
-  ): Promise<OtpVerification | undefined> {
-    const [verification] = await db
-      .select()
-      .from(otpVerifications)
-      .where(
-        and(
-          eq(otpVerifications.identifier, identifier),
-          eq(otpVerifications.otp, otp),
-          eq(otpVerifications.isVerified, false),
-          gte(otpVerifications.expiresAt, new Date())
-        )
-      );
-    return verification || undefined;
-  }
+  // async getValidOtp(
+  //   identifier: string,
+  //   otp: string
+  // ): Promise<OtpVerification | undefined> {
+  //   const [verification] = await db
+  //     .select()
+  //     .from(otpVerifications)
+  //     .where(
+  //       and(
+  //         eq(otpVerifications.identifier, identifier),
+  //         eq(otpVerifications.otp, otp),
+  //         eq(otpVerifications.isVerified, false),
+  //         gte(otpVerifications.expiresAt, new Date())
+  //       )
+  //     );
+  //   return verification || undefined;
+  // }
 
-  async markOtpVerified(id: string): Promise<void> {
-    await db
-      .update(otpVerifications)
-      .set({ isVerified: true })
-      .where(eq(otpVerifications.id, id));
-  }
+  // async markOtpVerified(id: string): Promise<void> {
+  //   await db
+  //     .update(otpVerifications)
+  //     .set({ isVerified: true })
+  //     .where(eq(otpVerifications.id, id));
+  // }
 
-  async cleanupExpiredOtps(): Promise<void> {
-    await db
-      .delete(otpVerifications)
-      .where(lt(otpVerifications.expiresAt, new Date()));
-  }
+  // async cleanupExpiredOtps(): Promise<void> {
+  //   await db
+  //     .delete(otpVerifications)
+  //     .where(lt(otpVerifications.expiresAt, new Date()));
+  // }
 
   // Order methods
-  async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const orderNumber = await this.generateOrderNumber();
-    const [order] = await db
-      .insert(orders)
-      .values({ ...insertOrder, orderNumber })
-      .returning();
-    return order;
-  }
+async createOrder(insertOrder: InsertOrder): Promise<Order> {
+  const [order] = await db
+    .insert(orders)
+    .values(insertOrder) // the orderNumber auto-increments
+    .returning();
+
+  return order;
+}
+
 
   async getOrder(id: string): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
@@ -287,10 +327,10 @@ async updateOrderStatus(
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 };
 
- console.log(id);
+ 
   const whereCondition = isUuid(id)
-    ? eq(orders.id, id)              // agar UUID hai → id column
-    : eq(orders.orderNumber, id);    // warna treat as orderNumber
+  ? eq(orders.id, id)
+  : eq(orders.orderNumber, BigInt(id));  // Convert string → number
 
   const [order] = await db
     .update(orders)
@@ -310,13 +350,13 @@ async updateOrderStatus(
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async generateOrderNumber(): Promise<string> {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    return `ZAP${timestamp}${random}`;
-  }
+  // async generateOrderNumber(): Promise<string> {
+  //   const timestamp = Date.now().toString().slice(-6);
+  //   const random = Math.floor(Math.random() * 1000)
+  //     .toString()
+  //     .padStart(3, "0");
+  //   return `ZAP${timestamp}${random}`;
+  // }
 
   // Payment methods
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
@@ -361,51 +401,112 @@ async updateOrderStatus(
   }
 
   // Saved Address methods
-  async createCustomerAddress(
-    insertAddress: InsertCustomerAddress
-  ): Promise<CustomerAddress> {
-    const [address] = await db
-      .insert(customerAddresses)
-      .values(insertAddress)
-      .returning();
-    return address;
-  }
+  // async createCustomerAddress(
+  //   insertAddress: InsertCustomerAddress
+  // ): Promise<CustomerAddress> {
+  //   const [address] = await db
+  //     .insert(organizationAddresses)
+  //     .values(insertAddress)
+  //     .returning();
+  //   return address;
+  // }
+// -----------------------------
+// ORGANIZATION ADDRESS METHODS
+// -----------------------------
+async createOrganizationAddress(
+  address: InsertOrganizationAddress
+): Promise<OrganizationAddress> {
+  const [result] = await db
+    .insert(organizationAddresses)
+    .values(address)
+    .returning();
+  return result;
+}
 
-  async getUserCustomerAddresses(userId: string): Promise<CustomerAddress[]> {
-    return await db
-      .select()
-      .from(customerAddresses)
-      .where(
-        and(
-          eq(customerAddresses.userId, userId),
-          eq(customerAddresses.isActive, true)
-        )
+async getOrganizationAddresses(
+  organizationId: string
+): Promise<OrganizationAddress[]> {
+  return await db
+    .select()
+    .from(organizationAddresses)
+    .where(
+      and(
+        eq(organizationAddresses.organizationId, organizationId),
+        eq(organizationAddresses.isActive, true)
       )
-      .orderBy(
-        desc(customerAddresses.isDefault),
-        desc(customerAddresses.createdAt)
-      );
-  }
+    )
+    .orderBy(
+      desc(organizationAddresses.isDefault),
+      desc(organizationAddresses.createdAt)
+    );
+}
 
-  async getCustomerAddress(id: string): Promise<CustomerAddress | undefined> {
-    const [address] = await db
-      .select()
-      .from(customerAddresses)
-      .where(eq(customerAddresses.id, id));
-    return address || undefined;
-  }
+async getOrganizationAddress(
+  id: string
+): Promise<OrganizationAddress | undefined> {
+  const [result] = await db
+    .select()
+    .from(organizationAddresses)
+    .where(eq(organizationAddresses.id, id));
+  return result || undefined;
+}
 
-  async updateCustomerAddress(
-    id: string,
-    updates: Partial<InsertCustomerAddress>
-  ): Promise<CustomerAddress> {
-    const [address] = await db
-      .update(customerAddresses)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(customerAddresses.id, id))
-      .returning();
-    return address;
-  }
+
+async updateOrganizationAddress(
+  id: string,
+  updates: Partial<InsertOrganizationAddress>
+): Promise<OrganizationAddress> {
+  const [result] = await db
+    .update(organizationAddresses)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(organizationAddresses.id, id))
+    .returning();
+  return result;
+}
+
+async deleteOrganizationAddress(id: string): Promise<void> {
+  await db
+    .update(organizationAddresses)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(organizationAddresses.id, id));
+}
+
+async setDefaultAddress(
+  organizationId: string,
+  addressId: string
+): Promise<void> {
+  // unset all defaults
+  await db
+    .update(organizationAddresses)
+    .set({ isDefault: false })
+    .where(eq(organizationAddresses.organizationId, organizationId));
+
+  // set new default
+  await db
+    .update(organizationAddresses)
+    .set({ isDefault: true })
+    .where(eq(organizationAddresses.id, addressId));
+}
+
+  // async getCustomerAddress(id: string): Promise<CustomerAddress | undefined> {
+  //   const [address] = await db
+  //     .select()
+  //     .from(organizationAddresses)
+  //     .where(eq(organizationAddresses.id, id));
+  //   return address || undefined;
+  // }
+
+  // async updateCustomerAddress(
+  //   id: string,
+  //   updates: Partial<InsertCustomerAddress>
+  // ): Promise<CustomerAddress> {
+  //   const [address] = await db
+  //     .update(organizationAddresses)
+  //     .set({ ...updates, updatedAt: new Date() })
+  //     .where(eq(organizationAddresses.id, id))
+  //     .returning();
+  //   return address;
+  // }
 
   // System Settings methods
   async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
@@ -462,42 +563,42 @@ async updateOrderStatus(
 
   async deleteCustomerAddress(id: string): Promise<void> {
     await db
-      .update(customerAddresses)
+      .update(organizationAddresses)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(customerAddresses.id, id));
+      .where(eq(organizationAddresses.id, id));
   }
 
-  async setDefaultAddress(userId: string, addressId: string): Promise<void> {
-    // Get the current address to check if it's already default
-    const [currentAddress] = await db
-      .select()
-      .from(customerAddresses)
-      .where(eq(customerAddresses.id, addressId));
+  // async setDefaultAddress(userId: string, addressId: string): Promise<void> {
+  //   // Get the current address to check if it's already default
+  //   const [currentAddress] = await db
+  //     .select()
+  //     .from(organizationAddresses)
+  //     .where(eq(organizationAddresses.id, addressId));
 
-    if (!currentAddress) {
-      throw new Error("Address not found");
-    }
+  //   if (!currentAddress) {
+  //     throw new Error("Address not found");
+  //   }
 
-    // If the address is already default, unset it
-    if (currentAddress.isDefault) {
-      await db
-        .update(customerAddresses)
-        .set({ isDefault: false, updatedAt: new Date() })
-        .where(eq(customerAddresses.id, addressId));
-    } else {
-      // First, unset all default addresses for the user
-      await db
-        .update(customerAddresses)
-        .set({ isDefault: false, updatedAt: new Date() })
-        .where(eq(customerAddresses.userId, userId));
+  //   // If the address is already default, unset it
+  //   if (currentAddress.isDefault) {
+  //     await db
+  //       .update(organizationAddresses)
+  //       .set({ isDefault: false, updatedAt: new Date() })
+  //       .where(eq(organizationAddresses.id, addressId));
+  //   } else {
+  //     // First, unset all default addresses for the user
+  //     await db
+  //       .update(organizationAddresses)
+  //       .set({ isDefault: false, updatedAt: new Date() })
+  //       .where(eq(organizationAddresses.userId, userId));
 
-      // Then set the specified address as default
-      await db
-        .update(customerAddresses)
-        .set({ isDefault: true, updatedAt: new Date() })
-        .where(eq(customerAddresses.id, addressId));
-    }
-  }
+  //     // Then set the specified address as default
+  //     await db
+  //       .update(organizationAddresses)
+  //       .set({ isDefault: true, updatedAt: new Date() })
+  //       .where(eq(organizationAddresses.id, addressId));
+  //   }
+  // }
 
   // Driver methods
   async getDriver(id: string): Promise<Driver | undefined> {

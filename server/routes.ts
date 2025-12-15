@@ -105,12 +105,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phone: userData.phone,
         passwordHash,
         // COMMENTED OUT - Business fields (can be added later via profile update)
-        businessName: null, // userData.businessName,
-        businessAddress: null, // userData.businessAddress,
-        industryType: null, // userData.industryType,
-        gstNumber: null, // userData.gstNumber,
-        panNumber: null, // userData.panNumber,
-        cinNumber: null, // userData.cinNumber,
+        // businessName: null, // userData.businessName,
+        // businessAddress: null, // userData.businessAddress,
+        // industryType: null, // userData.industryType,
+        // gstNumber: null, // userData.gstNumber,
+        // panNumber: null, // userData.panNumber,
+        // cinNumber: null, // userData.cinNumber,
         role: "customer",
       });
 
@@ -271,60 +271,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/kyc/documents", requireAuth, async (req, res) => {
-    try {
-      const { documents } = req.body;
-      const user = await storage.updateUser(req.user!.id, {
-        kycDocuments: documents,
-        kycStatus: "submitted",
-      });
+  // app.put("/api/kyc/documents", requireAuth, async (req, res) => {
+  //   try {
+  //     const { documents } = req.body;
+  //     const user = await storage.updateUser(req.user!.id, {
+  //       kycDocuments: documents,
+  //       kycStatus: "submitted",
+  //     });
 
-      // Create notification for customer
-      await storage.createNotification({
-        userId: user.id,
-        title: "KYC Documents Submitted",
-        message:
-          "Your KYC documents have been submitted for verification. You'll be notified once reviewed.",
-        type: "kyc",
-      });
+  //     // Create notification for customer
+  //     await storage.createNotification({
+  //       userId: user.id,
+  //       title: "KYC Documents Submitted",
+  //       message:
+  //         "Your KYC documents have been submitted for verification. You'll be notified once reviewed.",
+  //       type: "kyc",
+  //     });
 
-      // Notify admin dashboard about KYC submission
-      console.log(`📄 KYC documents submitted by ${user.name} (${user.email})`);
-      console.log(`📧 Attempting to notify admin dashboard...`);
+  //     // Notify admin dashboard about KYC submission
+  //     console.log(`📄 KYC documents submitted by ${user.name} (${user.email})`);
+  //     console.log(`📧 Attempting to notify admin dashboard...`);
       
-      const adminNotificationSuccess = await adminService.notifyKycSubmission(user);
+  //     const adminNotificationSuccess = await adminService.notifyKycSubmission(user);
       
-      if (adminNotificationSuccess) {
-        console.log(`✅ Admin dashboard successfully notified about KYC submission`);
-      } else {
-        console.log(`⚠️  Admin dashboard notification failed - KYC submission recorded but admin was not notified`);
-      }
+  //     if (adminNotificationSuccess) {
+  //       console.log(`✅ Admin dashboard successfully notified about KYC submission`);
+  //     } else {
+  //       console.log(`⚠️  Admin dashboard notification failed - KYC submission recorded but admin was not notified`);
+  //     }
 
-      // Get all admin users to send in-app notifications
-      const adminUsers = await storage.getAdminUsers();
+  //     // Get all admin users to send in-app notifications
+  //     const adminUsers = await storage.getAdminUsers();
       
-      // Create in-app notifications for all admin users
-      for (const admin of adminUsers) {
-        await storage.createNotification({
-          userId: admin.id,
-          title: "New KYC Submission",
-          message: `${user.name} (${user.businessName || 'No business name'}) has submitted KYC documents for review.`,
-          type: "kyc",
-        });
-      }
+  //     // Create in-app notifications for all admin users
+  //     for (const admin of adminUsers) {
+  //       await storage.createNotification({
+  //         userId: admin.id,
+  //         title: "New KYC Submission",
+  //         message: `${user.name} (${user.businessName || 'No business name'}) has submitted KYC documents for review.`,
+  //         type: "kyc",
+  //       });
+  //     }
       
-      console.log(`📬 Created in-app notifications for ${adminUsers.length} admin user(s)`);
+  //     console.log(`📬 Created in-app notifications for ${adminUsers.length} admin user(s)`);
 
-      res.json({ 
-        user,
-        adminNotified: adminNotificationSuccess,
-        adminUsersNotified: adminUsers.length,
-      });
-    } catch (error) {
-      console.error("KYC documents error:", error);
-      res.status(400).json({ error: "Failed to update KYC documents" });
-    }
-  });
+  //     res.json({ 
+  //       user,
+  //       adminNotified: adminNotificationSuccess,
+  //       adminUsersNotified: adminUsers.length,
+  //     });
+  //   } catch (error) {
+  //     console.error("KYC documents error:", error);
+  //     res.status(400).json({ error: "Failed to update KYC documents" });
+  //   }
+  // });
 
   // Order routes
   app.post("/api/orders", requireAuth, async (req, res) => {
@@ -454,20 +454,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             driverName: driver.name,
             driverPhone: driver.phone,
             driverEmail: driver.email || null,
-            driverRating: parseFloat(driver.rating) || 0,
+            // driverRating: parseFloat(driver.rating) || 0,
             vehicleNumber: "KA-05-HE-1234", // TODO: Get from vehicle assignment
             emergencyContact: {
               name: driver.emergencyContactName,
               phone: driver.emergencyContactPhone,
             },
-            totalDeliveries: driver.totalDeliveries,
-            currentLatitude: driver.currentLocation
-              ? JSON.parse(driver.currentLocation as string)?.lat
-              : null,
-            currentLongitude: driver.currentLocation
-              ? JSON.parse(driver.currentLocation as string)?.lng
-              : null,
-            status: driver.status,
+            // totalDeliveries: driver.totalDeliveries,
+            // currentLatitude: driver.currentLocation
+            //   ? JSON.parse(driver.currentLocation as string)?.lat
+            //   : null,
+            // currentLongitude: driver.currentLocation
+            //   ? JSON.parse(driver.currentLocation as string)?.lng
+            //   : null,
+            status: driver.activityStatus,
             proofOfDelivery: null,
             deliveredAt: null,
             createdAt: order.createdAt,
@@ -589,7 +589,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
     // Send OTP to driver app via webhook
     console.log(`📤 Attempting to send OTP to driver app...`);
     const otpNotificationSuccess = await driverService.sendOtpToDriver(
-      updatedOrder.orderNumber,
+      String(updatedOrder.orderNumber),
       otp
     );
     console.log(
@@ -626,6 +626,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
         const payment = await storage.createPayment({
           orderId,
           customerId: req.user!.id,
+          organizationId:req.user!.organizationId||"",
           amount: order.totalAmount,
           method,
           status: "pending", // COD payments remain pending until delivery
@@ -659,6 +660,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
         const payment = await storage.createPayment({
           orderId,
           customerId: req.user!.id,
+          organizationId:req.user!.organizationId||"",
           amount: order.totalAmount,
           method,
           status: "processing",
@@ -836,6 +838,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
       const payment = await storage.createPayment({
         orderId: order.id,
         customerId: req.user!.id,
+        organizationId:req.user!.organizationId||"",
         amount: order.totalAmount,
         method: (paymentDetails.method === "upi" || 
                 paymentDetails.method === "cards" || 
@@ -933,6 +936,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
           id: `mock-${order.id}`,
           orderId: order.id,
           customerId: order.customerId,
+          organizationId:order.organizationId||"",
           amount: order.totalAmount,
           method: "cod" as const,
           status: "completed" as const,
@@ -1002,9 +1006,9 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      const customerName = req.user!.businessName || req.user!.name || "N/A";
-      console.log(`👤 Customer name for invoice: ${customerName}`);
-      doc.text(customerName, 20, 83);
+      // const customerName = req.user!.businessName || req.user!.name || "N/A";
+      // console.log(`👤 Customer name for invoice: ${customerName}`);
+      // doc.text(customerName, 20, 83);
 
       if (req.user!.phone) {
         doc.text(`Phone: ${req.user!.phone}`, 20, 90);
@@ -1014,20 +1018,20 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
         doc.text(`Email: ${req.user!.email}`, 20, 97);
       }
 
-      if (req.user!.businessAddress) {
-        doc.text(`Business Address:`, 20, 104);
-        // Handle long addresses by wrapping text
-        try {
-          const addressLines = doc.splitTextToSize(
-            req.user!.businessAddress,
-            80
-          );
-          doc.text(addressLines, 20, 111);
-        } catch (addressError) {
-          console.error(`❌ Error processing business address:`, addressError);
-          doc.text(req.user!.businessAddress.substring(0, 50) + "...", 20, 111);
-        }
-      }
+      // if (req.user!.businessAddress) {
+      //   doc.text(`Business Address:`, 20, 104);
+      //   // Handle long addresses by wrapping text
+      //   try {
+      //     const addressLines = doc.splitTextToSize(
+      //       req.user!.businessAddress,
+      //       80
+      //     );
+      //     doc.text(addressLines, 20, 111);
+      //   } catch (addressError) {
+      //     console.error(`❌ Error processing business address:`, addressError);
+      //     doc.text(req.user!.businessAddress.substring(0, 50) + "...", 20, 111);
+      //   }
+      // }
 
       // Delivery details
       doc.setFontSize(12);
@@ -1512,101 +1516,183 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
     }
   });
 
-  // Saved Addresses routes
-  app.get("/api/addresses", requireAuth, async (req, res) => {
-    try {
-      const addresses = await storage.getUserCustomerAddresses(req.user!.id);
-      res.json({ addresses });
-    } catch (error) {
-      console.error("Get addresses error:", error);
-      res.status(500).json({ error: "Failed to get addresses" });
+
+  // // Saved Addresses routes
+  // app.get("/api/addresses", requireAuth, async (req, res) => {
+  //   try {
+  //     const addresses = await storage.getUserOrganizationAddresses(req.user!.id);
+  //     res.json({ addresses });
+  //   } catch (error) {
+  //     console.error("Get addresses error:", error);
+  //     res.status(500).json({ error: "Failed to get addresses" });
+  //   }
+  // });
+
+  // app.post("/api/addresses", requireAuth, async (req, res) => {
+  //   try {
+  //     console.log("📮 [BACKEND] Received address creation request");
+  //     console.log(
+  //       "📝 [BACKEND] Request body:",
+  //       JSON.stringify(req.body, null, 2)
+  //     );
+  //     console.log("🗺️ [BACKEND] Latitude received:", req.body.latitude);
+  //     console.log("🗺️ [BACKEND] Longitude received:", req.body.longitude);
+
+  //     const addressData = {
+  //       ...req.body,
+  //       userId: req.user!.id,
+  //     };
+
+  //     console.log(
+  //       "💾 [BACKEND] Final address data to save:",
+  //       JSON.stringify(addressData, null, 2)
+  //     );
+
+  //     // Validate pincode for Bangalore area
+  //     if (!req.body.pincode?.match(/^5[0-9]{5}$/)) {
+  //       return res.status(400).json({ error: "Invalid Bangalore pincode" });
+  //     }
+
+  //     const address = await storage.createCustomerAddress(addressData);
+  //     console.log(
+  //       "✅ [BACKEND] Address created successfully:",
+  //       JSON.stringify(address, null, 2)
+  //     );
+  //     res.json({ address });
+  //   } catch (error) {
+  //     console.error("💥 [BACKEND] Create address error:", error);
+  //     res.status(400).json({ error: "Failed to create address" });
+  //   }
+  // });
+
+  // app.put("/api/addresses/:id", requireAuth, async (req, res) => {
+  //   try {
+  //     const address = await storage.getCustomerAddress(req.params.id);
+  //     if (!address || address.userId !== req.user!.id) {
+  //       return res.status(404).json({ error: "Address not found" });
+  //     }
+
+  //     const updatedAddress = await storage.updateCustomerAddress(
+  //       req.params.id,
+  //       req.body
+  //     );
+  //     res.json({ address: updatedAddress });
+  //   } catch (error) {
+  //     console.error("Update address error:", error);
+  //     res.status(400).json({ error: "Failed to update address" });
+  //   }
+  // });
+
+  // app.delete("/api/addresses/:id", requireAuth, async (req, res) => {
+  //   try {
+  //     const address = await storage.getCustomerAddress(req.params.id);
+  //     if (!address || address.userId !== req.user!.id) {
+  //       return res.status(404).json({ error: "Address not found" });
+  //     }
+
+  //     await storage.deleteCustomerAddress(req.params.id);
+  //     res.json({ success: true });
+  //   } catch (error) {
+  //     console.error("Delete address error:", error);
+  //     res.status(400).json({ error: "Failed to delete address" });
+  //   }
+  // });
+
+  // app.put("/api/addresses/:id/default", requireAuth, async (req, res) => {
+  //   try {
+  //     const address = await storage.getCustomerAddress(req.params.id);
+  //     if (!address || address.userId !== req.user!.id) {
+  //       return res.status(404).json({ error: "Address not found" });
+  //     }
+
+  //     await storage.setDefaultAddress(req.user!.id, req.params.id);
+  //     res.json({ success: true });
+  //   } catch (error) {
+  //     console.error("Set default address error:", error);
+  //     res.status(400).json({ error: "Failed to set default address" });
+  //   }
+  // });
+
+app.get("/api/addresses", requireAuth, async (req, res) => {
+  try {
+  const orgId = req.user?.organizationId;
+
+  if (!orgId) {
+    return res.status(400).json({ error: "User does not belong to an organization" });
+  }
+
+  const addresses = await storage.getOrganizationAddresses(orgId);
+  res.json({ addresses });
+} catch (err) {
+  console.error("Error fetching org addresses:", err);
+  res.status(500).json({ error: "Failed to fetch addresses" });
+}
+});
+app.post("/api/addresses", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.user!.organizationId;
+
+    const addressData = {
+      ...req.body,
+      organizationId: orgId,
+    };
+
+    const address = await storage.createOrganizationAddress(addressData);
+    res.json({ address });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create address" });
+  }
+});
+app.put("/api/addresses/:id", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.user!.organizationId;
+
+    const address = await storage.getOrganizationAddress(req.params.id);
+
+    if (!address || address.organizationId !== orgId) {
+      return res.status(404).json({ error: "Address not found" });
     }
-  });
 
-  app.post("/api/addresses", requireAuth, async (req, res) => {
-    try {
-      console.log("📮 [BACKEND] Received address creation request");
-      console.log(
-        "📝 [BACKEND] Request body:",
-        JSON.stringify(req.body, null, 2)
-      );
-      console.log("🗺️ [BACKEND] Latitude received:", req.body.latitude);
-      console.log("🗺️ [BACKEND] Longitude received:", req.body.longitude);
+    const updated = await storage.updateOrganizationAddress(req.params.id, req.body);
+    res.json({ address: updated });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update address" });
+  }
+});
+app.delete("/api/addresses/:id", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.user!.organizationId;
 
-      const addressData = {
-        ...req.body,
-        userId: req.user!.id,
-      };
+    const address = await storage.getOrganizationAddress(req.params.id);
 
-      console.log(
-        "💾 [BACKEND] Final address data to save:",
-        JSON.stringify(addressData, null, 2)
-      );
-
-      // Validate pincode for Bangalore area
-      if (!req.body.pincode?.match(/^5[0-9]{5}$/)) {
-        return res.status(400).json({ error: "Invalid Bangalore pincode" });
-      }
-
-      const address = await storage.createCustomerAddress(addressData);
-      console.log(
-        "✅ [BACKEND] Address created successfully:",
-        JSON.stringify(address, null, 2)
-      );
-      res.json({ address });
-    } catch (error) {
-      console.error("💥 [BACKEND] Create address error:", error);
-      res.status(400).json({ error: "Failed to create address" });
+    if (!address || address.organizationId !== orgId) {
+      return res.status(404).json({ error: "Address not found" });
     }
-  });
 
-  app.put("/api/addresses/:id", requireAuth, async (req, res) => {
-    try {
-      const address = await storage.getCustomerAddress(req.params.id);
-      if (!address || address.userId !== req.user!.id) {
-        return res.status(404).json({ error: "Address not found" });
-      }
+    await storage.deleteOrganizationAddress(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete address" });
+  }
+});
+app.put("/api/addresses/:id/default", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.user!.organizationId;
 
-      const updatedAddress = await storage.updateCustomerAddress(
-        req.params.id,
-        req.body
-      );
-      res.json({ address: updatedAddress });
-    } catch (error) {
-      console.error("Update address error:", error);
-      res.status(400).json({ error: "Failed to update address" });
+    const address = await storage.getOrganizationAddress(req.params.id);
+
+    if (!address || address.organizationId !== orgId) {
+      return res.status(404).json({ error: "Address not found" });
     }
-  });
 
-  app.delete("/api/addresses/:id", requireAuth, async (req, res) => {
-    try {
-      const address = await storage.getCustomerAddress(req.params.id);
-      if (!address || address.userId !== req.user!.id) {
-        return res.status(404).json({ error: "Address not found" });
-      }
+    await storage.setDefaultAddress(orgId, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to set default address" });
+  }
+});
 
-      await storage.deleteCustomerAddress(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Delete address error:", error);
-      res.status(400).json({ error: "Failed to delete address" });
-    }
-  });
 
-  app.put("/api/addresses/:id/default", requireAuth, async (req, res) => {
-    try {
-      const address = await storage.getCustomerAddress(req.params.id);
-      if (!address || address.userId !== req.user!.id) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      await storage.setDefaultAddress(req.user!.id, req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Set default address error:", error);
-      res.status(400).json({ error: "Failed to set default address" });
-    }
-  });
 
   // System Settings routes (Admin only)
   const requireAdmin = async (req: any, res: any, next: any) => {
@@ -1662,9 +1748,9 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
         return res.status(404).json({ error: "Driver not found" });
       }
 
-      if (!driver.isActive) {
-        return res.status(400).json({ error: "Driver is not active" });
-      }
+      // if (!driver.isActive) {
+      //   return res.status(400).json({ error: "Driver is not active" });
+      // }
 
       // Assign the driver to the order and update status
       await storage.updateOrderStatus(order.id, "confirmed", driver.id);
@@ -1815,7 +1901,7 @@ app.post(`/api/orders/:id/generate-otp`, requireAuth, async (req, res) => {
           );
 
           const otpNotificationSuccess = await driverService.sendOtpToDriver(
-            updatedOrder.orderNumber,
+            String(updatedOrder.orderNumber),
             updatedOrder.deliveryOtp
           );
 

@@ -1,32 +1,22 @@
-import type { User } from "@shared/schema";
+import { customers, type User } from "@shared/schema";
 
 // Admin dashboard comprehensive customer registration notification payload
 interface AdminCustomerNotification {
-  // Basic customer information
   id: string;
   name: string;
   username: string | null;
   email: string;
   phone: string;
 
-  // Business information
-  business_name: string | null;
-  business_address: string | null;
-  industry_type: string | null;
-  gst_number: string | null;
-  pan_number: string | null;
+  organization_id: string|null;
 
-  // Account information
   role: string;
   kyc_status: string;
-  kyc_documents: any | null;
-  is_active: boolean;
+ 
 
-  // Timestamp information
   created_at: string;
   updated_at: string;
 
-  // Authentication information
   password_hash: string | null;
 }
 
@@ -113,38 +103,33 @@ export class AdminService {
       }
 
       // Prepare comprehensive customer registration payload with all details
-      const customerNotification: AdminCustomerNotification = {
-        // Basic customer information
-        id: customer.id,
-        name: customer.name,
-        username: customer.username, // Keep null if not provided
-        email: customer.email,
-        phone: customer.phone,
+  const customerNotification: AdminCustomerNotification = {
+  // ✅ Basic customer information
+  id: customer.id,
+  name: customer.name,
+  username: customer.username ?? null,
+  email: customer.email,
+  phone: customer.phone,
 
-        // Business information
-        business_name: customer.businessName,
-        business_address: customer.businessAddress,
-        industry_type: customer.industryType,
-        gst_number: customer.gstNumber,
-        pan_number: customer.panNumber,
+  // ✅ Organization mapping
+  organization_id: customer.organizationId, // foreign key to organizations table
 
-        // Account information
-        role: customer.role,
-        kyc_status: customer.kycStatus,
-        kyc_documents: customer.kycDocuments,
-        is_active: customer.isActive,
+  // ✅ Account information
+  role: customer.role,
+  kyc_status: customer.kycStatus,
+  
 
-        // Timestamp information
-        created_at: customer.createdAt
-          ? customer.createdAt.toISOString()
-          : new Date().toISOString(),
-        updated_at: customer.updatedAt
-          ? customer.updatedAt.toISOString()
-          : new Date().toISOString(),
+  // ✅ Timestamp information
+  created_at: customer.createdAt
+    ? customer.createdAt.toISOString()
+    : new Date().toISOString(),
+  updated_at: customer.updatedAt
+    ? customer.updatedAt.toISOString()
+    : new Date().toISOString(),
 
-        // Authentication information - as requested by admin
-        password_hash: customer.passwordHash,
-      };
+  // ✅ Authentication information (for admin-only usage)
+  password_hash: customer.passwordHash ?? null,
+};
 
       // Log comprehensive customer registration notification
       console.log(`\n🏢 =======================================`);
@@ -156,10 +141,10 @@ export class AdminService {
       console.log(`📞 Phone: ${customer.phone}`);
       console.log(`📧 Email: ${customer.email}`);
       console.log(`🆔 User ID: ${customer.id}`);
-      console.log(`🏢 Business: ${customer.businessName || "Not provided"}`);
-      console.log(`🏭 Industry: ${customer.industryType || "Not specified"}`);
-      console.log(`📄 GST: ${customer.gstNumber || "Not provided"}`);
-      console.log(`🪪 PAN: ${customer.panNumber || "Not provided"}`);
+      // console.log(`🏢 Business: ${customer.businessName || "Not provided"}`);
+      // console.log(`🏭 Industry: ${customer.industryType || "Not specified"}`);
+      // console.log(`📄 GST: ${customer.gstNumber || "Not provided"}`);
+      // console.log(`🪪 PAN: ${customer.panNumber || "Not provided"}`);
       console.log(`👤 Role: ${customer.role}`);
       console.log(`✅ KYC Status: ${customer.kycStatus}`);
       console.log(
@@ -210,18 +195,18 @@ export class AdminService {
         console.log(
           `   • Basic Info: ${customer.name}, ${customer.phone}, ${customer.email}`
         );
+        // console.log(
+        //   `   • Business: ${customer.businessName || "Not provided"} (${
+        //     customer.industryType || "No industry"
+        //   })`
+        // );
+        // console.log(
+        //   `   • Tax Info: GST ${customer.gstNumber || "None"}, PAN ${
+        //     customer.panNumber || "None"
+        //   }`
+        // );
         console.log(
-          `   • Business: ${customer.businessName || "Not provided"} (${
-            customer.industryType || "No industry"
-          })`
-        );
-        console.log(
-          `   • Tax Info: GST ${customer.gstNumber || "None"}, PAN ${
-            customer.panNumber || "None"
-          }`
-        );
-        console.log(
-          `   • Account: ${customer.role} role, KYC ${customer.kycStatus}, Active: ${customer.isActive}`
+          `   • Account: ${customer.role} role, KYC ${customer.kycStatus} `
         );
         console.log(
           `   • Registration: ${
@@ -314,9 +299,9 @@ export class AdminService {
         customer_name: customer.name,
         customer_email: customer.email,
         customer_phone: customer.phone,
-        business_name: customer.businessName,
+        // business_name: customer.businessName,
         kyc_status: customer.kycStatus,
-        kyc_documents: customer.kycDocuments,
+        // kyc_documents: customer.kycDocuments,
         submitted_at: new Date().toISOString(),
       };
 
@@ -327,11 +312,11 @@ export class AdminService {
       console.log(`👤 Customer: ${customer.name}`);
       console.log(`📧 Email: ${customer.email}`);
       console.log(`📞 Phone: ${customer.phone}`);
-      console.log(`🏢 Business: ${customer.businessName || "Not provided"}`);
-      console.log(`📋 KYC Status: ${customer.kycStatus}`);
-      console.log(
-        `📎 Documents: ${customer.kycDocuments ? "Uploaded" : "None"}`
-      );
+      // console.log(`🏢 Business: ${customer.businessName || "Not provided"}`);
+      // console.log(`📋 KYC Status: ${customer.kycStatus}`);
+      // console.log(
+      //   `📎 Documents: ${customer.kycDocuments ? "Uploaded" : "None"}`
+      // );
       console.log(
         `🔗 Admin URL: ${this.adminDashboardUrl}/api/external/kyc-submission`
       );

@@ -4,6 +4,7 @@ CREATE TYPE "public"."order_status" AS ENUM('pending', 'confirmed', 'in_transit'
 CREATE TYPE "public"."payment_method" AS ENUM('upi', 'cards', 'netbanking', 'wallet', 'cod');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('pending', 'processing', 'completed', 'failed', 'refunded');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('customer', 'driver', 'admin');--> statement-breakpoint
+
 CREATE TABLE "customer_addresses" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" varchar NOT NULL,
