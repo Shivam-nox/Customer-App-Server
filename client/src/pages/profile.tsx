@@ -72,8 +72,8 @@ export default function ProfileScreen() {
       name: user?.name || "",
       email: user?.email || "",
       phone: user?.phone || "",
-      businessName: user?.businessName || "",
-      businessAddress: user?.businessAddress || "",
+      // businessName: user?.businessName || "",
+      // businessAddress: user?.businessAddress || "",
     },
   });
 
@@ -171,9 +171,9 @@ export default function ProfileScreen() {
         form.reset({
           name: user?.name || "",
           email: user?.email || "",
-          phone: user?.phone || "",
-          businessName: user?.businessName || "",
-          businessAddress: user?.businessAddress || "",
+          // phone: user?.phone || "",
+          // businessName: user?.businessName || "",
+          // businessAddress: user?.businessAddress || "",
         });
         setIsEditDialogOpen(true);
       },
@@ -286,9 +286,9 @@ export default function ProfileScreen() {
                   <h3 className="font-bold text-lg" data-testid="user-name">
                     {user.name}
                   </h3>
-                  <p className="text-gray-600" data-testid="business-name">
+                  {/* <p className="text-gray-600" data-testid="business-name">
                     {user.businessName || "Business Name Not Set"}
-                  </p>
+                  </p> */}
                   <div className="space-y-1">
                     {user.email && (
                       <p
@@ -303,7 +303,7 @@ export default function ProfileScreen() {
                         className="text-sm text-gray-500"
                         data-testid="user-phone"
                       >
-                        📱 {user.phone}
+                        {/* 📱 {user.phone} */}
                       </p>
                     )}
                   </div>

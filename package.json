@@ -11,6 +11,8 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.59.0",
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@google-cloud/storage": "^7.16.0",
     "@googlemaps/js-api-loader": "^2.0.1",
     "@hookform/resolvers": "^3.10.0",

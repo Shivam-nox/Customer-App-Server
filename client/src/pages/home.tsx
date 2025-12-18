@@ -1,407 +1,325 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/skeleton"; // Assuming you have this, or use a spinner
+
+// Clerk Imports
+import { 
+  useUser, 
+  useOrganization, 
+  OrganizationSwitcher, 
+} from "@clerk/clerk-react";
+
 import BottomNav from "@/components/bottom-nav";
-import LoadingSpinner from "@/components/loading-spinner";
-import { PWAInstallButton } from "@/components/PWAInstallButton";
-import { Bell, Fuel, MapPin, Plus, Eye, Shield, ArrowLeft } from "lucide-react";
+import { 
+  Bell, 
+  Fuel, 
+  MapPin, 
+  Shield, 
+  CheckCircle2,
+  Briefcase,
+  User,
+  ChevronRight,
+  Droplets,
+  Wallet
+} from "lucide-react";
 import { format } from "date-fns";
 import logoUrl from "@assets/Final_Logo_with_Tagline_1755695309847.png";
 
 export default function HomeScreen() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, isLoaded } = useUser();
+  const { organization } = useOrganization();
+  
+  // -- KYC CHECK --
+  const contextKycStatus = organization 
+    ? (organization.publicMetadata?.kycStatus as string)
+    : (user?.publicMetadata?.kycStatus as string);
+  const kycStatus = contextKycStatus || "pending";
+  const isKycVerified = kycStatus === "verified";
 
+  // -- DATA FETCHING --
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ["/api/orders"],
+    queryKey: ["/api/orders", organization?.id || "personal"], 
     queryFn: () =>
       fetch("/api/orders", {
-        headers: { "x-user-id": user?.id || "" },
+        headers: { 
+          "x-user-id": user?.id || "",
+          ...(organization?.id ? { "x-org-id": organization.id } : {}) 
+        },
       }).then((res) => res.json()),
-    refetchInterval: (query) => {
-      // Poll if there are any active orders
-      const data = query.state.data as any;
-      const orders = data?.orders || [];
-      const hasActiveOrders = orders.some((order: any) => 
-        order.status === "pending" || 
-        order.status === "confirmed" || 
-        order.status === "in_transit"
-      );
-      return hasActiveOrders ? 10000 : false; // Poll every 10 seconds if active orders exist
-    },
-    refetchOnWindowFocus: true, // Refetch when user returns to home
-    refetchIntervalInBackground: false, // Stop polling when tab is hidden
+    refetchInterval: 10000,
+    enabled: !!user, 
   });
 
   const { data: notificationsData } = useQuery({
-    queryKey: ["/api/notifications"],
+    queryKey: ["/api/notifications", organization?.id || "personal"],
     queryFn: () =>
       fetch("/api/notifications", {
         headers: { "x-user-id": user?.id || "" },
       }).then((res) => res.json()),
+    enabled: !!user,
   });
 
   const orders = ordersData?.orders || [];
-  
-  // Sort orders by creation date (newest first) and take top 3
   const recentOrders = [...orders]
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
-  
   const unreadCount = notificationsData?.unreadCount || 0;
-
-  // Debug: Log the actual orders data
-  console.log("🏠 [HOME] Orders data:", {
-    totalOrders: orders.length,
-    orders: orders.slice(0, 3).map((order: any) => ({
-      id: order.id,
-      quantity: order.quantity,
-      status: order.status,
-      totalAmount: order.totalAmount,
-      createdAt: order.createdAt,
-    })),
-  });
-
-  // Calculate stats
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-
-  // Filter orders for current month
-  const monthlyOrders = orders.filter((order: any) => {
-    const orderDate = new Date(order.createdAt);
-    const isCurrentMonth =
-      orderDate.getMonth() === currentMonth &&
-      orderDate.getFullYear() === currentYear;
-    const isCompleted = order.status === "delivered";
-    // order.status === "confirmed" ||
-    // order.status === "in_transit" ||
-    // (order.status !== "cancelled" && order.status !== "pending");
-    return isCurrentMonth && isCompleted;
-  });
-
-  // Calculate monthly liters from delivered orders
-  const monthlyLiters = monthlyOrders.reduce((sum: number, order: any) => {
-    const quantity = parseInt(order.quantity) || 0;
-    return sum + quantity;
+  
+  const monthlyLiters = orders.reduce((sum: number, order: any) => {
+    if (order.status === 'delivered') return sum + (parseInt(order.quantity) || 0);
+    return sum;
   }, 0);
+  const totalSaved = monthlyLiters * 7;
 
-  // Calculate total savings for all delivered orders (₹7 per liter)
-  // Try delivered first, then fall back to any completed orders
-  let completedOrders = orders.filter(
-    (order: any) => order.status === "delivered"
-  );
-  if (completedOrders?.length === 0) {
-    // Fallback to other completed statuses if no "delivered" orders
-    completedOrders = orders.filter(
-      (order: any) =>
-        order.status === "confirmed" ||
-        order.status === "in_transit" ||
-        (order.status !== "cancelled" && order.status !== "pending")
-    );
-  }
-
-  const totalLitersDelivered = completedOrders.reduce(
-    (sum: number, order: any) => {
-      const quantity = parseInt(order.quantity) || 0;
-      return sum + quantity;
-    },
-    0
-  );
-  const totalSaved = totalLitersDelivered * 7; // ₹7 savings per liter
-
-  // Debug: Log the calculations
-  console.log("🏠 [HOME] Calculations:", {
-    allOrdersCount: orders.length,
-    completedOrdersCount: completedOrders.length,
-    monthlyOrdersCount: monthlyOrders.length,
-    monthlyLiters,
-    totalLitersDelivered,
-    totalSaved,
-    completedOrders: completedOrders.map((order: any) => ({
-      id: order.id,
-      quantity: order.quantity,
-      quantityParsed: parseInt(order.quantity),
-      status: order.status,
-      totalAmount: order.totalAmount,
-    })),
-    orderStatuses: Array.from(
-      new Set(orders.map((order: any) => order.status))
-    ),
-  });
-
-  const getStatusColor = (status: string) => {
+  // -- Helpers --
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "in_transit":
-        return "bg-orange-100 text-orange-800";
-      case "confirmed":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      case "delivered": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "in_transit": return "bg-orange-100 text-orange-700 border-orange-200";
+      case "confirmed": return "bg-blue-100 text-blue-700 border-blue-200";
+      default: return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
-  const getStatusBorder = (status: string) => {
-    switch (status) {
-      case "delivered":
-        return "border-green-500";
-      case "in_transit":
-        return "border-orange-500";
-      case "confirmed":
-        return "border-blue-500";
-      default:
-        return "border-gray-500";
-    }
-  };
-
-  if (!user) return null;
+  if (!isLoaded || !user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50" data-testid="home-screen">
-      {/* Header */}
-      <div className="zapygo-gradient text-white p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <img
-              src={logoUrl}
-              alt="Zapygo - Fueling business, Driving progress"
-              className="h-14 sm:h-16 md:h-18 w-auto"
-              data-testid="company-logo"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <PWAInstallButton />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-600 relative p-2"
-              onClick={() => setLocation("/notifications")}
-              data-testid="notifications-button"
-            >
-              <Bell size={20} />
-              {unreadCount > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-white"
-                  data-testid="notification-count"
-                >
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </Button>
-          </div>
+    <div className="min-h-screen bg-slate-50/80 pb-28" data-testid="home-screen">
+      
+      {/* --- HEADER SECTION --- */}
+      {/* We use a relative container to handle the background curve */}
+      <div className="relative bg-white pb-10">
+        
+        {/* Background Gradient & Pattern */}
+        <div className="absolute inset-0 zapygo-gradient overflow-hidden rounded-b-[40px] shadow-lg">
+          {/* Decorative circles for texture */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <div
-            className="bg-blue-600 rounded-lg p-3"
-            data-testid="monthly-stats"
-          >
-            <p className="text-blue-100 text-xs">This Month</p>
-            <p className="text-xl font-bold" data-testid="monthly-liters">
-              {monthlyLiters}L
-            </p>
+        {/* Header Content */}
+        <div className="relative z-10 pt-6 px-6">
+          
+          {/* Top Bar */}
+          <div className="flex items-center justify-between mb-8">
+            <img src={logoUrl} alt="Zapygo" className="h-9 w-auto brightness-0 invert opacity-95 drop-shadow-sm" />
+            
+            <div className="flex items-center gap-3">
+               {/* Glassy Org Switcher */}
+               <div className="bg-white/15 border border-white/20 rounded-full px-1.5 py-1 backdrop-blur-md shadow-sm">
+                  <OrganizationSwitcher 
+                     hidePersonal={false}
+                     appearance={{
+                       elements: {
+                         rootBox: "flex items-center",
+                         organizationSwitcherTrigger: "text-white font-medium text-xs px-2 hover:opacity-80 transition-opacity",
+                         organizationPreviewAvatarBox: "h-6 w-6 ring-2 ring-white/20", 
+                         organizationPreviewTextContainer: "hidden"
+                       }
+                     }}
+                  />
+               </div>
+
+               {/* Notification Bell */}
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="relative bg-white/15 text-white hover:bg-white/25 rounded-full w-10 h-10 border border-white/20 shadow-sm transition-all"
+                 onClick={() => setLocation("/notifications")}
+               >
+                 <Bell size={18} />
+                 {unreadCount > 0 && (
+                   <span className="absolute top-2.5 right-2.5 bg-red-500 w-2.5 h-2.5 rounded-full ring-2 ring-indigo-500 animate-pulse" />
+                 )}
+               </Button>
+            </div>
           </div>
-          <div
-            className="bg-blue-600 rounded-lg p-3"
-            data-testid="savings-stats"
-          >
-            <p className="text-blue-100 text-xs">Total Saved</p>
-            <p className="text-xl font-bold" data-testid="total-saved">
-              ₹{totalSaved.toLocaleString()}
-            </p>
+
+          {/* User Profile & Greeting */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="relative group">
+              <div className="h-16 w-16 rounded-2xl p-[3px] bg-white/30 backdrop-blur-sm shadow-inner">
+                {organization ? (
+                  <img src={organization.imageUrl} alt="Org" className="h-full w-full object-cover rounded-[14px] shadow-sm" />
+                ) : (
+                  <img src={user.imageUrl} alt="User" className="h-full w-full object-cover rounded-[14px] shadow-sm" />
+                )}
+              </div>
+              {isKycVerified && (
+                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 border-[3px] border-indigo-600 shadow-md">
+                  <CheckCircle2 size={12} strokeWidth={4} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col text-white">
+               <div className="flex items-center gap-1.5 opacity-80 mb-1">
+                 <span className="bg-white/20 p-1 rounded-md">
+                   {organization ? <Briefcase size={10} /> : <User size={10} />}
+                 </span>
+                 <span className="text-xs font-semibold uppercase tracking-wider">
+                   {organization ? "Business Account" : "Personal Account"}
+                 </span>
+               </div>
+               <h1 className="text-2xl font-bold leading-tight tracking-tight drop-shadow-md">
+                 Hello, {organization ? organization.name : user.firstName}
+               </h1>
+            </div>
+          </div>
+
+          {/* Stats Grid - Floating Effect */}
+          <div className="grid grid-cols-2 gap-4 -mb-16">
+            <div className="bg-white/80 backdrop-blur-xl border border-white/50 rounded-2xl p-4 shadow-xl shadow-indigo-900/5">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wide">Volume</p>
+                <div className="bg-blue-50 text-blue-600 p-1.5 rounded-lg">
+                  <Droplets size={14} />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-800">{monthlyLiters}<span className="text-sm font-medium text-slate-400 ml-1">L</span></p>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-xl border border-white/50 rounded-2xl p-4 shadow-xl shadow-indigo-900/5">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wide">Saved</p>
+                <div className="bg-emerald-50 text-emerald-600 p-1.5 rounded-lg">
+                  <Wallet size={14} />
+                </div>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-800">₹{totalSaved.toLocaleString()}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="pb-20">
-        {/* KYC CTA Banner */}
-        {user.kycStatus === "pending" && (
-          <div className="p-4">
-            <Card
-              className="bg-orange-50 border-orange-200 shadow-sm"
-              data-testid="kyc-cta-banner"
-            >
-              <CardContent className="p-4">
-                <Button
-                  onClick={() => setLocation("/kyc-upload")}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-lg p-4 h-auto ripple"
-                  data-testid="kyc-home-cta"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center space-x-3">
-                      <Shield size={24} />
-                      <div className="text-left">
-                        <p className="font-medium">Complete KYC Verification</p>
-                        <p className="text-sm text-orange-100">
-                          Required to place orders
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowLeft className="rotate-180" size={20} />
-                  </div>
-                </Button>
-              </CardContent>
-            </Card>
+      {/* --- MAIN CONTENT START --- */}
+      <div className="px-5 mt-20 space-y-8">
+        
+        {/* 1. KYC ALERT (Softer UI) */}
+        {!isKycVerified && (
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+             <div className="bg-orange-100 p-2.5 rounded-xl shrink-0">
+               <Shield className="w-5 h-5 text-orange-600" />
+             </div>
+             <div className="flex-1">
+               <h3 className="font-bold text-orange-900 text-sm">Account Verification</h3>
+               <p className="text-xs text-orange-700/80 mt-0.5">Complete KYC to start ordering fuel.</p>
+             </div>
+             <Button 
+               onClick={() => setLocation("/kyc-upload")}
+               size="sm"
+               className="bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs h-8 px-4 shadow-orange-200 shadow-md"
+             >
+               Verify
+             </Button>
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="p-4">
-          <h3
-            className="font-bold text-lg mb-4"
-            data-testid="quick-actions-title"
+        {/* 2. Primary Actions (Gradient Cards) */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => setLocation("/new-order")}
+            className="group relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-5 text-left shadow-lg shadow-emerald-900/20 transition-transform active:scale-95"
           >
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <Button
-              onClick={() => setLocation("/new-order")}
-              className="bg-secondary hover:bg-green-600 text-white rounded-lg p-6 h-auto flex-col ripple"
-              data-testid="order-diesel-button"
-            >
-              <Fuel size={32} className="mb-2" />
-              <span className="font-medium">Order Diesel</span>
-            </Button>
-            <Button
-              onClick={() => setLocation("/track-order")}
-              className="bg-accent hover:bg-orange-600 text-white rounded-lg p-6 h-auto flex-col ripple"
-              data-testid="track-order-button"
-            >
-              <MapPin size={32} className="mb-2" />
-              <span className="font-medium">Track Order</span>
-            </Button>
-          </div>
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Fuel size={80} />
+            </div>
+            <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+              <div className="bg-white/20 w-fit p-2.5 rounded-2xl backdrop-blur-md">
+                <Fuel size={22} className="text-white" />
+              </div>
+              <div>
+                <span className="block font-bold text-white text-lg">Order Fuel</span>
+                <span className="text-emerald-100 text-xs font-medium">Schedule delivery</span>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setLocation("/track-order")}
+            className="group relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 text-left shadow-lg shadow-indigo-900/20 transition-transform active:scale-95"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <MapPin size={80} />
+            </div>
+            <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+              <div className="bg-white/20 w-fit p-2.5 rounded-2xl backdrop-blur-md">
+                <MapPin size={22} className="text-white" />
+              </div>
+              <div>
+                <span className="block font-bold text-white text-lg">Track Order</span>
+                <span className="text-indigo-100 text-xs font-medium">Real-time updates</span>
+              </div>
+            </div>
+          </button>
         </div>
 
-        {/* Recent Orders */}
-        <div className="px-4">
+        {/* 3. Recent Activity */}
+        <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg" data-testid="recent-orders-title">
-              Recent Orders
-            </h3>
+            <h3 className="font-bold text-slate-800 text-lg">Recent Orders</h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setLocation("/orders")}
-              className="text-primary"
-              data-testid="view-all-orders-button"
+              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-xs font-semibold h-auto py-1 px-2"
             >
-              View All
+              View All <ChevronRight size={14} className="ml-1" />
             </Button>
           </div>
 
           {ordersLoading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
+            <div className="space-y-3">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
             </div>
           ) : recentOrders.length > 0 ? (
-            <div className="space-y-4 mb-6">
+            <div className="space-y-4">
               {recentOrders.map((order: any) => (
-                <Card
+                <div 
                   key={order.id}
-                  className={`shadow-sm border-l-4 ${getStatusBorder(
-                    order.status
-                  )}`}
-                  data-testid={`order-${order.id}`}
+                  className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 transition-all hover:shadow-md"
                 >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p
-                          className="font-medium text-gray-800"
-                          data-testid={`order-number-${order.id}`}
-                        >
-                          Order #{order.orderNumber}
-                        </p>
-                        <p
-                          className="text-sm text-gray-600"
-                          data-testid={`order-date-${order.id}`}
-                        >
-                          {format(new Date(order.createdAt), "MMM dd, yyyy")}
-                        </p>
-                      </div>
-                      <Badge
-                        className={getStatusColor(order.status)}
-                        data-testid={`order-status-${order.id}`}
-                      >
-                        {order.status.replace("_", " ").toLowerCase()}
+                  {/* Icon Box */}
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl shrink-0 flex flex-col items-center justify-center w-14 h-14">
+                    <span className="text-sm font-bold text-slate-800">{order.quantity}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Ltrs</span>
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                      <p className="font-bold text-slate-800 text-sm truncate">#{order.orderNumber}</p>
+                      <Badge variant="outline" className={`${getStatusStyle(order.status)} border rounded-full px-2 py-0 text-[10px] uppercase font-bold tracking-wide`}>
+                        {order.status.replace("_", " ")}
                       </Badge>
                     </div>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {format(new Date(order.createdAt), "dd MMM, hh:mm a")}
+                    </p>
+                  </div>
 
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p
-                          className="text-sm text-gray-600"
-                          data-testid={`order-quantity-${order.id}`}
-                        >
-                          Quantity: {order.quantity}L
-                        </p>
-                        <p
-                          className="text-sm text-gray-600"
-                          data-testid={`order-amount-${order.id}`}
-                        >
-                          Amount: ₹
-                          {parseFloat(order.totalAmount).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setLocation(`/track-order/${order.id}`)
-                          }
-                          className="text-primary"
-                          data-testid={`track-order-${order.id}`}
-                        >
-                          <Eye size={16} className="mr-1" />
-                          View
-                        </Button>
-                        {order.status === "in_transit" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setLocation(`/track-order/${order.id}`)
-                            }
-                            className="text-primary border-primary"
-                            data-testid={`live-track-${order.id}`}
-                          >
-                            <MapPin size={16} className="mr-1" />
-                            Track
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {/* Price */}
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-slate-900 text-base">₹{parseFloat(order.totalAmount).toLocaleString()}</p>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <Card className="shadow-sm mb-6" data-testid="no-orders-card">
-              <CardContent className="p-8 text-center">
-                <Fuel size={48} className="text-gray-400 mx-auto mb-4" />
-                <h3 className="font-medium text-gray-800 mb-2">
-                  No Orders Yet
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Place your first diesel order to get started
-                </p>
-                <Button
-                  onClick={() => setLocation("/new-order")}
-                  className="ripple"
-                  data-testid="first-order-button"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Order Now
+            <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200">
+                <div className="bg-slate-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Fuel size={24} className="text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-medium text-sm">No recent orders found</p>
+                <Button variant="link" onClick={() => setLocation("/new-order")} className="text-indigo-600 text-xs mt-1">
+                  Place your first order
                 </Button>
-              </CardContent>
-            </Card>
+            </div>
           )}
         </div>
       </div>
