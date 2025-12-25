@@ -7,7 +7,11 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// server/index.ts (Add this at the top)
 
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
 // Serve Android App Links assetlinks.json file
 app.get("/.well-known/assetlinks.json", (_req, res) => {
   res.setHeader("Content-Type", "application/json");
@@ -80,7 +84,7 @@ app.use((req, _res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || '3001', 10);
   server.listen(port,'0.0.0.0', () => {
     log(`serving on port ${port}`);
   });

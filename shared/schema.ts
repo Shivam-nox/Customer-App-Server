@@ -10,25 +10,20 @@ import {
   pgEnum,
   boolean,
   bigserial,
+  unique
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Enums
-// export const userRoleEnum = pgEnum("user_role", [
-//   "customer",
-//   "driver",
-//   "admin",
-// ]);
+/////-----Types & Enums -----/////
 
-// New Enums for B2B Logic
 export const orgUserRoleEnum = pgEnum("org_user_role", [
   "admin",
   "member",
 ]);
 
 export const orgUserStatusEnum = pgEnum("org_user_status", [
-  "pending",
+  "waiting_approval",
   "invited",  // Added this for invite flows
   "approved",
   "rejected",
@@ -37,6 +32,7 @@ export const orgUserStatusEnum = pgEnum("org_user_status", [
 
 export const kycStatusEnum = pgEnum("kyc_status", [
   "pending",
+  "not_started",
   "submitted",
   "verified",
   "rejected",
@@ -48,13 +44,21 @@ export const orderStatusEnum = pgEnum("order_status", [
   "delivered",
   "cancelled",
 ]);
+
+export const presetTypeEnum = pgEnum("preset_type_enum", [
+  "volume",
+  "amount",
+]);
+
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending",
   "processing",
+  "success",
   "completed",
   "failed",
   "refunded",
 ]);
+
 export const paymentMethodEnum = pgEnum("payment_method", [
   "upi",
   "cards",
@@ -62,14 +66,17 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "wallet",
   "cod",
 ]);
+
 export const notificationTypeEnum = pgEnum("notification_type", [
   "order_update",
   "payment",
   "kyc",
   "delivery",
   "general",
+  "join_request"
 ]);
 
+// Organizations table
 
 export const organizations = pgTable("organizations", {
   id: varchar("id")
@@ -80,7 +87,7 @@ export const organizations = pgTable("organizations", {
  
   industryType: text("industry_type"),
 
-  organizationCode: text("organization_code").notNull().unique(),
+  organizationCode: text("organization_code").unique(),
 
   panNumber: text("pan_number"),
   panCard: text("pan_card"),
@@ -88,8 +95,8 @@ export const organizations = pgTable("organizations", {
   gstNumber: text("gst_number"),
   gstCertificate: text("gst_certificate"),
 
-  kycStatus: text("kyc_status"),   // pending, submitted, verified, rejected
- kycRemark: text("kyc_remark"),
+  kycStatus: kycStatusEnum("kyc_status"),   // pending, submitted, verified, rejected
+  kycRemark: text("kyc_remark"),
 
   createdAt: timestamp("created_at")
     .notNull()
@@ -100,13 +107,16 @@ export const organizations = pgTable("organizations", {
     .default(sql`now()`),
 });
 
+
 // Customers table
 export const customers = pgTable("customers", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
+
   organizationId: varchar("organization_id")
     .references(() => organizations.id, { onDelete: "set null" }),
+
   name: text("name").notNull(),
 
   username: varchar("username", { length: 50 }).unique(),  // keep for now
@@ -130,6 +140,7 @@ export const customers = pgTable("customers", {
     .default(sql`now()`),
 });
 
+
 // The Critical Mapping Table
 export const organizationUsers = pgTable("organization_users", {
   id: varchar("id")
@@ -146,12 +157,12 @@ export const organizationUsers = pgTable("organization_users", {
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
 
-  // Relationship Details
-  role: orgUserRoleEnum("role").notNull().default("member"),
-  kycStatus: orgUserStatusEnum("kyc_status").notNull().default("pending"),
-
+  role: text("role").notNull().default("member"), // admin | member
+  orgUserStatus: orgUserStatusEnum("org_user_status").notNull().default("waiting_approval"),
+  kycStatus: kycStatusEnum("kyc_status").notNull().default("pending"),
+  kycRemark: text("kyc_remark"),
   // Audit who added them (optional but good for B2B)
-  addedBy: varchar("added_by"), 
+  reviewedBy: varchar("reviewed_by"), 
 
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
@@ -192,22 +203,14 @@ export const organizationAddresses = pgTable("organization_addresses", {
 
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+},(table) => {
+  return {
+    // ✅ This makes the 'label' unique per 'organizationId'
+    uniqueOrgSiteLabel: unique("unique_org_site_label").on(table.organizationId, table.label),
+  };
 });
 
-// OTP verification table
-// export const otpVerifications = pgTable("otp_verifications", {
-//   id: varchar("id")
-//     .primaryKey()
-//     .default(sql`gen_random_uuid()`),
-//   identifier: varchar("identifier", { length: 255 }).notNull(), // phone or email
-//   otp: varchar("otp", { length: 6 }).notNull(),
-//   type: varchar("type", { length: 10 }).notNull(), // "phone" or "email"
-//   isVerified: boolean("is_verified").default(false).notNull(),
-//   expiresAt: timestamp("expires_at").notNull(),
-//   createdAt: timestamp("created_at")
-//     .default(sql`now()`)
-//     .notNull(),
-// });
+
 
 // Orders table
 export const orders = pgTable("orders", {
@@ -215,97 +218,134 @@ export const orders = pgTable("orders", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  orderNumber: bigserial("order_number", { mode: "bigint" }).notNull().unique(),
-
-
-  customerId: varchar("customer_id")
+  orderNumber: bigserial("order_number", { mode: "bigint" })
     .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
+    .unique(),
 
-  // 🔥 NEW FIELD — Add organization_id
+  gatewayOrderId: varchar("gateway_order_id", { length: 255 }),
+  // 🔗 Relations (NO CASCADE)
   organizationId: varchar("organization_id")
     .references(() => organizations.id, { onDelete: "set null" }),
 
+  organizationAddressId: varchar("organization_address_id")
+    .references(() => organizationAddresses.id, { onDelete: "set null" }),
+
+  createdByCustomerId: varchar("created_by_customer_id")
+    .references(() => customers.id, { onDelete: "set null" }),
+
+  acceptedByDriverId: varchar("accepted_by_driver_id")
+    .references(() => drivers.id, { onDelete: "set null" }),
+
+  deliveryByDriverId: varchar("delivery_by_driver_id")
+    .references(() => drivers.id, { onDelete: "set null" }),
+
+  mduId: varchar("mdu_id")
+    .references(() => mduControllers.id, { onDelete: "set null" }),
+
+  // paymentId: varchar("payment_id")
+  //   .references(() => payments.id, { onDelete: "set null" }),
+   assetAdded: varchar("asset_added").references(() => assets.id, { onDelete: "set null" }),
+  // 📦 Order data
+  presetType: presetTypeEnum("preset_type").notNull(),
   quantity: integer("quantity").notNull(),
 
-  ratePerLiter: decimal("rate_per_liter", {
-    precision: 10,
-    scale: 2,
-  }).notNull(),
+  ratePerLitre: decimal("rate_per_litre", { precision: 10, scale: 2 }),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
+  deliveryCharges: decimal("delivery_charges", { precision: 10, scale: 2 }),
+  gstCharges: decimal("gst_charges", { precision: 10, scale: 2 }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  geoFencingRadius: integer("geo_fencing_radius"),
+  scheduledDate: timestamp("scheduled_date"),
+  scheduledTimeInterval: text("scheduled_time_interval"),
 
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  // 🔐 Security / verification
+  orderOtp: varchar("order_otp", { length: 6 }),
+  closeOtp: varchar("close_otp", { length: 6 }),
+  bypassOtp: varchar("bypass_otp", { length: 6 }),
 
-  deliveryCharges: decimal("delivery_charges", {
-    precision: 10,
-    scale: 2,
-  }).notNull(),
+  orderOtpVerified: boolean("order_otp_verified").default(false),
+  closeOtpVerified: boolean("close_otp_verified").default(false),
+  bypassOtpVerified: boolean("bypass_otp_verified").default(false),
+  geofencingVerified: boolean("geofencing_verified").default(false),
 
-  gst: decimal("gst", { precision: 10, scale: 2 }).notNull(),
+  // 📡 MDU
+  sentToMduStatus: boolean("sent_to_mdu_status").default(false),
+  finalAmountDispersed: decimal("final_amount_dispersed", { precision: 10, scale: 2 }),
+  finalVolumeDispersed: decimal("final_volume_dispersed", { precision: 10, scale: 2 }),
 
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-
-  deliveryAddress: text("delivery_address").notNull(),
-
-  deliveryAddressId: varchar("delivery_address_id").references(
-    () => organizationAddresses.id
-  ),
-
-  deliveryLatitude: decimal("delivery_latitude", {
-    precision: 10,
-    scale: 7,
-  }),
-
-  deliveryLongitude: decimal("delivery_longitude", {
-    precision: 10,
-    scale: 7,
-  }),
-
-  scheduledDate: timestamp("scheduled_date").notNull(),
-
-  scheduledTime: varchar("scheduled_time", { length: 5 }).notNull(),
-
-  status: orderStatusEnum("status").default("pending").notNull(),
-
-  driverId: varchar("driver_id")
-    .references(() => drivers.id),
-
-  deliveryOtp: varchar("delivery_otp", { length: 6 }),
-
+  // 🧾 Meta
+  orderStatus: orderStatusEnum("order_status").default("pending"),
   notes: text("notes"),
+  
 
-  createdAt: timestamp("created_at")
-    .default(sql`now()`)
-    .notNull(),
-
-  updatedAt: timestamp("updated_at")
-    .default(sql`now()`)
-    .notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
 });
 
-// Payments table
-export const payments = pgTable("payments", {//orgi
+export const assets = pgTable("assets", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id")
-    .notNull()
-    .references(() => orders.id),
- organizationId: varchar("organization_id")
+
+  // Link to the owning organization
+  organizationId: varchar("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
-  customerId: varchar("customer_id").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  method: paymentMethodEnum("method").notNull(),
-  status: paymentStatusEnum("status").default("pending").notNull(),
-  transactionId: varchar("transaction_id", { length: 100 }),
-  gatewayResponse: jsonb("gateway_response"),
+
+  // Unique identifier for the hardware/asset
+  assetNumber: decimal("asset_number").notNull().unique(),
+
+  name: text("name").notNull(), // e.g., "Main Generator", "JCB Unit 4"
+
+  type: text("type").notNull(), // e.g., "Generator", "Vehicle", "Storage Tank"
+
+  position: text("position"), // General location or floor number
+
+  capacity: integer("capacity").notNull(), // Maximum fuel capacity in Liters
+
+  vidTag: text("vid_tag").unique(), // Vehicle/Asset ID tag for MDU scanning
+
+  // Link to a specific delivery address for geofencing
+  addressId: varchar("address_id")
+    .references(() => organizationAddresses.id, { onDelete: "set null" }),
+
   createdAt: timestamp("created_at")
-    .default(sql`now()`)
-    .notNull(),
+    .notNull()
+    .default(sql`now()`),
+
   updatedAt: timestamp("updated_at")
-    .default(sql`now()`)
-    .notNull(),
+    .notNull()
+    .default(sql`now()`),
 });
+
+export const orderAssets = pgTable("order_assets", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  // 🔥 CASCADE HERE (CORRECT)
+  orderId: varchar("order_id")
+    .notNull()
+    .references(() => orders.id,),
+
+  // Keep assetId simple for now
+  assetId: varchar("asset_id").notNull(),
+
+  presetType: presetTypeEnum("preset_type").notNull(),
+
+  volume: decimal("volume", { precision: 10, scale: 2 }),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+
+  startTotalizer: decimal("start_totalizer", { precision: 12, scale: 2 }),
+  endTotalizer: decimal("end_totalizer", { precision: 12, scale: 2 }),
+
+  finalVolumeDispensed: decimal("final_volume_dispensed", { precision: 10, scale: 2 }),
+
+  transactionId: varchar("transaction_id"),
+
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+});
+
 
 // Notifications table
 export const notifications = pgTable("notifications", {
@@ -317,7 +357,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   type: notificationTypeEnum("type").notNull(),
   isRead: boolean("is_read").default(false).notNull(),
-  orderId: varchar("order_id"),
+  orderId: varchar("order_id").references(() => orders.id),
   createdAt: timestamp("created_at")
     .default(sql`now()`)
     .notNull(),
@@ -398,8 +438,9 @@ export const drivers = pgTable("drivers", {
 
   emergencyContactName: text("emergency_contact_name"),
   emergencyContactPhone: text("emergency_contact_phone"),
-
-  kycStatus: text("kyc_status"), // pending, submitted, verified, rejected
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  kycStatus: kycStatusEnum("kyc_status"), // pending, submitted, verified, rejected
 
   // isActive: boolean("is_active").notNull().default(true),
 
@@ -429,7 +470,7 @@ export const driverVehicleAssignments = pgTable("driver_vehicle_assignments", {
   driverId: varchar("driver_id")
     .notNull()
     .references(() => drivers.id, { onDelete: "cascade" }),
-
+  
   vehicleId: varchar("vehicle_id")
     .notNull()
     .references(() => vehicles.id, { onDelete: "cascade" }),
@@ -495,7 +536,8 @@ export const driversKycDocuments = pgTable("driver_kyc_documents", {
 
   panNumber: text("pan_number"),
   panCard: text("pan_card"),
-
+  drivingLicenseNumber: text("driving_license_number"),
+  drivingLiscenseExpiry: timestamp("driving_license_expiry"),
   adhaarNumber: text("adhaar_number"),
   adhaarCard: text("adhaar_card"),
 
@@ -531,7 +573,7 @@ export const vehiclesKycDocuments = pgTable("vehicles_kyc_documents", {
   fireExtinguisherCertificate: text("fire_extinguisher_certificate"),
 
   // KYC workflow
-  status: text("status"),               // pending / submitted / verified / rejected
+  kycStatus: kycStatusEnum("kyc_status"),               // pending / submitted / verified / rejected
   remarks: text("remarks"),             // admin comments
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),
@@ -600,6 +642,47 @@ export const mduDayWiseData = pgTable("mdu_day_wise_data", {
     .default(sql`now()`),
 });
 
+
+export const payments = pgTable("payments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  // 🔗 Relations
+  orderId: varchar("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "set null" }),
+    // ❌ no cascade (orders are legal records)
+
+  organizationId: varchar("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+    // ✔ org delete → payments delete (B2B scoped)
+
+  customerId: varchar("customer_id")
+    .references(() => customers.id, { onDelete: "set null" }),
+
+  // 💰 Payment data
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+
+  method: paymentMethodEnum("method").notNull(),
+
+  verification_status: paymentStatusEnum("status")
+    .notNull()
+    .default("pending"),
+
+  transactionId: varchar("transaction_id", { length: 100 }),
+
+  gatewayResponse: jsonb("gateway_response"),
+
+  createdAt: timestamp("created_at")
+    .notNull()
+    .default(sql`now()`),
+
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .default(sql`now()`),
+});
 
 
 
