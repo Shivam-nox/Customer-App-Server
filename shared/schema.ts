@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
+  bigint,
   varchar,
   timestamp,
   integer,
@@ -218,7 +219,7 @@ export const orders = pgTable("orders", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  orderNumber: bigserial("order_number", { mode: "bigint" })
+  orderNumber: bigint("order_number", { mode: "number" }) // 👈 Key fix
     .notNull()
     .unique(),
 
@@ -244,7 +245,7 @@ export const orders = pgTable("orders", {
 
   // paymentId: varchar("payment_id")
   //   .references(() => payments.id, { onDelete: "set null" }),
-   assetAdded: varchar("asset_added").references(() => assets.id, { onDelete: "set null" }),
+   assetAdded: boolean("asset_added").default(false),
   // 📦 Order data
   presetType: presetTypeEnum("preset_type").notNull(),
   quantity: integer("quantity").notNull(),
@@ -282,70 +283,69 @@ export const orders = pgTable("orders", {
   updatedAt: timestamp("updated_at").default(sql`now()`),
 });
 
+// 1. ASSETS TABLE (Fixed Schema)
 export const assets = pgTable("assets", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-
-  // Link to the owning organization
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Organization Link
   organizationId: varchar("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
 
-  // Unique identifier for the hardware/asset
-  assetNumber: decimal("asset_number").notNull().unique(),
-
-  name: text("name").notNull(), // e.g., "Main Generator", "JCB Unit 4"
-
-  type: text("type").notNull(), // e.g., "Generator", "Vehicle", "Storage Tank"
-
-  position: text("position"), // General location or floor number
-
-  capacity: integer("capacity").notNull(), // Maximum fuel capacity in Liters
-
-  vidTag: text("vid_tag").unique(), // Vehicle/Asset ID tag for MDU scanning
-
-  // Link to a specific delivery address for geofencing
+  // Asset Number: Auto-incrementing BigInt
+ assetNumber: bigint("asset_number", { mode: "number" }) // 👈 Key fix
+    .notNull()
+    .unique(),
+  
+  name: text("name").notNull(),
+  
+  type: text("type"),       // Optional
+  position: text("position"), // Optional
+  
+  capacity: integer("capacity").notNull(),
+  
+  vidTag: text("vid_tag"), 
+  
+  // Optional: Default location (Can be null)
   addressId: varchar("address_id")
     .references(() => organizationAddresses.id, { onDelete: "set null" }),
 
-  createdAt: timestamp("created_at")
-    .notNull()
-    .default(sql`now()`),
-
-  updatedAt: timestamp("updated_at")
-    .notNull()
-    .default(sql`now()`),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
+// ... Make sure you export these types
+
 
 export const orderAssets = pgTable("order_assets", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-
-  // 🔥 CASCADE HERE (CORRECT)
-  orderId: varchar("order_id")
-    .notNull()
-    .references(() => orders.id,),
-
-  // Keep assetId simple for now
-  assetId: varchar("asset_id").notNull(),
-
-  presetType: presetTypeEnum("preset_type").notNull(),
-
-  volume: decimal("volume", { precision: 10, scale: 2 }),
-  amount: decimal("amount", { precision: 10, scale: 2 }),
-
-  startTotalizer: decimal("start_totalizer", { precision: 12, scale: 2 }),
-  endTotalizer: decimal("end_totalizer", { precision: 12, scale: 2 }),
-
-  finalVolumeDispensed: decimal("final_volume_dispensed", { precision: 10, scale: 2 }),
-
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  orderId: varchar("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  assetId: varchar("asset_id").notNull().references(() => assets.id),
+  
+  presetType: text("preset_type").notNull(), // 'volume' or 'amount'
+  volume: decimal("volume"), // Planned Volume
+  amount: decimal("amount"), // Planned Amount
+  
+  // Delivery Execution Fields
+  startTotalizer: decimal("start_totalizer"),
+  endTotalizer: decimal("end_totalizer"),
+  finalVolumeDispensed: decimal("final_volume_dispensed"),
   transactionId: varchar("transaction_id"),
-
+  
   updatedAt: timestamp("updated_at").default(sql`now()`),
 });
+ 
+export type Asset = typeof assets.$inferSelect;
 
+// [CRITICAL] We keep 'assetNumber' required here so TypeScript forces us to provide it
+export const insertAssetSchema = createInsertSchema(assets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export type InsertAsset = z.infer<typeof insertAssetSchema>;
+
+export type InsertOrderAsset = typeof orderAssets.$inferInsert;
 
 // Notifications table
 export const notifications = pgTable("notifications", {
@@ -420,7 +420,7 @@ export const drivers = pgTable("drivers", {
   //   .references(() => organizations.id, { onDelete: "cascade" }),
 
   username: text("username").unique(),
-  passwordHash: text("password_hash"),
+  pin: text("pin").notNull(),
 
   name: text("name").notNull(),
   phone: text("phone").unique().notNull(),
@@ -719,7 +719,7 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
-  orderNumber: true,
+ 
   createdAt: true,
   updatedAt: true,
 });
@@ -871,90 +871,45 @@ export type InsertVehiclesKycDocuments = z.infer<
 >;
 
 
-export const sampleTable = pgTable("sample_table", {
+// ... existing imports ...
+
+// 1. BANK DOCUMENTS TABLE
+export const bankDocuments = pgTable("bank_documents", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  // 👉 Foreign key to customers table
-  customerId: varchar("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
+  // Polymorphic Relation: Connects to either "driver" or "organization"
+  ownerType: text("owner_type").notNull(), // e.g., 'driver', 'organization'
+  ownerRefId: varchar("owner_ref_id").notNull(), // The ID of the driver/org
 
-  // 👉 2 random normal fields
-  valueOne: text("value_one").notNull(),
-  valueTwo: integer("value_two").notNull(),
+  bankAccountNumber: text("bank_account_number").notNull(),
+  bankIfscCode: text("bank_ifsc_code").notNull(),
+  bankAccountHolderName: text("bank_account_holder_name").notNull(),
+  bankName: text("bank_name").notNull(),
+  
+  documentUrl: text("document_url"), // URL for cancelled cheque/passbook
 
-  createdAt: timestamp("created_at")
+  // Tracking status
+  status: kycStatusEnum("status").default("pending").notNull(),
+  remarks: text("remarks"),
+
+  submittedAt: timestamp("submitted_at").default(sql`now()`),
+  reviewedAt: timestamp("reviewed_at"),
+  
+  lastUpdatedAt: timestamp("last_updated_at")
     .default(sql`now()`)
     .notNull(),
 });
-export const insertSampleSchema = createInsertSchema(sampleTable).omit({
+
+// 2. INSERT SCHEMA (For Zod Validation)
+export const insertBankDocumentSchema = createInsertSchema(bankDocuments).omit({
   id: true,
-  createdAt: true,
+  submittedAt: true,
+  reviewedAt: true,
+  lastUpdatedAt: true,
 });
-export type Sample = typeof sampleTable.$inferSelect;
-export type InsertSample = z.infer<typeof insertSampleSchema>;
 
-
-
-// Enhanced Vehicles table with detailed specifications and IoT integration
-// export const vehicles = pgTable("vehicles", {
-//   id: varchar("id")
-//     .primaryKey()
-//     .default(sql`gen_random_uuid()`),
-//   registrationNumber: text("registration_number").notNull().unique(),
-//   vehicleType: text("vehicle_type").notNull(), // tanker, mini_tanker, bowser
-//   make: text("make").notNull(), // Tata, Mahindra, etc.
-//   model: text("model").notNull(),
-//   year: integer("year").notNull(),
-//   capacity: integer("capacity").notNull(), // Maximum fuel capacity in liters
-//   currentFuelLevel: integer("current_fuel_level").notNull().default(0),
-//   chassisNumber: text("chassis_number"),
-//   engineNumber: text("engine_number"),
-
-//   // Legal compliance documents
-//   registrationCertificate: text("registration_certificate_url"),
-//   registrationExpiry: timestamp("registration_expiry"),
-//   pesoLicense: text("peso_license_url"),
-//   pesoExpiry: timestamp("peso_expiry"),
-//   calibrationCertificate: text("calibration_certificate_url"),
-//   calibrationExpiry: timestamp("calibration_expiry"),
-//   insuranceNumber: text("insurance_number"),
-//   insuranceExpiry: timestamp("insurance_expiry"),
-//   pucCertificate: text("puc_certificate_url"),
-//   pucExpiry: timestamp("puc_expiry"),
-//   fireExtinguisherCertificate: text("fire_extinguisher_certificate_url"),
-//   fireExtinguisherExpiry: timestamp("fire_extinguisher_expiry"),
-
-//   // Maintenance tracking
-//   lastMaintenanceDate: timestamp("last_maintenance_date"),
-//   nextMaintenanceDate: timestamp("next_maintenance_date"),
-//   maintenanceKms: integer("maintenance_kms"), // Kms at last maintenance
-//   currentKms: integer("current_kms").notNull().default(0),
-//   maintenanceLogs: jsonb("maintenance_logs"), // [{date, type, description, cost, vendor, kms}]
-
-//   // IoT and tracking
-//   iotDeviceId: text("iot_device_id"),
-//   iotStatus: jsonb("iot_status"), // {gps: boolean, fuelSensor: boolean, lockSystem: boolean, dispenser: boolean, temperature: boolean}
-//   gpsTrackerId: text("gps_tracker_id"),
-//   currentLocation: jsonb("current_location"), // {lat, lng, timestamp, address, speed}
-
-//   // Health and status
-//   health: text("health"), // healthy, warning, critical, maintenance_due
-//   healthChecks: jsonb("health_checks"), // {engine: "good", tyres: "warning", fuel_system: "good"}
-//   lastHealthCheckDate: timestamp("last_health_check_date"),
-
-//   // Operational status
-//   isActive: boolean("is_active").notNull().default(true),
-//   isOnRoute: boolean("is_on_route").notNull().default(false),
-//   purchaseDate: timestamp("purchase_date"),
-//   purchasePrice: decimal("purchase_price", { precision: 12, scale: 2 }),
-
-//   createdAt: timestamp("created_at")
-//     .notNull()
-//     .default(sql`now()`),
-//   updatedAt: timestamp("updated_at")
-//     .notNull()
-//     .default(sql`now()`),
-// });
+// 3. TYPES (For TypeScript)
+export type BankDocument = typeof bankDocuments.$inferSelect;
+export type InsertBankDocument = z.infer<typeof insertBankDocumentSchema>;

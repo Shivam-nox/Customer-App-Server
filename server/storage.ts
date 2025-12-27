@@ -8,6 +8,11 @@ import {
   orders,
   payments,
   organizationUsers,
+  assets, 
+  orderAssets,
+  type Asset, 
+  type InsertAsset, 
+  type InsertOrderAsset,
   type Organization,
   type InsertOrganization,
   type Customer,
@@ -61,6 +66,7 @@ export interface IStorage {
   
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
+  getOrdersByOrganization(orgId: string): Promise<any[]>;
   getOrder(id: string): Promise<Order | undefined>;
   getOrderByGatewayId(gatewayOrderId: string): Promise<Order | undefined>; // NEW for Payment
   getUserOrders(customerId: string, limit?: number): Promise<Order[]>;
@@ -77,6 +83,9 @@ export interface IStorage {
   getPaymentByTransactionId(transactionId: string): Promise<Payment | undefined>; // NEW
   updatePaymentStatus(id: string, status: string, transactionId?: string, gatewayResponse?: any): Promise<Payment>;
   
+  createAsset(asset: InsertAsset): Promise<Asset>;
+  getOrganizationAssets(orgId: string): Promise<Asset[]>;
+
   // Logistics & Admin
   getDriver(id: string): Promise<Driver | undefined>;
   getDriverByPhone(phone: string): Promise<Driver | undefined>;
@@ -142,6 +151,34 @@ export class DatabaseStorage implements IStorage {
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const [customer] = await db.insert(customers).values(insertCustomer).returning();
     return customer;
+  }
+
+
+  // [UPDATED] Get ALL Assets for the Organization (No site filter)
+async getOrganizationAssets(orgId: string): Promise<Asset[]> {
+    return await db
+      .select()
+      .from(assets)
+      .where(eq(assets.organizationId, orgId))
+      .orderBy(desc(assets.createdAt));
+  }
+  // [UPDATED] Works perfectly with Text Asset Number
+  // [UPDATED] Works with the new Manual ID logic
+  async createAsset(asset: InsertAsset): Promise<Asset> {
+    // We expect 'asset' to already have 'assetNumber' set by the route handler
+    const [newAsset] = await db
+      .insert(assets)
+      .values(asset)
+      .returning();
+    return newAsset;
+  }
+  async deleteAsset(id: string): Promise<void> {
+    await db.delete(assets).where(eq(assets.id, id));
+  }
+  
+  async createOrderAssets(entries: InsertOrderAsset[]): Promise<void> {
+    if (entries.length === 0) return;
+    await db.insert(orderAssets).values(entries);
   }
 
   async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
@@ -226,11 +263,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // --- Orders (Razorpay Integrated) ---
+  // [UPDATED] Works with the new Manual ID logic
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const [order] = await db.insert(orders).values(insertOrder).returning();
+    // We expect 'insertOrder' to already have 'orderNumber' set by the route handler
+    const [order] = await db
+      .insert(orders)
+      .values(insertOrder)
+      .returning();
     return order;
   }
-
   async getOrder(id: string): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     return order;
@@ -277,11 +318,21 @@ export class DatabaseStorage implements IStorage {
     return payment;
   }
 
-  async updatePaymentStatus(id: string, status: string, transactionId?: string, gatewayResponse?: any): Promise<Payment> {
+ async updatePaymentStatus(
+    id: string, 
+    status: string, 
+    transactionId?: string, 
+    gatewayResponse?: any
+  ): Promise<Payment> {
     const updates: any = { status, updatedAt: new Date() };
     if (transactionId) updates.transactionId = transactionId;
     if (gatewayResponse) updates.gatewayResponse = gatewayResponse;
-    const [payment] = await db.update(payments).set(updates).where(eq(payments.id, id)).returning();
+    
+    const [payment] = await db
+      .update(payments)
+      .set(updates)
+      .where(eq(payments.id, id))
+      .returning();
     return payment;
   }
 
@@ -360,21 +411,22 @@ export class DatabaseStorage implements IStorage {
 // server/storage.ts
 
 async getOrdersByOrganization(orgId: string): Promise<any[]> {
-  return await db
-    .select({
-      id: orders.id,
-      orderNumber: orders.orderNumber, // bigserial
-      orderStatus: orders.orderStatus, // enum
-      createdAt: orders.createdAt,
-      amount: orders.amount, // decimal
-      quantity: orders.quantity,
-      creatorName: customers.name,
-    })
-    .from(orders)
-    .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
-    .where(eq(orders.organizationId, orgId))
-    .orderBy(desc(orders.createdAt));
-}
+    return await db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber, // Now a standard Integer
+        orderStatus: orders.orderStatus,
+        createdAt: orders.createdAt,
+        amount: orders.amount,
+        quantity: orders.quantity,
+        presetType: orders.presetType, // Added this as it's useful for UI
+        creatorName: customers.name,
+      })
+      .from(orders)
+      .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
+      .where(eq(orders.organizationId, orgId))
+      .orderBy(desc(orders.createdAt));
+  }
 
 async getOrderWithDetails(orderId: string): Promise<any | undefined> {
   const [result] = await db

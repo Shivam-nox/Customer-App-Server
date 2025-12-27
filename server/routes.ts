@@ -9,6 +9,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
+import { 
+  type Asset, 
+  type Order, 
+  insertOrderSchema, // Ensure these are imported
+  insertAssetSchema 
+} from "@shared/schema";
+
 import Razorpay from "razorpay";
 
 const razorpay = new Razorpay({
@@ -47,6 +54,11 @@ const createOrderSchema = z.object({
   scheduledDate: z.string(),
   scheduledTime: z.string(),
 });
+
+// --- HELPER: Generate 8-digit ID ---
+function generate8DigitNumber(): number {
+  return Math.floor(10000000 + Math.random() * 90000000);
+}
 
 // --- MIDDLEWARE (Enhanced for Organization Context) ---
 // --- ROBUST MIDDLEWARE (Copy this to routes.ts) ---
@@ -467,215 +479,273 @@ app.delete("/api/addresses/:id", requireAuth, async (req, res) => {
 
 
 // ==========================================
-// GET ORDERS (ORG OR USER)
-// ==========================================
-// ... (Authentication and Organization routes remain as you have them)
-
-// ==========================================
 // GET ORDERS (ORGANIZATION WIDE)
 // ==========================================
 // This route now fetches every order belonging to the user's team
-app.get("/api/orders", requireAuth, async (req, res) => {
-  try {
-    const user = req.user!;
-    
-    // Check if user even has an organization linked
-    if (!user.organizationId) {
-      return res.json({ orders: [] });
+
+app.get("/api/assets", requireAuth, async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.json({ assets: [] });
     }
+    try {
+      const assetsList = await storage.getOrganizationAssets(req.user.organizationId);
+      res.json({ assets: assetsList });
+    } catch (error) {
+      console.error("Fetch Assets Error:", error);
+      res.status(500).json({ error: "Failed to fetch assets" });
+    }
+  });
 
-    // Fetch orders via the organizationId instead of individual userId
-    const orders = await storage.getOrdersByOrganization(user.organizationId);
-    
-    // 🛡️ CRITICAL: Decimal/BigInt serialization fix
-    const safeOrders = JSON.parse(
-      JSON.stringify(orders, (k, v) => (typeof v === 'bigint' ? v.toString() : v))
-    );
+  // CREATE ASSET (With 8-Digit ID Loop)
+  // ==========================================
+  app.post("/api/assets", requireAuth, async (req, res) => {
+    try {
+      console.log("📥 [ASSET CREATE] Request Received");
 
-    res.json({ orders: safeOrders });
-  } catch (error) {
-    console.error("🔥 Fetch Orders Error:", error);
-    res.status(500).json({ error: "Failed to fetch team orders" });
-  }
-});
+      if (!req.user || !req.user.organizationId) {
+        return res.status(400).json({ error: "User is not part of an organization" });
+      }
 
-// ==========================================
-// CREATE ORDER (COD FLOW)
-// ==========================================
-app.post("/api/orders", requireAuth, async (req, res) => {
-  try {
-    const {
-      quantity,
-      presetType, 
-      organizationAddressId,
-      deliveryDate,
-      deliveryTime
-    } = req.body;
+      const { name, capacity, type, position, addressId } = req.body;
 
-    const user = req.user!;
-    if (!user.organizationId) return res.status(400).json({ error: "No organization linked" });
+      // --- LOGIC START: Generate Unique ID & Retry on Collision ---
+      let newAsset: Asset | undefined; // <--- Typed to fix TypeScript error
+      let retries = 5;
+      let success = false;
 
-    // Constants
-    const RATE_PER_LITRE = 90;
-    const DELIVERY_CHARGES = 300;
-    const subtotal = presetType === "amount" ? Number(quantity) : Number(quantity) * RATE_PER_LITRE;
-    const gst = (subtotal + DELIVERY_CHARGES) * 0.18;
-    const totalAmount = subtotal + DELIVERY_CHARGES + gst;
+      while (retries > 0 && !success) {
+        try {
+          // 1. Generate Random 8-digit Number
+          const generatedAssetNumber = generate8DigitNumber();
 
-    // Create the order directly
-    const order = await storage.createOrder({
-      organizationId: user.organizationId,
-      organizationAddressId,
-      createdByCustomerId: user.id,
-      presetType,
-      quantity: Number(quantity),
-      ratePerLitre: RATE_PER_LITRE.toString(),
-      subtotal: subtotal.toString(),
-      deliveryCharges: DELIVERY_CHARGES.toString(),
-      gstCharges: gst.toString(),
-      amount: totalAmount.toFixed(2),
-      scheduledDate: new Date(deliveryDate),
-      scheduledTimeInterval: deliveryTime,
-      orderStatus: "confirmed", // Bypassing payment for COD mock
-      gatewayOrderId: `COD_${Date.now()}`,
-      orderOtp: Math.floor(100000 + Math.random() * 900000).toString()
-    });
+          // 2. Prepare Payload
+          const assetPayload = {
+            organizationId: req.user.organizationId as string,
+            addressId: addressId || null,
+            name,
+            assetNumber: generatedAssetNumber, // Passing the Integer
+            capacity: Number(capacity),
+            type: type || null,
+            position: position || null
+          };
 
-    // Create payment history entry
-    await storage.createPayment({
-      orderId: order.id,
-      amount: order.amount,
-      verification_status: "success",
-      transactionId: `TXN_COD_${Date.now()}`,
-      organizationId: user.organizationId,
-      method: "cod",
-      customerId: user.id
-    });
+          // 3. Attempt to Save
+          newAsset = await storage.createAsset(assetPayload);
+          success = true;
 
-    const safeOrder = JSON.parse(
-      JSON.stringify(order, (k, v) => (typeof v === 'bigint' ? v.toString() : v))
-    );
-    res.status(201).json({ success: true, order: safeOrder });
+        } catch (error: any) {
+          // Check for Postgres Unique Violation Code (23505)
+          if (error.code === '23505' || error.message.includes("unique")) {
+            console.warn(`⚠️ Asset ID Collision. Retrying... (${retries} attempts left)`);
+            retries--;
+          } else {
+            throw error; // Other errors (DB down, etc.)
+          }
+        }
+      }
+      // --- LOGIC END ---
 
-  } catch (error) {
-    console.error("🔥 COD Order Error:", error);
-    res.status(500).json({ error: "Failed to place order" });
-  }
-});
+      if (!success || !newAsset) {
+        return res.status(500).json({ error: "System busy: Could not generate unique Asset ID." });
+      }
 
+      console.log("✅ Asset Created Successfully:", newAsset);
+      res.json({ success: true, asset: newAsset });
+
+    } catch (error: any) {
+      console.error("🔥 Asset Create Error:", error);
+      res.status(500).json({ error: "Failed to create asset", details: error.message });
+    }
+  });
+  
+
+  // 3. DELETE ASSET
+ app.delete("/api/assets/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteAsset(req.params.id);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to delete" });
+    }
+  });
+
+ 
 // ==========================================
 // TRACK SINGLE ORDER
 // ==========================================
-app.get("/api/orders/:id", requireAuth, async (req, res) => {
-  try {
-    const user = req.user!;
-    // Use the storage method that joins with Creator Name
-    const data = await storage.getOrderWithCreator(req.params.id);
-
-    // 🛡️ SECURITY: Verify the order belongs to the user's organization
-    if (!data || !data.order || data.order.organizationId !== user.organizationId) {
-      return res.status(404).json({ error: "Order not found or unauthorized access" });
-    }
-
-    // Get live delivery/driver details if assigned
-    const delivery = await storage.getDeliveryByOrderId(req.params.id);
-    
-    const safeData = JSON.parse(
-      JSON.stringify({
-        order: data.order,
-        creatorName: data.creatorName,
-        delivery: delivery || null
-      }, (k, v) => (typeof v === 'bigint' ? v.toString() : v))
-    );
-
-    res.json(safeData);
-  } catch (error) {
-    console.error("🔥 Track Order Route Error:", error);
-    res.status(500).json({ error: "Server error fetching tracking data" });
-  }
-});
-
-// server/routes.ts
-
 app.get("/api/orders", requireAuth, async (req, res) => {
-  const user = req.user!;
-  if (!user.organizationId) return res.json({ orders: [] });
+    try {
+      const user = req.user!;
+      
+      // Safety Check: If no org, return empty list
+      if (!user.organizationId) {
+        return res.json({ orders: [] });
+      }
 
-  const orders = await storage.getOrdersByOrganization(user.organizationId);
-  
-  // ✅ Handle BigInt/Decimal serialization for JSON response
-  const safeData = JSON.parse(
-    JSON.stringify(orders, (k, v) => (typeof v === 'bigint' ? v.toString() : v))
-  );
+      console.log(`🔍 Fetching orders for Org: ${user.organizationId}`);
 
-  res.json({ orders: safeData });
-});
-// ==========================================
-// VERIFY RAZORPAY PAYMENT
-// ==========================================
-app.post("/api/payments/verify", requireAuth, async (req, res) => {
-  try {
-    const { 
-      razorpay_order_id, 
-      razorpay_payment_id, 
-      razorpay_signature,
-      orderData // This contains the form details sent from mobile
-    } = req.body;
+      // 1. Fetch from Storage (Ensure this function exists in storage.ts)
+      const orders = await storage.getOrdersByOrganization(user.organizationId);
 
-    // Verify Signature
-    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!);
-    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-    const expectedSignature = hmac.digest("hex");
+      // 2. Safe Serialization (Prevents "Do not know how to serialize BigInt" error)
+      const safeData = JSON.parse(
+        JSON.stringify(orders, (key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
 
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({ error: "Invalid payment signature" });
+      // 3. Return correct structure matching your Frontend
+      res.json({ orders: safeData });
+
+    } catch (error) {
+      console.error("🔥 GET /api/orders Error:", error);
+      res.status(500).json({ error: "Failed to fetch orders" });
     }
+  });
 
-    // PAYMENT IS VALID -> NOW SAVE TO DATABASE FOR THE FIRST TIME
-    const RATE_PER_LITRE = 90;
-    const DELIVERY_CHARGES = 300;
-    const subtotal = orderData.presetType === "amount" ? Number(orderData.quantity) : Number(orderData.quantity) * RATE_PER_LITRE;
-    const gst = (subtotal + DELIVERY_CHARGES) * 0.18;
-    const totalAmount = subtotal + DELIVERY_CHARGES + gst;
+  app.post("/api/orders", requireAuth, async (req, res) => {
+    try {
+      const {
+        quantity,
+        presetType,
+        organizationAddressId,
+        deliveryDate,
+        deliveryTime,
+        assetsData
+      } = req.body;
 
-    const newOrder = await storage.createOrder({
-      organizationId: req.user!.organizationId,
-      organizationAddressId: orderData.organizationAddressId,
-      createdByCustomerId: req.user!.id,
-      presetType: orderData.presetType,
-      quantity: orderData.quantity,
-      ratePerLitre: RATE_PER_LITRE.toString(),
-      subtotal: subtotal.toString(),
-      deliveryCharges: DELIVERY_CHARGES.toString(),
-      gstCharges: gst.toString(),
-      amount: totalAmount.toString(),
-      scheduledDate: new Date(orderData.deliveryDate),
-      scheduledTimeInterval: orderData.deliveryTime,
-      orderStatus: "confirmed", // Set directly to confirmed
-      gatewayOrderId: razorpay_order_id,
-      orderOtp: Math.floor(100000 + Math.random() * 900000).toString()
-    });
+      const user = req.user!;
+      if (!user.organizationId) return res.status(400).json({ error: "No organization linked" });
 
-    // Save Payment Record
-    await storage.createPayment({
-      orderId: newOrder.id,
-      amount: newOrder.amount,
-      verification_status: "success",
-      transactionId: razorpay_payment_id,
-      organizationId: newOrder.organizationId!,
-      method: "upi",
-      customerId: req.user!.id
-    });
+      // --- 1. DETERMINE MODE (Asset vs Bulk) ---
+      const isAssetMode = assetsData && assetsData.length > 0;
 
-    res.json({ success: true, orderId: newOrder.id });
-  } catch (error) {
-    console.error("Verification Error:", error);
-    res.status(500).json({ error: "Failed to finalize order" });
-  }
-});
+      // --- 2. CALCULATE TOTALS ---
+      const RATE_PER_LITRE = 90;
+      const DELIVERY_CHARGES = 300;
+      let finalTotalVolume = 0;
+      let finalSubtotal = 0;
+      const assetEntriesToSave: any[] = [];
 
-  
+      if (isAssetMode) {
+        // --- ASSET MODE CALCULATION ---
+        for (const item of assetsData) {
+          let finalAssetId = item.assetId;
+          const itemQty = Number(item.quantity);
+          let itemVol = 0;
+          let itemAmt = 0;
 
+          if (item.presetType === 'volume') {
+            itemVol = itemQty;
+            itemAmt = itemQty * RATE_PER_LITRE;
+          } else {
+            itemAmt = itemQty;
+            itemVol = itemQty / RATE_PER_LITRE;
+          }
+
+          finalTotalVolume += itemVol;
+          finalSubtotal += itemAmt;
+
+          if (finalAssetId) {
+            assetEntriesToSave.push({
+              assetId: finalAssetId,
+              presetType: item.presetType,
+              volume: itemVol.toFixed(2),
+              amount: itemAmt.toFixed(2),
+            });
+          }
+        }
+      } else {
+        // --- BULK MODE CALCULATION ---
+        if (presetType === "amount") {
+          finalSubtotal = Number(quantity);
+          finalTotalVolume = Number(quantity) / RATE_PER_LITRE;
+        } else {
+          finalTotalVolume = Number(quantity);
+          finalSubtotal = Number(quantity) * RATE_PER_LITRE;
+        }
+      }
+
+      const gst = (finalSubtotal + DELIVERY_CHARGES) * 0.18;
+      const totalAmount = finalSubtotal + DELIVERY_CHARGES + gst;
+
+      // --- 3. GENERATE ID & CREATE ORDER ---
+      let order: Order | undefined;
+      let retries = 5;
+      let success = false;
+
+      while (retries > 0 && !success) {
+        try {
+          const uniqueOrderNumber = generate8DigitNumber();
+
+          order = await storage.createOrder({
+            organizationId: user.organizationId,
+            organizationAddressId,
+            createdByCustomerId: user.id,
+            orderNumber: uniqueOrderNumber,
+
+            // ✅ LOGIC: TRUE if assets exist, FALSE if bulk
+            assetAdded: isAssetMode, 
+
+            presetType: isAssetMode ? "volume" : presetType,
+            quantity: Math.ceil(finalTotalVolume),
+            ratePerLitre: RATE_PER_LITRE.toString(),
+            subtotal: finalSubtotal.toString(),
+            deliveryCharges: DELIVERY_CHARGES.toString(),
+            gstCharges: gst.toString(),
+            amount: totalAmount.toFixed(2),
+            scheduledDate: new Date(deliveryDate),
+            scheduledTimeInterval: deliveryTime,
+            orderStatus: "confirmed",
+            gatewayOrderId: `COD_${Date.now()}`,
+            orderOtp: Math.floor(100000 + Math.random() * 900000).toString()
+          });
+          
+          success = true;
+        } catch (error: any) {
+          if (error.code === '23505' || error.message.includes("unique")) {
+             retries--;
+          } else {
+             throw error;
+          }
+        }
+      }
+
+      if (!success || !order) throw new Error("Failed to generate Unique Order ID");
+
+      // --- 4. SAVE CHILD DATA (Assets & Payment) ---
+      if (assetEntriesToSave.length > 0) {
+        const entriesWithOrderId = assetEntriesToSave.map(entry => ({
+          ...entry,
+          orderId: order!.id 
+        }));
+        await storage.createOrderAssets(entriesWithOrderId);
+      }
+
+      await storage.createPayment({
+        orderId: order.id,
+        amount: order.amount,
+        verification_status: "pending",
+        transactionId: `TXN_COD_${Date.now()}`,
+        organizationId: user.organizationId,
+        method: "cod",
+        customerId: user.id
+      });
+
+      // --- 5. RESPONSE ---
+      const safeOrder = JSON.parse(
+        JSON.stringify(order, (key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+
+      res.status(201).json({ success: true, order: safeOrder });
+
+    } catch (error: any) {
+      console.error("Order Creation Error:", error);
+      res.status(500).json({ error: "Failed to place order", details: error.message });
+    }
+  });
 
 // ==========================================
 // DELIVERY WEBHOOK (PLACEHOLDER)
