@@ -6,6 +6,7 @@ import {
   varchar,
   timestamp,
   integer,
+  serial,
   decimal,
   jsonb,
   pgEnum,
@@ -169,6 +170,28 @@ export const organizationUsers = pgTable("organization_users", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+
+
+
+
+// ✅ ADD THIS TABLE
+export const otpVerifications = pgTable("otp_verifications", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  otp: text("otp").notNull(),
+  type: text("type").notNull(), // 'login' or 'signup'
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ✅ ADD ZOD SCHEMA
+export const insertOtpSchema = createInsertSchema(otpVerifications).omit({
+  id: true,
+  createdAt: true
+});
+
+export type OtpVerification = typeof otpVerifications.$inferSelect;
+export type InsertOtpVerification = z.infer<typeof insertOtpSchema>;
 // Create unique constraint so a user can't join the same org twice
 // (You might need to add this via SQL or drizzle composite key syntax)
 
@@ -913,3 +936,4 @@ export const insertBankDocumentSchema = createInsertSchema(bankDocuments).omit({
 // 3. TYPES (For TypeScript)
 export type BankDocument = typeof bankDocuments.$inferSelect;
 export type InsertBankDocument = z.infer<typeof insertBankDocumentSchema>;
+

@@ -10,6 +10,8 @@ import {
   organizationUsers,
   assets, 
   orderAssets,
+  otpVerifications, 
+  type InsertOtpVerification,
   type Asset, 
   type InsertAsset, 
   type InsertOrderAsset,
@@ -34,7 +36,7 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq,gt, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Auth & Customer
@@ -68,24 +70,28 @@ export interface IStorage {
   createOrder(order: InsertOrder): Promise<Order>;
   getOrdersByOrganization(orgId: string): Promise<any[]>;
   getOrder(id: string): Promise<Order | undefined>;
-  getOrderByGatewayId(gatewayOrderId: string): Promise<Order | undefined>; // NEW for Payment
+  getOrderByGatewayId(gatewayOrderId: string): Promise<Order | undefined>; 
   getUserOrders(customerId: string, limit?: number): Promise<Order[]>;
   getOrganizationOrders(orgId: string, limit?: number): Promise<Order[]>;
   updateOrderStatus(id: string, status: string, driverId?: string): Promise<Order>;
-  getOrdersByOrganization(orgId: string): Promise<Order[]>;
   getOrderWithCreator(id: string): Promise<any | undefined>;
   getDeliveryByOrderId(orderId: string): Promise<any | undefined>;
- getOrderWithDetails(orderId: string): Promise<any | undefined>;
+  getOrderWithDetails(orderId: string): Promise<any | undefined>;
+
+  // Assets & Order Assets
+  createAsset(asset: InsertAsset): Promise<Asset>;
+  getOrganizationAssets(orgId: string): Promise<Asset[]>;
+  deleteAsset(id: string): Promise<void>;
+  createOrderAssets(entries: InsertOrderAsset[]): Promise<void>;
+  getOrderAssets(orderId: string): Promise<any[]>; // <--- ADDED THIS
+
   // Payments
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPayment(id: string): Promise<Payment | undefined>;
   getPaymentByOrder(orderId: string): Promise<Payment | undefined>;
-  getPaymentByTransactionId(transactionId: string): Promise<Payment | undefined>; // NEW
+  getPaymentByTransactionId(transactionId: string): Promise<Payment | undefined>;
   updatePaymentStatus(id: string, status: string, transactionId?: string, gatewayResponse?: any): Promise<Payment>;
   
-  createAsset(asset: InsertAsset): Promise<Asset>;
-  getOrganizationAssets(orgId: string): Promise<Asset[]>;
-
   // Logistics & Admin
   getDriver(id: string): Promise<Driver | undefined>;
   getDriverByPhone(phone: string): Promise<Driver | undefined>;
@@ -107,6 +113,10 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<Customer | undefined>;
   getUserByEmail(email: string): Promise<Customer | undefined>;
   createUser(user: InsertCustomer): Promise<Customer>;
+
+  createOtp(otpData: InsertOtpVerification): Promise<void>;
+  verifyOtp(email: string, otp: string, type: string): Promise<boolean>;
+
 }
 
 export class DatabaseStorage implements IStorage {
@@ -151,34 +161,6 @@ export class DatabaseStorage implements IStorage {
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const [customer] = await db.insert(customers).values(insertCustomer).returning();
     return customer;
-  }
-
-
-  // [UPDATED] Get ALL Assets for the Organization (No site filter)
-async getOrganizationAssets(orgId: string): Promise<Asset[]> {
-    return await db
-      .select()
-      .from(assets)
-      .where(eq(assets.organizationId, orgId))
-      .orderBy(desc(assets.createdAt));
-  }
-  // [UPDATED] Works perfectly with Text Asset Number
-  // [UPDATED] Works with the new Manual ID logic
-  async createAsset(asset: InsertAsset): Promise<Asset> {
-    // We expect 'asset' to already have 'assetNumber' set by the route handler
-    const [newAsset] = await db
-      .insert(assets)
-      .values(asset)
-      .returning();
-    return newAsset;
-  }
-  async deleteAsset(id: string): Promise<void> {
-    await db.delete(assets).where(eq(assets.id, id));
-  }
-  
-  async createOrderAssets(entries: InsertOrderAsset[]): Promise<void> {
-    if (entries.length === 0) return;
-    await db.insert(orderAssets).values(entries);
   }
 
   async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer> {
@@ -262,14 +244,9 @@ async getOrganizationAssets(orgId: string): Promise<Asset[]> {
     await db.update(organizationAddresses).set({ isDefault: true }).where(eq(organizationAddresses.id, addressId));
   }
 
-  // --- Orders (Razorpay Integrated) ---
-  // [UPDATED] Works with the new Manual ID logic
+  // --- Orders ---
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    // We expect 'insertOrder' to already have 'orderNumber' set by the route handler
-    const [order] = await db
-      .insert(orders)
-      .values(insertOrder)
-      .returning();
+    const [order] = await db.insert(orders).values(insertOrder).returning();
     return order;
   }
   async getOrder(id: string): Promise<Order | undefined> {
@@ -297,7 +274,141 @@ async getOrganizationAssets(orgId: string): Promise<Asset[]> {
     return order;
   }
 
-  // --- Payments (Razorpay Logic) ---
+  async getOrdersByOrganization(orgId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        orderStatus: orders.orderStatus,
+        createdAt: orders.createdAt,
+        amount: orders.amount,
+        quantity: orders.quantity,
+        presetType: orders.presetType,
+        creatorName: customers.name,
+        deliveryDate: orders.scheduledDate, // Ensure this maps correctly
+        deliveryTime: orders.scheduledTimeInterval,
+        organizationAddressId: orders.organizationAddressId
+      })
+      .from(orders)
+      .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
+      .where(eq(orders.organizationId, orgId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getOrderWithDetails(orderId: string): Promise<any | undefined> {
+    const [result] = await db
+      .select({
+        order: orders,
+        creatorName: customers.name,
+      })
+      .from(orders)
+      .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
+      .where(eq(orders.id, orderId));
+    return result;
+  }
+
+  async getOrderWithCreator(id: string): Promise<any | undefined> {
+    const [result] = await db
+      .select({
+        order: orders,
+        creatorName: customers.name,
+      })
+      .from(orders)
+      .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
+      .where(eq(orders.id, id));
+    return result;
+  }
+
+  async getDeliveryByOrderId(orderId: string): Promise<any | undefined> {
+    const [result] = await db
+      .select({
+        driverName: drivers.name,
+        driverPhone: drivers.phone,
+        driverRating: drivers.rating,
+        currentLatitude: drivers.currentLatitude,
+        currentLongitude: drivers.currentLongitude,
+      })
+      .from(drivers)
+      .innerJoin(orders, eq(orders.acceptedByDriverId, drivers.id))
+      .where(eq(orders.id, orderId));
+    return result;
+  }
+
+  // --- Assets & Order Assets ---
+  async getOrganizationAssets(orgId: string): Promise<Asset[]> {
+    return await db
+      .select()
+      .from(assets)
+      .where(eq(assets.organizationId, orgId))
+      .orderBy(desc(assets.createdAt));
+  }
+
+  async createAsset(asset: InsertAsset): Promise<Asset> {
+    const [newAsset] = await db.insert(assets).values(asset).returning();
+    return newAsset;
+  }
+
+  async deleteAsset(id: string): Promise<void> {
+    await db.delete(assets).where(eq(assets.id, id));
+  }
+  
+  async createOrderAssets(entries: InsertOrderAsset[]): Promise<void> {
+    if (entries.length === 0) return;
+    await db.insert(orderAssets).values(entries);
+  }
+
+ 
+
+  // ✅ FIXED: Removed 'quantity' from selection, relying on 'volume'
+  async getOrderAssets(orderId: string): Promise<any[]> {
+    const result = await db
+      .select({
+        id: orderAssets.id,
+        assetId: orderAssets.assetId,
+        assetName: assets.name, 
+        
+        // quantity: orderAssets.quantity,  <-- REMOVED THIS LINE
+        
+        volume: orderAssets.volume, // This is your actual quantity column
+        amount: orderAssets.amount,
+        presetType: orderAssets.presetType
+      })
+      .from(orderAssets)
+      .leftJoin(assets, eq(orderAssets.assetId, assets.id))
+      .where(eq(orderAssets.orderId, orderId));
+    
+    return result;
+  }
+
+   async createOtp(otpData: InsertOtpVerification): Promise<void> {
+    // 1. cleanup old OTPs for this email to prevent spamming/duplicates
+    await db.delete(otpVerifications).where(eq(otpVerifications.email, otpData.email));
+    
+    // 2. insert new
+    await db.insert(otpVerifications).values(otpData);
+  }
+
+  async verifyOtp(email: string, otp: string, type: string): Promise<boolean> {
+    const [record] = await db
+      .select()
+      .from(otpVerifications)
+      .where(and(
+        eq(otpVerifications.email, email),
+        eq(otpVerifications.otp, otp),
+        eq(otpVerifications.type, type),
+        gt(otpVerifications.expiresAt, new Date()) // Check if NOT expired
+      ));
+
+    if (record) {
+      // OTP is valid, consume it (delete it) so it can't be reused
+      await db.delete(otpVerifications).where(eq(otpVerifications.id, record.id));
+      return true;
+    }
+    return false;
+  }
+
+
+  // --- Payments ---
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
     const [payment] = await db.insert(payments).values(insertPayment).returning();
     return payment;
@@ -318,12 +429,7 @@ async getOrganizationAssets(orgId: string): Promise<Asset[]> {
     return payment;
   }
 
- async updatePaymentStatus(
-    id: string, 
-    status: string, 
-    transactionId?: string, 
-    gatewayResponse?: any
-  ): Promise<Payment> {
+  async updatePaymentStatus(id: string, status: string, transactionId?: string, gatewayResponse?: any): Promise<Payment> {
     const updates: any = { status, updatedAt: new Date() };
     if (transactionId) updates.transactionId = transactionId;
     if (gatewayResponse) updates.gatewayResponse = gatewayResponse;
@@ -402,77 +508,6 @@ async getOrganizationAssets(orgId: string): Promise<Asset[]> {
 
   async getAdminUsers(): Promise<Customer[]> {
     return await db.select().from(customers).where(eq(customers.role, "admin"));
-  }
-  // Add these methods inside the DatabaseStorage class in storage.ts
-
-
-
-  // server/storage.ts
-// server/storage.ts
-
-async getOrdersByOrganization(orgId: string): Promise<any[]> {
-    return await db
-      .select({
-        id: orders.id,
-        orderNumber: orders.orderNumber, // Now a standard Integer
-        orderStatus: orders.orderStatus,
-        createdAt: orders.createdAt,
-        amount: orders.amount,
-        quantity: orders.quantity,
-        presetType: orders.presetType, // Added this as it's useful for UI
-        creatorName: customers.name,
-      })
-      .from(orders)
-      .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
-      .where(eq(orders.organizationId, orgId))
-      .orderBy(desc(orders.createdAt));
-  }
-
-async getOrderWithDetails(orderId: string): Promise<any | undefined> {
-  const [result] = await db
-    .select({
-      order: orders,
-      creatorName: customers.name,
-    })
-    .from(orders)
-    .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
-    .where(eq(orders.id, orderId));
-  return result;
-}
-
-  // Implementation for the tracking screen detail fetch
-  
-  // Implementation to find driver assignment details
-  
-
-
-  // Fetch a single order with the creator's name for organization-wide visibility
-  // server/storage.ts
-async getOrderWithCreator(id: string): Promise<any | undefined> {
-  const [result] = await db
-    .select({
-      order: orders,
-      creatorName: customers.name,
-    })
-    .from(orders)
-    .leftJoin(customers, eq(orders.createdByCustomerId, customers.id))
-    .where(eq(orders.id, id)); // ✅ Verify 'id' here is the UUID
-  return result;
-}
-  // Fetch delivery details (driver assignment) for the tracking screen
-  async getDeliveryByOrderId(orderId: string): Promise<any | undefined> {
-    const [result] = await db
-      .select({
-        driverName: drivers.name,
-        driverPhone: drivers.phone,
-        driverRating: drivers.rating,
-        currentLatitude: drivers.currentLatitude,
-        currentLongitude: drivers.currentLongitude,
-      })
-      .from(drivers)
-      .innerJoin(orders, eq(orders.acceptedByDriverId, drivers.id))
-      .where(eq(orders.id, orderId));
-    return result;
   }
 
   // --- Auth Aliases ---

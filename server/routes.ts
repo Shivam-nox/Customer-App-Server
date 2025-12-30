@@ -8,7 +8,12 @@ import { adminService } from "./adminService";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { Resend } from 'resend';
+import { addMinutes } from 'date-fns';
+import { render } from '@react-email/render';
+import { OtpTemplate } from './emails/OtpTempelate'; // Adjust path if needed
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 import { 
   type Asset, 
   type Order, 
@@ -138,11 +143,116 @@ const requireAuth = async (req: any, res: any, next: any) => {
 export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==========================================
-  // AUTHENTICATION
+  // OTP AUTHENTICATION
   // ==========================================
- app.post("/api/auth/signup", async (req, res) => {
+
+  // 1. REQUEST OTP
+  app.post("/api/auth/otp/request", async (req, res) => {
     try {
-      console.log("📥 Signup Request Body:", req.body); // 1. Log incoming data
+      const { email, type } = req.body; // type: 'login' | 'signup'
+
+      if (!email || !type) return res.status(400).json({ error: "Email and type required" });
+
+      // Logic check
+      const existingUser = await storage.getCustomerByEmail(email);
+      if (type === 'login' && !existingUser) {
+        return res.status(404).json({ error: "No account found. Please Sign Up." });
+      }
+      if (type === 'signup' && existingUser) {
+        return res.status(400).json({ error: "Account exists. Please Log In." });
+      }
+
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = addMinutes(new Date(), 10); // 10 mins expiry
+
+      // Save to DB
+      await storage.createOtp({ email, otp, type, expiresAt });
+      const emailHtml = await render(OtpTemplate({ otp }));
+      // Send via Resend
+      const { error } = await resend.emails.send({
+      from: 'Zapygo <noreply@zapygo.com>', 
+  
+           to: [email], // Now this can be ANY email address
+          subject: `Your Zapygo Verification Code: ${otp}`,
+          html: emailHtml,
+      });
+
+      if (error) {
+        console.error("Resend Error:", error);
+        return res.status(500).json({ error: "Failed to send email." });
+      }
+
+      res.json({ success: true, message: `OTP sent to ${email}` });
+
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // 2. VERIFY OTP & LOGIN
+  app.post("/api/auth/otp/login", async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+      
+      const isValid = await storage.verifyOtp(email, otp, 'login');
+      if (!isValid) return res.status(400).json({ error: "Invalid or expired OTP" });
+
+      const user = await storage.getCustomerByEmail(email);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      // Generate Token & Return User
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+      const { passwordHash, ...safeUser } = user;
+      
+      res.json({ success: true, user: safeUser, token });
+
+    } catch (error) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // 3. VERIFY OTP & SIGNUP
+  app.post("/api/auth/otp/signup", async (req, res) => {
+    try {
+      const { email, otp, name, phone, username } = req.body;
+
+      const isValid = await storage.verifyOtp(email, otp, 'signup');
+      if (!isValid) return res.status(400).json({ error: "Invalid or expired OTP" });
+
+      // Create User
+      // Note: We generate a random passwordHash since they are using OTP
+      const randomPass = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPass, 10);
+
+      const newUser = await storage.createCustomer({
+        email,
+        name,
+        phone,
+        username: username || email.split('@')[0], 
+        passwordHash,
+        role: "employee",
+        kycStatus: "pending"
+      });
+
+      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+      const { passwordHash: _, ...safeUser } = newUser;
+
+      res.json({ success: true, user: safeUser, token });
+
+    } catch (error: any) {
+      console.error("Signup Error:", error);
+      res.status(500).json({ error: "Signup failed" });
+    }
+  });
+
+ // ==========================================
+  // STANDARD PASSWORD SIGNUP (Updated with Token)
+  // ==========================================
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      console.log("📥 Signup Request Body:", req.body);
 
       const userData = signupSchema.parse(req.body);
       
@@ -150,8 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                            (await storage.getCustomerByEmail(userData.email));
       
       if (existingUser) {
-        console.log("❌ User already exists");
-        return res.status(400).json({ error: "Username or email exists" });
+        return res.status(400).json({ error: "Username or email already exists" });
       }
 
       const passwordHash = await bcrypt.hash(userData.password, 10);
@@ -164,15 +273,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         kycStatus: "pending", 
       });
 
+      // ✅ NEW: Generate Token immediately
+      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+
       const { passwordHash: _, ...safeUser } = newUser;
-      res.json({ success: true, user: safeUser });
+
+      // ✅ Return user AND token
+      res.json({ success: true, user: safeUser, token });
 
     } catch (error: any) {
-      // ✅ 2. LOG THE ACTUAL ERROR TO TERMINAL
       console.error("🔥 Signup Error:", error);
       
-      // ✅ 3. Send the specific error message back to the frontend
-      // If it's a Zod validation error, it will usually be an array of issues
       const errorMessage = error.issues 
         ? error.issues.map((i: any) => i.message).join(", ") 
         : error.message;
@@ -229,19 +340,8 @@ app.get("/api/user/profile", requireAuth, async (req, res) => {
   }
 });
 
-  // ==========================================
-  // ORGANIZATION & KYC
-  // ==========================================
+ 
 
-  // ==========================================
-  // KYC UPLOAD URL ROUTE (Fixed & Debugged)
-  // ==========================================
-  // ==========================================
-  // KYC UPLOAD URL (Bypass / Mock Mode)
-  // ==========================================
-  // ==========================================
-  // KYC UPLOAD URL (HARDCODED MOCK)
-  // ==========================================
   app.post("/api/kyc/upload-url", requireAuth, async (req, res) => {
     // 1. Log immediately to prove the new code is running
     console.log("⚡ [NUCLEAR FIX] Generating Mock URL instantly...");
@@ -602,6 +702,67 @@ app.get("/api/orders", requireAuth, async (req, res) => {
       res.status(500).json({ error: "Failed to fetch orders" });
     }
   });
+
+  // ==========================================
+// TRACK SINGLE ORDER (FIXED)
+// ==========================================
+app.get("/api/orders/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
+
+    console.log(`🔍 Tracking Order Request: ${id}`);
+
+    // 1. Fetch Order (Handle UUID or 8-digit Order Number)
+    let order;
+    const isOrderNumber = /^\d{8}$/.test(id);
+
+    if (isOrderNumber) {
+      // Inefficient but safe way to find by BigInt OrderNumber without raw SQL
+      // Fetch recent orders for org and find match
+      const orgOrders = await storage.getOrdersByOrganization(user.organizationId!);
+      order = orgOrders.find((o: any) => String(o.orderNumber) === id);
+    } else {
+      // Fetch by UUID
+      order = await storage.getOrder(id);
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // 2. Security Check
+    if (order.organizationId !== user.organizationId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // 3. Fetch Related Data Manually
+    const [address, driver, assets] = await Promise.all([
+      order.organizationAddressId ? storage.getOrganizationAddress(order.organizationAddressId) : null,
+      order.acceptedByDriverId ? storage.getDriver(order.acceptedByDriverId) : null,
+      storage.getOrderAssets(order.id)
+    ]);
+
+    // 4. Construct Response
+    // We convert BigInts to strings to prevent serialization errors
+    const safeOrder = JSON.parse(
+      JSON.stringify(order, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+
+    res.json({ 
+      order: safeOrder, 
+      address, // Sending full address object
+      delivery: driver, 
+      assets: assets || []
+    });
+
+  } catch (error) {
+    console.error("🔥 Track Order Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
   app.post("/api/orders", requireAuth, async (req, res) => {
     try {
