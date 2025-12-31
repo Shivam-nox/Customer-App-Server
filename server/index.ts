@@ -4,88 +4,83 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+/* ======================================================
+   GLOBAL MIDDLEWARE (ORDER MATTERS)
+====================================================== */
+
+// Parse JSON bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// server/index.ts (Add this at the top)
-
+// Fix BigInt serialization
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
-// Serve Android App Links assetlinks.json file
+
+// Android App Links (assetlinks.json)
 app.get("/.well-known/assetlinks.json", (_req, res) => {
   res.setHeader("Content-Type", "application/json");
-  res.sendFile("public/.well-known/assetlinks.json", { root: process.cwd() });
+  res.sendFile("public/.well-known/assetlinks.json", {
+    root: process.cwd(),
+  });
 });
 
+// Request logger (API only)
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJson: any;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  const originalJson = res.json.bind(res);
+  res.json = (body: any) => {
+    capturedJson = body;
+    return originalJson(body);
   };
 
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+    if (req.path.startsWith("/api")) {
+      const duration = Date.now() - start;
+      log(
+        `${req.method} ${req.path} ${res.statusCode} in ${duration}ms` +
+          (capturedJson ? ` :: ${JSON.stringify(capturedJson).slice(0, 80)}…` : "")
+      );
     }
   });
 
   next();
 });
 
+/* ======================================================
+   REGISTER API ROUTES
+====================================================== */
+
 (async () => {
   const server = await registerRoutes(app);
 
+  /* ======================================================
+     ERROR HANDLER (API ONLY)
+  ====================================================== */
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    res.status(status).json({ error: message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  /* ======================================================
+     FRONTEND (VITE / STATIC) — MUST BE LAST
+  ====================================================== */
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
+  /* ======================================================
+     START SERVER
+  ====================================================== */
+  const port = parseInt(process.env.PORT || "3001", 10);
 
-  app.use(express.json());
-
-app.use((req, _res, next) => {
-  console.log("📥 Incoming Request");
-  console.log("➡️  Method:", req.method);
-  console.log("➡️  URL:", req.url);
-  console.log("➡️  Headers:", req.headers);
-  console.log("➡️  Body:", req.body);
-  console.log("——————————————");
-  next();
-});
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '3001', 10);
-  server.listen(port,'0.0.0.0', () => {
-    log(`serving on port ${port}`);
+  server.listen(port, "0.0.0.0", () => {
+    log(`🚀 Server running on port ${port}`);
   });
 })();
